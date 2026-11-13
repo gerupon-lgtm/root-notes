@@ -6,7 +6,11 @@ import { ratioOf } from './pitch.js';
 import { largestPrimeFactor } from './integer.js';
 
 // 根音からの半音の数
-const TRIADS = Object.freeze({ major: [0, 4, 7], minor: [0, 3, 7], diminished: [0, 3, 6] });
+export const TRIADS = Object.freeze({
+  major: Object.freeze([0, 4, 7]),
+  minor: Object.freeze([0, 3, 7]),
+  diminished: Object.freeze([0, 3, 6])
+});
 
 const key = semis => [...semis].sort((a, b) => a - b).join(',');
 
