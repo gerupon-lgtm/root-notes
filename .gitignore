@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# 手元のプレビュー設定（Claude Code のアプリ内ブラウザ用）
+.claude/
