@@ -1,8 +1,9 @@
 // 遊ぶ画面（段階3）。決まりは src/game/play.js、音は src/audio/engine.js、描画は triangle-view.js に任せ、
 // ここは画面の部品と操作をつなぐだけにする（docs/design/段階3_三角形ステージの画面.md）
-import { Play } from '../game/play.js';
+import { Play, stageTimbre } from '../game/play.js';
 import { buildScore } from '../game/song.js';
 import { MODES, MODE_ORDER } from '../content/modes.js';
+import { TIMBRES, SONG_TIMBRE, BASS_TIMBRE } from '../content/timbres.js';
 import { DISCOVERY_TEXT } from '../content/discoveries.js';
 import { BARS, PHRASE } from '../content/progressions.js';
 import { STAGE_RULES } from '../content/stage-rules.js';
@@ -30,11 +31,13 @@ function el(tag, attrs = {}, ...children) {
 }
 
 export function createStageScreen({ audio, onTitle }) {
-  const s = { play: null, busy: false, carryOver: false, msg: null, playingBar: -1, check: new URLSearchParams(location.search).has('check') };
+  const s = { play: null, busy: false, carryOver: false, msg: null, playingBar: -1, heard: false, result: null, check: new URLSearchParams(location.search).has('check') };
   const svgRoot = $('tri');
 
   const play = () => s.play;
   const K = () => play().stage.K;
+  // そのステージの音色。お題・辺の単音・自分の和音をそろえる（同じ音色でないと聞き比べにならない）
+  const timbre = () => TIMBRES[stageTimbre(play().run, play().index)];
   const hz = l => frequency(l, K());
   const lenColor = l => colorOf(hz(l));
   const say = (text, kind = '') => { s.msg = { text, kind }; renderStatus(); };
@@ -86,7 +89,7 @@ export function createStageScreen({ audio, onTitle }) {
   function renderSub() {
     const p = play();
     const phrase = Math.floor(p.index / PHRASE) + 1, pos = (p.index % PHRASE) + 1;
-    $('where').replaceChildren(`フレーズ${phrase}の`, el('b', {}, `${pos}つ目`), 'の和音');
+    $('where').replaceChildren(`フレーズ${phrase}の`, el('b', {}, `${pos}つ目`), `の和音・${timbre().name}`);
     const lives = $('lives');
     if (Number.isFinite(p.mode.lives)) {
       lives.replaceChildren(...Array.from({ length: p.mode.lives }, (_, i) => el('span', { class: i < p.livesLeft ? 'gem' : 'gem lost', 'aria-hidden': 'true' }, '◆')));
@@ -161,8 +164,22 @@ export function createStageScreen({ audio, onTitle }) {
     meter.hidden = p.mode.meter === 'toggle';
     meter.innerHTML = p.meterShown ? 'メーター<br>表示中' : Number.isFinite(p.meterLeft) ? `メーター<br>残り${p.meterLeft}` : 'メーター';
     meter.classList.toggle('dim', p.meterShown || p.meterLeft <= 0 || !p.closed);
-    $('b-answer').textContent = p.finished ? '最初から' : '回答する';
-    for (const id of ['b-target', 'b-chord', 'b-compare', 'b-meter', 'b-answer']) $(id).disabled = s.busy;
+    const answer = $('b-answer');
+    answer.textContent = p.finished ? '最初から' : p.awaitingNext ? '次の星へ' : '回答する';
+    for (const id of ['b-target', 'b-chord', 'b-compare', 'b-meter']) $(id).disabled = s.busy;
+    // 回答する：三角形ができたときだけ押せる（2026-11-14 発案者）
+    answer.disabled = s.busy || !(p.finished || p.awaitingNext || p.closed);
+    // お題を聞く：まだ聞いていないステージでは金色の縁で導く
+    $('b-target').classList.toggle('guide', !s.heard && !p.finished);
+  }
+
+  // ステージの始まりの合図：「お題を聞く」を2回光らせる（前作 AQUA の開始の合図と同じ時間割り）
+  function startCue() {
+    s.heard = false;
+    const b = $('b-target');
+    b.classList.remove('cue');
+    void b.offsetWidth;
+    if (!reduceMotion()) b.classList.add('cue');
   }
 
   function songTitle() { return `${play().run.progression.name}（キー ${keyName(play().run.key)}）`; }
@@ -224,6 +241,8 @@ export function createStageScreen({ audio, onTitle }) {
     renderAll();
     const labels = p.run.stages.slice(from, to + 1).map(x => x.label);
     audio.playScore(buildScore(p.run.stages, from, to, { carryOver: s.carryOver }), {
+      chordTimbre: TIMBRES[SONG_TIMBRE],
+      bassTimbre: TIMBRES[BASS_TIMBRE],
       onBar: bar => {
         s.playingBar = bar;
         renderStars();
@@ -235,19 +254,81 @@ export function createStageScreen({ audio, onTitle }) {
     });
   }
 
+  // ---------- 結果のトースト（前作 AQUA・PRISM の結果のトーストに合わせる） ----------
+  // 正解も不正解も同じ形。画面の下の操作欄に重ねて出し、次にすることのボタンを置く。×・トーストの外に触れる・Esc で閉じる
+  function showResult(kind, r) {
+    const p = play();
+    const bar = p.index + 1, label = p.stage.label;
+    let head, body, buttons;
+    if (kind === 'correct') {
+      const song = r.music?.kind === 'song';
+      head = song ? '1曲できあがり' : '澄んだ！';
+      body = song ? `${songTitle()}：${p.run.stages.map(x => x.label).join(' → ')}` : `${bar}小節目は「${label}」。${r.music?.kind === 'phrase' ? `フレーズ${r.music.from / PHRASE + 1}がそろいました。` : ''}`;
+      if (p.mode.continuous) buttons = bar === BARS ? [['restart', '新しい曲で遊ぶ', true], ['title', 'タイトルへ']] : [['next', '次の星へ ▶', true]];
+      else buttons = p.nextBar() === null ? [['close', '閉じる', true]] : [['next', '次の星へ ▶', true], ['close', 'この星に残る']];
+    } else if (r.gameOver) {
+      head = 'ゲームオーバー';
+      body = '失敗の上限に達しました。新しい曲でもう一度挑戦できます。';
+      buttons = [['restart', '最初から', true], ['title', 'タイトルへ']];
+    } else {
+      head = '違う響き';
+      body = `${Number.isFinite(r.livesLeft) ? `失敗の残り ${r.livesLeft} 回。` : ''}辺を1音ずつ鳴らして、お題と比べてみよう。`;
+      buttons = [['retry', 'もう一度', true]];
+    }
+    s.result = kind;
+    const t = $('result-toast');
+    t.className = `result-toast ${kind === 'correct' ? 'ok' : 'ng'}`;
+    t.replaceChildren(
+      el('div', { class: 'result-head' }, el('h3', {}, head), el('button', { type: 'button', class: 'close', 'data-act': 'close', 'aria-label': '閉じる' }, '×')),
+      el('p', {}, body),
+      el('div', { class: 'result-actions' }, ...buttons.map(([act, text, primary]) => el('button', { type: 'button', class: primary ? 'btn primary' : 'btn', 'data-act': act }, text))));
+    t.hidden = false;
+    placeResult();
+  }
+  function placeResult() {
+    const t = $('result-toast');
+    if (t.hidden) return;
+    const top = $('sticks').getBoundingClientRect(), bottom = $('actions-row').getBoundingClientRect();
+    t.style.left = `${top.left}px`;
+    t.style.width = `${top.width}px`;
+    t.style.bottom = `${Math.max(0, innerHeight - bottom.bottom)}px`;
+    t.style.maxHeight = `${bottom.bottom - top.top + 40}px`;
+  }
+  function closeResult() { $('result-toast').hidden = true; s.result = null; }
+  function goNext() {
+    const p = play();
+    closeResult();
+    audio.stopAll();
+    if (p.mode.continuous) p.advance();
+    else {
+      const bar = p.nextBar();
+      if (bar !== null) p.goTo(bar);
+    }
+    s.msg = null;
+    startCue();
+    renderAll();
+  }
+  $('result-toast').addEventListener('click', e => {
+    const act = e.target.closest('button')?.dataset.act;
+    if (!act) return;
+    if (act === 'next') goNext();
+    else if (act === 'restart') { closeResult(); start(play().mode.id); }
+    else if (act === 'title') { closeResult(); audio.stopAll(); onTitle(); }
+    else closeResult();
+    renderAll();
+  });
+  document.addEventListener('pointerdown', e => {
+    if (!$('result-toast').hidden && !e.target.closest('#result-toast')) closeResult();
+  }, { capture: true });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeResult(); });
+  addEventListener('resize', placeResult);
+
   function afterCorrect(result) {
     const p = play();
-    const next = () => {
-      if (p.mode.continuous) {
-        p.advance();
-        s.msg = null;
-        if (!p.complete) toast(`${p.index + 1}小節目へ`);
-      }
-      renderAll();
-    };
-    if (result.music?.kind === 'song') { toast('8つの星がそろった。1曲を通して流します'); playMusic(0, BARS - 1, songTitle(), () => { s.msg = { text: `1曲できあがり：${songTitle()}`, kind: 'ok' }; next(); }); }
-    else if (result.music?.kind === 'phrase') { toast(`フレーズ${result.music.from / PHRASE + 1}が鳴ります`); playMusic(result.music.from, result.music.to, `キー ${keyName(p.run.key)}`, next); }
-    else { s.busy = false; next(); }
+    const done = () => { s.busy = false; renderAll(); showResult('correct', result); };
+    if (result.music?.kind === 'song') playMusic(0, BARS - 1, songTitle(), done);
+    else if (result.music?.kind === 'phrase') playMusic(result.music.from, result.music.to, `キー ${keyName(p.run.key)}`, done);
+    else done();
   }
 
   // ---------- 操作 ----------
@@ -255,17 +336,19 @@ export function createStageScreen({ audio, onTitle }) {
     audio.stopAll();
     s.play = Play.start(modeId);
     s.busy = false; s.msg = null; s.playingBar = -1;
+    closeResult();
     renderMeterRows();
+    startCue();
     renderAll();
   }
 
   $('sticks').addEventListener('click', e => {
     const b = e.target.closest('.stick');
-    if (!b || s.busy || play().finished) return;
+    if (!b || s.busy || play().finished || play().awaitingNext) return;
     const i = Number(b.dataset.i);
     play().pick(i);
     s.msg = null;
-    audio.pluck(hz(play().stage.sticks[i]), play().sustain);
+    audio.pluck(hz(play().stage.sticks[i]), play().sustain, timbre());
     for (const d of play().lastFound) toast(`発見：${DISCOVERY_TEXT[d].title}`);
     renderAll();
   });
@@ -280,7 +363,7 @@ export function createStageScreen({ audio, onTitle }) {
     lastK = k;
     const l = play().selectedLengths[k];
     if (!l) return;
-    audio.pluck(hz(l), play().sustain);
+    audio.pluck(hz(l), play().sustain, timbre());
     ringSide(k);
   }
   svgRoot.addEventListener('pointerdown', e => { if (s.busy || !play().ready) return; tracing = true; lastK = null; touchSide(sideAt(e.clientX, e.clientY)); });
@@ -291,15 +374,18 @@ export function createStageScreen({ audio, onTitle }) {
     const b = e.target.closest('.star');
     if (!b || s.busy || play().mode.continuous) return;
     audio.stopAll();
+    closeResult();
     play().goTo(Number(b.dataset.bar));
     s.msg = null;
+    startCue();
     renderAll();
   });
 
   $('b-target').addEventListener('click', () => {
     if (s.busy) return;
     audio.stopAll();
-    audio.chord(frequencies(play().stage.target, K()));
+    audio.chord(frequencies(play().stage.target, K()), { timbre: timbre() });
+    if (!s.heard) { s.heard = true; renderActions(); }
     const star = $('stars').querySelector('.star.on');
     if (star && !reduceMotion()) { star.classList.add('twinkle'); setTimeout(() => star.classList.remove('twinkle'), 1200); }
   });
@@ -315,7 +401,7 @@ export function createStageScreen({ audio, onTitle }) {
     const r = play().canPlayChord();
     if (!r.ok) { say(CHORD_REASON[r.reason], 'warn'); return; }
     audio.stopAll();
-    audio.chord(mine());
+    audio.chord(mine(), { timbre: timbre() });
     glow(mine());
     setTimeout(() => glow(null), 1800);
   });
@@ -324,8 +410,8 @@ export function createStageScreen({ audio, onTitle }) {
     const r = play().canPlayChord();
     if (!r.ok) { say(CHORD_REASON[r.reason], 'warn'); return; }
     audio.stopAll();
-    audio.chord(frequencies(play().stage.target, K()), { duration: 1.4 });
-    audio.chord(mine(), { delay: 1.72, duration: 1.4 });
+    audio.chord(frequencies(play().stage.target, K()), { timbre: timbre(), duration: 1.4 });
+    audio.chord(mine(), { timbre: timbre(), delay: 1.72, duration: 1.4 });
     say('お題 → 自分の順に鳴らしています。');
     setTimeout(() => glow(mine()), 1720);
     setTimeout(() => glow(null), 3300);
@@ -347,26 +433,26 @@ export function createStageScreen({ audio, onTitle }) {
     if (s.busy) return;
     const p = play();
     if (p.finished) { start(p.mode.id); return; }
+    if (p.awaitingNext) { goNext(); return; }
     const r = p.answer();
     if (r.result === 'need-three') { say('棒を3本選んでから回答してください。', 'warn'); return; }
     if (r.result === 'open') { say('閉じていない三角形では回答できません（失敗には数えません）。', 'warn'); return; }
     audio.stopAll();
     if (r.result === 'correct') {
-      audio.chord(mine(), { duration: 2.0 });
+      audio.chord(mine(), { timbre: timbre(), duration: 2.0 });
       s.busy = true;
       s.msg = { text: `澄んだ！ ${p.index + 1}小節目は「${p.stage.label}」。`, kind: 'ok' };
       renderAll();
       glow(mine());
-      setTimeout(() => afterCorrect(r), 2200);
+      // フレーズや1曲がそろったら和音の余韻のあとに流し、終わってから結果を出す。そうでなければ少し聞かせてから出す
+      setTimeout(() => afterCorrect(r), r.music ? 2200 : 900);
       return;
     }
-    audio.chord(mine(), { duration: 1.0 });
+    audio.chord(mine(), { timbre: timbre(), duration: 1.0 });
     shake();
-    if (r.gameOver) s.msg = null;
-    else s.msg = Number.isFinite(r.livesLeft)
-      ? { text: `違う響きです。失敗の残り ${r.livesLeft} 回。`, kind: 'warn' }
-      : { text: '違う響きです。辺を1音ずつ鳴らして、お題と比べてみてください。', kind: 'warn' };
+    s.msg = r.gameOver ? null : { text: '違う響きです。', kind: 'warn' };
     renderAll();
+    setTimeout(() => showResult('wrong', r), 600);
   });
 
   // ---------- 引き出し ----------

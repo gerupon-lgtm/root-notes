@@ -20,9 +20,11 @@ export function fakeAudioContext() {
     destination: node(),
     resume() { return Promise.resolve(); },
     createOscillator() {
-      return node({ type: 'sine', frequency: param(), started: null, stoppedAt: null, onended: null,
+      return node({ type: 'sine', frequency: param(), started: null, stoppedAt: null, onended: null, wave: null,
+        setPeriodicWave(w) { this.type = 'custom'; this.wave = w; },
         start(t) { this.started = t; }, stop(t) { this.stoppedAt = t; } });
     },
+    createPeriodicWave(real, imag) { return { real, imag }; },
     createGain() { return node({ gain: param(1) }); },
     createBiquadFilter() { return node({ type: 'lowpass', frequency: param(), Q: param() }); },
     createDynamicsCompressor() { return node(); }

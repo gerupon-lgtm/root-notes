@@ -5,6 +5,10 @@ import { PROGRESSIONS, SELECT_PLAY, BARS, PHRASE } from '../content/progressions
 import { buildRun } from '../core/stage-gen.js';
 import { closes } from '../core/length.js';
 import { isCorrect, discoveries } from '../core/judge.js';
+import { STAGE_TIMBRES } from '../content/timbres.js';
+
+// そのステージの音色。種から始めて小節ごとに順に回すので、隣の星は違う音色になる
+export const stageTimbre = (run, bar) => STAGE_TIMBRES[(run.seed + bar) % STAGE_TIMBRES.length];
 
 export function modeOf(id) {
   const mode = MODES[id];
@@ -52,6 +56,18 @@ export class Play {
   get closed() { return this.ready && closes(this.selectedLengths); }
   get finished() { return this.over || this.complete; }
 
+  // 連続プレイで、今の星を灯して「次の星へ」を待っている
+  get awaitingNext() { return this.mode.continuous && !this.complete && this.lit.has(this.index); }
+
+  // 選択プレイの次の星：今より後ろでまだ灯っていない星。後ろになければ前から。全部灯っていれば null
+  nextBar() {
+    for (let k = 1; k <= BARS; k++) {
+      const bar = (this.index + k) % BARS;
+      if (!this.lit.has(bar)) return bar;
+    }
+    return null;
+  }
+
   // 単音の余韻：回答前（選択・ノーマル・エキスパート）は止める、回答後とフリーは重ねる（要件6.5、AC-14）
   get sustain() { return this.mode.chordBeforeAnswer || this.answered ? 'overlap' : 'cut'; }
 
@@ -74,7 +90,7 @@ export class Play {
 
   // 棒を選ぶ・外す。4本目を選ぶと、いちばん先に選んだ棒が外れる（試作と同じ）
   pick(i) {
-    if (this.finished) return;
+    if (this.finished || this.awaitingNext) return;
     if (!Number.isInteger(i) || i < 0 || i >= this.stage.sticks.length) throw new Error(`棒の番号が正しくありません：${i}`);
     const at = this.selected.indexOf(i);
     if (at >= 0) this.selected.splice(at, 1);
@@ -115,6 +131,7 @@ export class Play {
   // 回答する。result：'finished'・'need-three'・'open'・'correct'・'wrong'
   answer() {
     if (this.finished) return { result: 'finished' };
+    if (this.awaitingNext) return { result: 'awaiting-next' };
     if (!this.ready) return { result: 'need-three' };
     if (!this.closed) return { result: 'open' }; // 閉じていない回答は失敗に数えない（要件5章）
     this.answered = true;

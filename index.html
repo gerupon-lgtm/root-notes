@@ -42,7 +42,7 @@
     </div>
   </section>
   <div class="sticks" id="sticks" aria-label="棒"></div>
-  <div class="actions">
+  <div class="actions" id="actions-row">
     <button type="button" class="btn" id="b-target">お題を<br>聞く</button>
     <button type="button" class="btn" id="b-chord">和音で<br>鳴らす</button>
     <button type="button" class="btn" id="b-compare">比べる</button>
@@ -82,6 +82,8 @@
   </div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<!-- 結果のトースト（正解・不正解）。操作欄に重ねて出し、次にすることのボタンを置く -->
+<div class="result-toast" id="result-toast" role="status" aria-live="polite" hidden></div>
 <script type="module" src="./src/ui/main.js"></script>
 </body>
 </html>
