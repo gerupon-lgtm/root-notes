@@ -29,9 +29,10 @@ export const ART = Object.freeze({
   'scene-forge-legend': null
 });
 
-// 名前から、index.html から見たパスを返す。まだ採用していない絵は null
+// 名前から、絵の場所（URL）を返す。まだ採用していない絵は null。
+// このファイルの場所から求めるので、公開用のまとめで版のフォルダ（v0.1.1/ など）に入っても場所がずれない
 export function artPath(name) {
   if (!Object.hasOwn(ART, name)) throw new Error(`素材の名前「${name}」は表にありません。`);
   const file = ART[name];
-  return file === null ? null : `./${ART_BASE}${file}`;
+  return file === null ? null : new URL(`../../${ART_BASE}${file}`, import.meta.url).href;
 }

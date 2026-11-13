@@ -1,10 +1,13 @@
 // 段階0の土台のテスト（docs/design/段階0_土台.md 6章）
-// 版数の一致、画面に版数と © を出す場所、絵の素材のパスの表を確かめる。
+// 版数の一致、画面に版数と © を出す場所、絵の素材のパスの表、公開用のまとめを確かめる。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { APP_VERSION, COPYRIGHT, SERIES } from '../src/version.js';
 import { ART_BASE, ART, artPath } from '../src/content/assets.js';
+import { build } from '../scripts/build.js';
 
 const root = new URL('../', import.meta.url);
 const read = path => readFileSync(new URL(path, root), 'utf8');
@@ -20,8 +23,8 @@ test('画面：index.html に、シリーズ表記・版数・© を差し込む
   for (const id of ['app-series', 'app-version', 'app-copyright']) {
     assert.match(html, new RegExp(`id="${id}"`), `id="${id}" がありません`);
   }
-  assert.match(COPYRIGHT, /^© .*SIKUMI LAB$/);
-  assert.match(SERIES, /^SIKUMI NOTES \| 04$/);
+  assert.equal(COPYRIGHT, '© SIKUMI LAB'); // 年なし（2026-11-14 発案者）
+  assert.equal(SERIES, 'SIKUMI NOTES | 04');
 });
 
 test('素材：表に書いたパスのファイルはすべて実在する（まだ採用していない絵は null）', () => {
@@ -32,10 +35,28 @@ test('素材：表に書いたパスのファイルはすべて実在する（�
   }
 });
 
-test('素材：名前で引くと、採用前の絵は null、表にない名前は止まる', () => {
-  for (const name of Object.keys(ART)) {
-    const path = artPath(name);
-    assert.ok(path === null || path === `./${ART_BASE}${ART[name]}`);
+test('素材：名前で引くと、リポジトリの一番上から見た場所を返す。採用前の絵は null、表にない名前は止まる', () => {
+  for (const [name, file] of Object.entries(ART)) {
+    assert.equal(artPath(name), file === null ? null : new URL(ART_BASE + file, root).href);
   }
   assert.throws(() => artPath('no-such-art'), /表にありません/);
+});
+
+test('公開用のまとめ：版のフォルダに部品を置き、入口のページがその版を読む', () => {
+  const output = mkdtempSync(join(tmpdir(), 'root-notes-build-'));
+  try {
+    const { version } = build({ output });
+    assert.equal(version, APP_VERSION);
+    const index = readFileSync(join(output, 'index.html'), 'utf8');
+    assert.match(index, new RegExp(`\\./v${version.replaceAll('.', '\\.')}/src/ui/main\\.js`));
+    assert.doesNotMatch(index, /"\.\/src\//);
+    for (const file of ['src/ui/main.js', 'src/ui/style.css', 'src/version.js', 'src/content/assets.js']) {
+      assert.ok(existsSync(join(output, `v${version}`, file)), `${file} がありません`);
+    }
+    const info = JSON.parse(readFileSync(join(output, 'build-info.json'), 'utf8'));
+    assert.equal(info.version, version);
+    assert.ok(existsSync(join(output, '.nojekyll')));
+  } finally {
+    rmSync(output, { recursive: true, force: true });
+  }
 });
