@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ROOT NOTES 最終章 試作</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* layout: スクロールしない1画面。上=場面と説明、中央=三角形、下=手持ちの辺と操作 */
+  --night:#0b1020;
+  --panel:#131b36;
+  --line:#2a3560;
+  --ink:#ece6d6;
+  --mute:#9aa2bd;
+  --gold:#e0b85c;
+  --ok:#86dcb6;
+  --warn:#e7907f;
+  --display:"Cinzel","Times New Roman",serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--night);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;overflow:hidden}
+body{-webkit-tap-highlight-color:transparent}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.app{position:relative;z-index:1;height:100%;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:8px;
+  padding:calc(8px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+.top{display:flex;align-items:center;gap:8px}
+h1{font-family:var(--display);font-weight:700;letter-spacing:.12em;font-size:1.1rem;margin:0;color:var(--gold);flex:1;white-space:nowrap}
+h1 small{font-family:var(--body);letter-spacing:.04em;font-size:.72rem;color:var(--mute);font-weight:400;margin-left:6px}
+.chip{border:1px solid var(--gold);border-radius:999px;background:color-mix(in srgb,var(--gold) 12%,transparent);color:var(--ink);font:inherit;font-size:.76rem;padding:6px 12px;min-height:34px;cursor:pointer;white-space:nowrap}
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.step{border:1px solid var(--line);border-radius:8px;font-size:.7rem;color:var(--mute);text-align:center;padding:4px 2px;line-height:1.2}
+.step.on{border-color:var(--gold);color:var(--ink);background:color-mix(in srgb,var(--gold) 10%,transparent)}
+.step.done{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 50%,var(--line))}
+.sub{font-size:.84rem;color:var(--mute);margin:0;min-height:3.9em;display:flex;justify-content:space-between;gap:8px}
+.sub b{color:var(--ink)}
+.gem{color:var(--gold);font-size:.7rem;white-space:nowrap} .gem.lost{color:var(--line)}
+.stagebox{flex:1;min-height:150px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--panel) 70%,transparent);display:flex;flex-direction:column;overflow:hidden}
+svg#scene{flex:1;min-height:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-select:none}
+.status{padding:0 10px 8px}
+#msg{font-size:.86rem;margin:0;min-height:2.6em}
+#msg.ok{color:var(--ok);font-weight:700}
+#msg.warn{color:var(--warn)}
+#msg.tale{color:var(--ink);font-size:.95rem;line-height:1.75}
+#msg .who{display:block;font-size:.7rem;color:var(--gold);letter-spacing:.08em;margin-bottom:2px}
+.fadein{animation:fi .9s ease both}@keyframes fi{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.fadein{animation:none}}
+.lower{display:flex;flex-direction:column;gap:8px}
+.lower h2{font-size:.72rem;letter-spacing:.06em;color:var(--mute);margin:0;font-weight:700}
+.inv{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.it{background:transparent;border:1px solid var(--line);border-radius:10px;color:var(--ink);font:inherit;cursor:pointer;min-height:56px;padding:3px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.it .num{font-family:var(--display);font-size:1.05rem;font-weight:700}
+.it small{font-size:.62rem;color:var(--mute)}
+.it.sel{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,transparent)}
+.it.empty{border-style:dashed;cursor:default;color:var(--line)}
+.actions{display:flex;gap:6px}
+.btn{flex:1;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:.88rem;font-weight:700;cursor:pointer;padding:4px 6px;line-height:1.25}
+.btn.primary{background:var(--gold);color:#1a1405;border-color:var(--gold)}
+.btn.small{min-height:38px;font-size:.78rem;font-weight:400;color:var(--mute)}
+.btn:disabled{opacity:.4}
+#toast{position:fixed;left:50%;top:calc(56px + env(safe-area-inset-top));transform:translateX(-50%);background:var(--gold);color:#1a1405;font-weight:700;padding:8px 14px;border-radius:999px;font-size:.86rem;z-index:20;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+#toast.zap{background:var(--warn)}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.shake{animation:shake .4s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+@media (prefers-reduced-motion:reduce){.shake{animation:none}#toast{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="app" id="app">
+  <div class="top">
+    <h1>ROOT NOTES<small id="where">最終章</small></h1>
+    <button class="chip" id="bMode"></button>
+  </div>
+  <div class="steps" id="steps"></div>
+  <p class="sub"><span id="hint"></span><span id="lives"></span></p>
+  <div class="stagebox">
+    <svg id="scene" viewBox="0 0 320 210" preserveAspectRatio="xMidYMid meet" role="img"></svg>
+    <div class="status"><p id="msg"></p></div>
+  </div>
+  <div class="lower" id="lower"></div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+/* ===== 音の高さ：長さに反比例。この章の基準は、6√2 の辺がシ（B3）になるように決める（キーC） ===== */
+const SQ2 = Math.SQRT2;
+const val = l => l.n * (l.r2 ? SQ2 : 1);
+const show = l => l.r2 ? `${l.n}√2` : `${l.n}`;
+const K = 246.94 * 6 * SQ2;
+const freq = l => K / val(l);
+const L = (n, extra={}) => Object.assign({n, r2:false}, extra);
+
+/* ===== アーティファクト（それまでの章の謎で手に入る）。答えた長さがそのまま辺になる ===== */
+const ARTS = {
+  shield:{name:"盾", answer:9, choices:[8,9,10], role:"B♭：Fsus4のsus4"},
+  sword: {name:"剣", answer:5, choices:[4,5,7],  role:"A♭：Fm（サブドミナントマイナー）の3度"},
+  armor: {name:"鎧", answer:4, choices:[3,4,5],  role:"C：G7sus4のsus4、最後の主和音の根音"}
+};
+const ART_ORDER = ["shield","sword","armor"];
+const DECOYS = [7,10];   // 旅で拾った辺（おとり）
+/* ===== 最終章の課題（固定）。与えられた2辺＋手持ちから1本で、課題の響きを作る ===== */
+const TASKS = [
+  {art:"shield", given:[6,8], answer:9, reward:L(6,{tag:"扉用",locked:true}), title:"課題1：盾の門"},
+  {art:"sword",  given:[4,6], answer:5, reward:L(6,{tag:"扉用",locked:true}), title:"課題2：剣の門"},
+  {art:"armor",  given:[3,6], answer:4, reward:"scroll",                 title:"課題3：鎧の門"}
+];
+const MODES = { hint:{name:"ヒントあり",lives:Infinity}, normal:{name:"ノーマル",lives:10}, expert:{name:"エキスパート",lives:5} };
+const ORDER = ["hint","normal","expert"];
+
+const S = {mode:"hint", lives:Infinity, arts:{shield:null,sword:null,armor:null},
+  scene:"journey", task:0, inv:[], pick:[], scroll:false, zapQueue:[], riddle:null, rsel:null, done:false, over:false, busy:false};
+const $ = id => document.getElementById(id);
+const M = () => MODES[S.mode];
+const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ===== 音 ===== */
+let ctx=null, master=null;
+function audio(){
+  if(!ctx){ const AC=window.AudioContext||window.webkitAudioContext; ctx=new AC();
+    const lp=ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=2800;
+    const comp=ctx.createDynamicsCompressor(); master=ctx.createGain(); master.gain.value=.9;
+    master.connect(lp); lp.connect(comp); comp.connect(ctx.destination); }
+  if(ctx.state==="suspended") ctx.resume();
+}
+function tone(f,t0,dur,peak){ const o=ctx.createOscillator(); o.type="sawtooth"; o.frequency.setValueAtTime(f,t0);
+  const g=ctx.createGain(); g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(peak,t0+.02); g.gain.setTargetAtTime(peak*.65,t0+.04,.4);
+  g.gain.setTargetAtTime(0,t0+dur,.1); o.connect(g); g.connect(master); o.start(t0); o.stop(t0+dur+1); }
+function pluck(f,delay=0){ audio(); const t=ctx.currentTime+.01+delay; const o=ctx.createOscillator(); o.type="sawtooth"; o.frequency.setValueAtTime(f,t);
+  const g=ctx.createGain(); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.13,t+.006); g.gain.setTargetAtTime(0,t+.02,.4);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+2); }
+function chordOf(ls,dur=1.8){ audio(); const t=ctx.currentTime+.03; ls.map(freq).sort((a,b)=>a-b).forEach((f,k)=>tone(f,t+k*.04,dur,.07)); twinkle=performance.now(); }
+function zapSound(){ audio(); const t=ctx.currentTime+.02; tone(80,t,.5,.1); tone(84.8,t,.5,.1); }
+
+/* ===== 表示 ===== */
+function say(t,cls){ if(S.scene==="tale") return; const m=$("msg"); m.innerHTML=t; m.className=cls||""; }
+let tt=null;
+function toast(t,zap){ const e=$("toast"); e.textContent=t; e.classList.toggle("zap",!!zap); e.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>e.classList.remove("show"),3000); }
+function shake(){ $("app").classList.add("shake"); setTimeout(()=>$("app").classList.remove("shake"),400); }
+const svg=$("scene");
+function closed(ls){ const v=ls.map(val).sort((a,b)=>a-b); return v[0]+v[1]>v[2]+1e-9; }
+function drawTriangle(ls, labels, fillCol, slotIdx){
+  // ls: 3本（null は空き枠）。閉じれば三角形、空きや閉じないときは棒を並べる
+  if(ls.every(Boolean) && closed(ls)){
+    const v=ls.map(val), [a,b,c]=v, x=(b*b+c*c-a*a)/(2*c), y=Math.sqrt(Math.max(0,b*b-x*x));
+    const minx=Math.min(0,x), maxx=Math.max(c,x), s=Math.min(250/(maxx-minx),150/Math.max(y,1e-6));
+    const ox=160-(minx+maxx)/2*s, oy=186;
+    const P=[[ox+c*s,oy],[ox+x*s,oy-y*s],[ox,oy]];     // 辺0=P0-P1, 辺1=P1-P2, 辺2=P2-P0
+    const seg=[[P[0],P[1]],[P[1],P[2]],[P[2],P[0]]];
+    const cx=(P[0][0]+P[1][0]+P[2][0])/3, cy=(P[0][1]+P[1][1]+P[2][1])/3;
+    return `<polygon points="${P.join(" ")}" fill="${fillCol||"rgba(224,184,92,.07)"}"/>` + seg.map(([p,q],k)=>{
+      const mx=(p[0]+q[0])/2, my=(p[1]+q[1])/2, dx=mx-cx, dy=my-cy, d=Math.hypot(dx,dy)||1, hl=k===slotIdx;
+      return `<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="${hl?"#f2d27a":"#ece6d6"}" stroke-width="${hl?4.5:3}" stroke-linecap="round"/>
+        <line class="hit" data-k="${k}" x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="transparent" stroke-width="28"/>
+        <text x="${mx+dx/d*16}" y="${my+dy/d*16+5}" text-anchor="middle" fill="${hl?"#f2d27a":"#ece6d6"}" font-size="14" font-weight="700" pointer-events="none">${labels[k]}</text>`;
+    }).join("");
+  }
+  return ls.map((l,k)=>{ const y=50+k*48, w=l?val(l)/12*230:0, hl=k===slotIdx;
+    return l ? `<line x1="30" y1="${y}" x2="${30+w}" y2="${y}" stroke="${hl?"#f2d27a":"#ece6d6"}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${closed(ls.filter(Boolean).length===3?ls:[L(1),L(1),L(1)])?"":"2 6"}"/>
+        <line class="hit" data-k="${k}" x1="30" y1="${y}" x2="${30+w}" y2="${y}" stroke="transparent" stroke-width="28"/>
+        <text x="${38+w}" y="${y+5}" fill="${hl?"#f2d27a":"#ece6d6"}" font-size="14">${labels[k]}</text>`
+      : `<line x1="30" y1="${y}" x2="200" y2="${y}" stroke="#2a3560" stroke-width="3" stroke-dasharray="6 6"/><text x="208" y="${y+5}" fill="#9aa2bd" font-size="13">${labels[k]}</text>`;
+  }).join("");
+}
+function bindHits(ls){ svg.querySelectorAll(".hit").forEach(h=>h.addEventListener("click",()=>{ const l=ls[+h.dataset.k]; if(l) pluck(freq(l)); })); }
+function renderTop(){
+  $("bMode").textContent = M().name + " ▾";
+  const st=[["旅","journey"],["盾の門",0],["剣の門",1],["鎧の門",2],["扉","door"]];
+  $("steps").innerHTML = st.map(([n,k])=>{
+    const inFinal = S.scene==="task"||S.scene==="door"||S.scene==="end";
+    const on = (k==="journey" && (S.scene==="journey"||S.scene==="riddle")) || (S.scene==="task" && k===S.task) || (k==="door" && (S.scene==="door"||S.scene==="end"));
+    const done = (typeof k==="number" && inFinal && (k<S.task || S.scene==="door" || S.scene==="end"));
+    return `<div class="step${on?" on":""}${done?" done":""}">${n}</div>`;
+  }).join("");
+  $("lives").innerHTML = isFinite(M().lives) ? Array.from({length:M().lives},(_,i)=>`<span class="gem${i>=S.lives?" lost":""}">◆</span>`).join("") : "";
+}
+function invHTML(selectable){
+  const cells=S.inv.map((l,i)=>`<button class="it${S.pick.includes(i)?" sel":""}" data-i="${i}"><span class="num">${show(l)}</span><small>${l.tag||""}</small></button>`);
+  while(cells.length<5) cells.push(`<div class="it empty"><span class="num">·</span></div>`);
+  return `<h2>手持ちの辺（タップで音${selectable?"・選ぶ":""}）</h2><div class="inv">${cells.join("")}</div>`;
+}
+
+/* ===== 場面：旅（それまでの章の代わり。試作用） ===== */
+function renderJourney(){
+  $("where").textContent="これまでの旅（試作用）";
+  $("hint").innerHTML = `本編では第1〜3章の章末の謎で、<b>封音の眠る盾・剣・鎧</b>が手に入る。ここでは試作用に、謎を解くか、状態を選んで最終章へ。`;
+  svg.innerHTML = ART_ORDER.map((k,i)=>{ const a=ARTS[k], v=S.arts[k];
+    return `<text x="40" y="${50+i*50}" fill="#9aa2bd" font-size="14">${a.name}</text><text x="100" y="${50+i*50}" fill="${v?"#f2d27a":"#2a3560"}" font-size="18" font-weight="700">${v?v:"未入手"}</text>`; }).join("") +
+    `<text x="40" y="200" fill="#9aa2bd" font-size="12">旅で拾った辺（おとり）：${DECOYS.join("・")}</text>`;
+  $("lower").innerHTML = `<div class="actions">${ART_ORDER.map(k=>`<button class="btn" data-r="${k}">${ARTS[k].name}の謎</button>`).join("")}</div>
+    <div class="actions"><button class="btn small" id="bAllOk">正しく集めた状態にする</button><button class="btn small" id="bShieldNg">盾を間違えた状態にする</button></div>
+    <div class="actions"><button class="btn small" id="bTale">おはなしをもう一度</button><button class="btn primary" id="bFinal">最終章へ</button></div>`;
+  $("bTale").onclick=()=>tale(PROLOGUE, toJourney, "おはなし：序");
+  $("lower").querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>openRiddle(b.dataset.r));
+  $("bAllOk").onclick=()=>{ ART_ORDER.forEach(k=>S.arts[k]=ARTS[k].answer); render(); say("盾9・剣5・鎧4 を持った状態にした。"); };
+  $("bShieldNg").onclick=()=>{ S.arts={shield:8, sword:5, armor:4}; render(); say("盾の謎を間違えて、8を持ち帰った状態にした。"); };
+  $("bFinal").onclick=()=>enterFinal(false);
+}
+/* ===== 場面：謎（章末の謎と同じ形：星の単音と同じ高さの弦を選ぶ。その場で正誤は出さない） ===== */
+function openRiddle(k){ S.scene="riddle"; S.riddle=k; S.rsel=null; render(); }
+function renderRiddle(){
+  const a=ARTS[S.riddle];
+  $("where").textContent = `${a.name}の謎`;
+  $("hint").innerHTML = `星が鳴らす単音と<b>同じ高さの弦</b>を選んで持ち帰る。それが<b>${a.name}</b>の辺になる。${S.zapQueue.length?"（ZAPで戻された）":""}`;
+  svg.innerHTML = `<text x="160" y="60" text-anchor="middle" fill="#9aa2bd" font-size="13">星の音を聞き、同じ高さの弦を探す</text>
+    ${S.rsel!=null?`<line x1="40" y1="120" x2="${40+a.choices[S.rsel]/12*240}" y2="120" stroke="#f2d27a" stroke-width="4" stroke-linecap="round"/><text x="${48+a.choices[S.rsel]/12*240}" y="125" fill="#f2d27a" font-size="15">${a.choices[S.rsel]}</text>`:""}`;
+  $("lower").innerHTML = `<div class="actions"><button class="btn" id="bStar">星の音を聞く</button></div>
+    <div class="inv">${a.choices.map((n,i)=>`<button class="it${S.rsel===i?" sel":""}" data-i="${i}"><span class="num">${n}</span></button>`).join("")}</div>
+    <div class="actions"><button class="btn primary" id="bTake">この辺を持ち帰る</button></div>`;
+  $("bStar").onclick=()=>{ audio(); tone(freq(L(a.answer)),ctx.currentTime+.02,1.4,.08); twinkle=performance.now(); };
+  $("lower").querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{ S.rsel=+b.dataset.i; pluck(freq(L(a.choices[S.rsel]))); render(); });
+  $("bTake").onclick=()=>{
+    if(S.rsel==null){ say("弦を選んでください。","warn"); return; }
+    S.arts[S.riddle]=a.choices[S.rsel]; toast(`${a.name}の辺 ${a.choices[S.rsel]} を手に入れた`);
+    if(S.zapQueue.length){ S.zapQueue.shift(); if(S.zapQueue.length){ openRiddle(S.zapQueue[0]); return; } enterFinal(true); return; }
+    S.scene="journey"; render();
+  };
+  say("答えが合っているかは、ここでは分からない。");
+}
+
+/* ===== 最終章 ===== */
+function startInventory(){
+  const v=[]; ART_ORDER.forEach(k=>{ if(S.arts[k]!=null) v.push(L(S.arts[k],{tag:ARTS[k].name})); });
+  DECOYS.forEach(n=>v.push(L(n,{tag:"旅"})));
+  return v;
+}
+function missingFrom(taskIndex, inv){
+  // 残りの課題を解くのに必要な辺（課題ごとに1本消費）が手持ちにあるか
+  const rest=inv.map(l=>l.n).filter((n,i)=>!inv[i].r2), miss=[];
+  for(let i=taskIndex;i<TASKS.length;i++){ const k=rest.indexOf(TASKS[i].answer); if(k<0) miss.push(TASKS[i].art); else rest.splice(k,1); }
+  return miss;
+}
+function enterFinal(fromZap){
+  if(ART_ORDER.some(k=>S.arts[k]==null)){ say("まだ持っていない辺がある。3つの謎を解いてから最終章へ。","warn"); return; }
+  S.scene="task"; S.task=0; S.inv=startInventory(); S.pick=[]; S.scroll=false;
+  const miss=missingFrom(0,S.inv);
+  if(miss.length){ zap(miss, "最終章に入ったが、門が応えない。"); return; }
+  render(); if(fromZap) toast("最終章を初めから"); say("門の響きを聞き、手持ちから1本を差し出そう。辺は使うとなくなる。");
+}
+function zap(miss, reason){
+  zapSound(); shake();
+  if(isFinite(S.lives)){ S.lives--; if(S.lives<=0){ S.over=true; S.scene="over"; render(); say(`${reason} 失敗の上限に達した。ゲームオーバー。`,"warn"); return; } }
+  S.zapQueue=[...miss];
+  toast(`ZAP！ ${miss.map(k=>ARTS[k].name).join("・")}の謎へ戻された`, true);
+  setTimeout(()=>{ openRiddle(S.zapQueue[0]); say(`${reason}${M().name==="ヒントあり"?`　足りないのは${miss.map(k=>ARTS[k].name).join("・")}の辺。`:""}`,"warn"); }, 600);
+}
+function renderTask(){
+  const t=TASKS[S.task];
+  if(!S.seen.includes(S.task)){ S.seen.push(S.task); const k=S.task; tale([GATE_TALE[k]], ()=>{ S.scene="task"; render(); say("門の響きを聞き、手持ちから1本を差し出そう。辺は使うとなくなる。"); }, t.title); return; }
+  $("where").textContent = t.title;
+  const g=t.given.map(n=>L(n)), slot = S.pick.length ? S.inv[S.pick[0]] : null;
+  $("hint").innerHTML = `門の響きと同じになるように、<b>手持ちから1本</b>を差し出す。当てはまりそうな辺は複数あるが、正しいのは1本だけ。`;
+  const ls=[g[0],g[1],slot];
+  svg.innerHTML = drawTriangle(ls,[g[0].n,g[1].n,slot?show(slot):"？"],null,2); bindHits(ls);
+  $("lower").innerHTML = invHTML(true) + `<div class="actions"><button class="btn" id="bGate">門の響きを聞く</button><button class="btn primary" id="bUse" ${slot?"":"disabled"}>この辺を使う</button></div>`;
+  $("lower").querySelectorAll(".it[data-i]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.i; pluck(freq(S.inv[i]));
+    if(S.inv[i].locked){ say("これは最後の扉で使う辺。門には差し出せない。"); return; }
+    S.pick = S.pick[0]===i ? [] : [i]; render(); });
+  $("bGate").onclick=()=>chordOf([...g, L(t.answer)]);
+  $("bUse").onclick=useItem;
+}
+function useItem(){
+  const t=TASKS[S.task], i=S.pick[0], item=S.inv[i];
+  const ls=[L(t.given[0]),L(t.given[1]),item];
+  if(!closed(ls)){ say("閉じない三角形では差し出せない（辺はなくならない）。","warn"); return; }
+  chordOf(ls,1.4);
+  S.inv.splice(i,1); S.pick=[];              // 使った時点で消費
+  if(!item.r2 && item.n===t.answer){
+    if(t.reward==="scroll"){ S.scroll=true; toast("巻物を手に入れた：「等しき二本を、直角に開け」"); }
+    else { S.inv.push(t.reward); toast(`門が開いた。報酬の辺 ${t.reward.n} を手に入れた`); }
+    S.task++;
+    if(S.task>=TASKS.length){ S.scene="door"; render(); say("最後の扉。巻物の言葉どおり、等しき二本を選んで直角に開こう。"); return; }
+    render(); say("門が開いた。次の門へ。");
+    return;
+  }
+  // 間違い：辺はなくなる。まだ解けるなら続行、解けなくなったらZAP
+  const miss=missingFrom(S.task,S.inv);
+  if(miss.length){ render(); setTimeout(()=>zap(miss,`響きが違った。${show(item)} の辺はなくなり、この先の門が開けなくなった。`),900); return; }
+  render(); say(`響きが違った。${show(item)} の辺はなくなった。別の辺で試そう。`,"warn");
+}
+function renderDoor(){
+  $("where").textContent = "最後の扉";
+  const two = S.pick.length===2 ? S.pick.map(i=>S.inv[i]) : null;
+  $("hint").innerHTML = `巻物：「<b>等しき二本を、直角に開け</b>」。手持ちから同じ長さの2本を選ぶ。`;
+  if(S.sealed){
+    const n=S.sealed; const ls=[L(n),L(n),L(n,{r2:true})];
+    svg.innerHTML = drawTriangle(ls,[n,n,`${n}√2`],"rgba(242,210,122,.18)",2) +
+      `<text x="20" y="28" fill="#b7c4ff" font-size="12">${n}×${n}＋${n}×${n}＝${2*n*n}＝斜辺×斜辺</text>
+       <text x="20" y="46" fill="#f2d27a" font-size="13" font-weight="700">斜辺＝${n}√2（整数では書けない）</text>`;
+    bindHits(ls);
+    $("lower").innerHTML = `<div class="actions"><button class="btn" id="bHear">この響きを聞く</button><button class="btn primary" id="bOpenDoor">扉を開く</button></div>`;
+    $("bHear").onclick=()=>chordOf(ls,2);
+    $("bOpenDoor").onclick=finale;
+    return;
+  }
+  svg.innerHTML = two ? drawTriangle([two[0],two[1],null],[show(two[0]),show(two[1]),"開くと生まれる"],null,-1) : `<text x="160" y="105" text-anchor="middle" fill="#9aa2bd" font-size="13">同じ長さの2本を選ぶ</text>`;
+  $("lower").innerHTML = invHTML(true) + `<div class="actions"><button class="btn primary" id="bOpen" ${two?"":"disabled"}>直角に開く</button></div>`;
+  $("lower").querySelectorAll(".it[data-i]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.i; pluck(freq(S.inv[i]));
+    const k=S.pick.indexOf(i); if(k>=0) S.pick.splice(k,1); else { if(S.pick.length>=2) S.pick.shift(); S.pick.push(i); } render(); });
+  $("bOpen").onclick=()=>{
+    const [p,q]=S.pick.map(i=>S.inv[i]);
+    if(p.r2||q.r2||p.n!==q.n){ say("等しき二本ではない。同じ長さの2本を選ぼう。","warn"); shake(); return; }
+    S.sealed=p.n; S.pick=[]; chordOf([L(p.n),L(p.n),L(p.n,{r2:true})],2); toast(`斜辺 ${p.n}√2 が生まれた`); render();
+    say("整数では書けない長さが生まれた。どこか落ち着かない響き。");
+  };
+}
+
+/* ===== おはなし：主役は物（ハンマー・装備）。人や神々はその後ろにうっすら見える ===== */
+const C_FG="#f2d27a", C_DIM="#6b7396", C_BAD="#e7907f", C_BG="#b7c4ff";
+function hammer(x,w,col,label){ const s=.55+w/12*.6;
+  return `<g transform="translate(${x},92) scale(${s})"><rect x="-16" y="-10" width="32" height="18" rx="3" fill="none" stroke="${col}" stroke-width="3"/><rect x="-3" y="8" width="6" height="46" rx="2" fill="${col}" opacity=".85"/></g>
+  <text x="${x}" y="${92+56*s+16}" text-anchor="middle" fill="${col}" font-size="15" font-weight="700">${label}</text>`; }
+function hammers(opt={}){ return [12,9,8,6].map((w,i)=>{ const col=(opt.bad||[]).includes(w)?C_BAD:(opt.dim?C_DIM:C_FG); return hammer(60+i*67,w,col,w); }).join("")
+  + (opt.seal?seal(160,70,26):""); }
+function seal(x,y,r){ const pts=[...Array(5)].map((_,k)=>{const a=-Math.PI/2+k*4*Math.PI/5; return `${x+r*.8*Math.cos(a)},${y+r*.8*Math.sin(a)}`;}).join(" ");
+  return `<g opacity=".9"><circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="${C_BAD}" stroke-width="2"/><polygon points="${pts}" fill="none" stroke="${C_BAD}" stroke-width="1.6"/></g>`; }
+const GEAR={
+  shield:`<path d="M0,-30 L24,-22 L22,6 Q16,26 0,34 Q-16,26 -22,6 L-24,-22 Z" fill="none" stroke-width="3"/><path d="M0,-18 L0,22 M-12,-4 L12,-4" stroke-width="2"/>`,
+  sword:`<path d="M0,-42 L5,-32 L5,14 L-5,14 L-5,-32 Z" fill="none" stroke-width="3"/><path d="M-16,16 L16,16 M0,18 L0,32" stroke-width="4"/><circle cx="0" cy="36" r="4" fill="none" stroke-width="2.5"/>`,
+  armor:`<path d="M-26,-24 L-12,-30 Q0,-22 12,-30 L26,-24 L22,4 L18,30 L-18,30 L-22,4 Z" fill="none" stroke-width="3"/><path d="M0,-20 L0,26 M-14,4 L14,4" stroke-width="2"/>`
+};
+function gear(k,x,y,col,sealed){ return `<g transform="translate(${x},${y})" stroke="${col}" fill="none" stroke-linejoin="round">${GEAR[k]}</g>`+(sealed?seal(x,y,16):"")
+  + `<text x="${x}" y="${y+56}" text-anchor="middle" fill="${col}" font-size="13">${ARTS[k].name}</text>`; }
+function gears(opt={}){ return ART_ORDER.map((k,i)=>gear(k,75+i*85,opt.y||100,opt.col||C_FG,opt.sealed)).join(""); }
+function ring(lit,glow){ return [...Array(8)].map((_,k)=>{ const x=34+k*36, y=46-22*Math.sin(Math.PI*k/7);
+  const on=k<lit; return (on&&glow?`<circle cx="${x}" cy="${y.toFixed(1)}" r="13" fill="${C_FG}" opacity=".15"/>`:"")+`<circle cx="${x}" cy="${y.toFixed(1)}" r="${on?6:4}" fill="${on?C_FG:"none"}" stroke="${on?C_FG:C_DIM}" stroke-width="1.5"/>`; }).join(""); }
+/* 背景の人と神々（薄い影。前に出さない） */
+function person(x,y,s,o){ return `<g transform="translate(${x},${y}) scale(${s})" fill="${C_BG}" opacity="${o}"><circle cx="0" cy="-40" r="9"/><path d="M-11,-30 L11,-30 L19,22 L-19,22 Z"/></g>`; }
+function hooded(x,y,s,o){ return `<g transform="translate(${x},${y}) scale(${s})" fill="${C_BG}" opacity="${o}"><path d="M0,-54 L13,-32 L21,22 L-21,22 L-13,-32 Z"/></g>`; }
+function smith(x,y,s,o){ return person(x,y,s,o)+`<g transform="translate(${x},${y}) scale(${s})" stroke="${C_BG}" opacity="${o}" stroke-width="5" stroke-linecap="round"><path d="M8,-26 L26,-48"/></g>`; }
+function god(x,y,s,o){ return `<g transform="translate(${x},${y}) scale(${s})" fill="${C_BG}" opacity="${o}"><circle cx="0" cy="-46" r="16"/><path d="M-20,-28 Q0,-36 20,-28 L34,40 L-34,40 Z"/></g>`
+  + `<g transform="translate(${x},${y-46*s}) scale(${s})" stroke="${C_BG}" opacity="${o*.8}" stroke-width="1.5">${[...Array(10)].map((_,k)=>{const a=k*Math.PI/5;return `<line x1="${26*Math.cos(a)}" y1="${26*Math.sin(a)}" x2="${38*Math.cos(a)}" y2="${38*Math.sin(a)}"/>`;}).join("")}</g>`; }
+const BG={
+  forge: ()=>smith(40,120,1.3,.12)+smith(285,125,1.1,.09),
+  folk:  ()=>person(28,130,1,.1)+person(292,132,1,.1)+smith(160,140,1.2,.07),
+  cult:  ()=>hooded(30,128,1.3,.15)+hooded(290,128,1.3,.15)+hooded(160,150,1.6,.08),
+  gods:  (o=.1)=>god(60,90,1.1,o)+god(260,90,1.1,o),
+  world: (o=.16)=>god(60,90,1.1,o)+god(260,90,1.1,o)+person(30,175,.8,o)+person(85,182,.7,o)+person(235,182,.7,o)+person(290,175,.8,o)
+};
+function seq(lens,gap=.45){ lens.forEach((n,i)=>pluck(freq(L(n)),i*gap)); }
+function pairs(ps,gap=1.1){ audio(); ps.forEach((pr,i)=>{ const t=ctx.currentTime+.03+i*gap; pr.forEach(n=>tone(freq(L(n)),t,gap*.9,.08)); }); twinkle=performance.now(); }
+const PROLOGUE=[
+  {bg:"forge", fg:()=>hammers(), who:"ハンマーの語り", t:"わたしたちは、鍛冶場のハンマー。重さは 12・9・8・6。", snd:()=>seq([12,9,8,6])},
+  {bg:"folk", fg:()=>hammers(), who:"ハンマーの語り", t:"打ち合わせると、澄んだ響きが生まれた――と伝えられている。", snd:()=>pairs([[12,6],[12,8],[12,9]])},
+  {bg:"cult", fg:()=>hammers({dim:true,bad:[9,8]}), who:"ハンマーの語り", t:"けれど、9 と 8 が同時に鳴ると、響きが濁った。", snd:()=>pairs([[9,8]],1.8)},
+  {bg:"cult", fg:()=>hammers({dim:true,seal:true}), who:"ハンマーの語り", t:"教団はそれを「不浄の響き」と呼んだ。<br>使えない。封印だ――と。", snd:()=>zapSound()},
+  {bg:"forge", fg:()=>gears({sealed:true,col:C_DIM}), who:"ハンマーの語り", t:"わたしたちの音は、打たれた盾と剣と鎧の奥に封じられ、各地へ散らされた。"},
+  {bg:"gods", fg:()=>ring(5,false), who:"ハンマーの語り", t:"神々は星の響き――天の歌で世界を保っているという。<br>その歌は欠けたまま、星の巡りが鈍っていった。", snd:()=>seq([6,8,9],.6)},
+  {bg:null, fg:()=>gears(), who:"ハンマーの語り", t:"封じられた音――<b>封音</b>を、取り戻してほしい。<br>わたしたちは、まだ鳴りたい。"}
+];
+const GATE_TALE=[
+  {fg:()=>gear("shield",160,80,C_FG), who:"盾の封音", t:"門が低く鳴っている。わたしの奥の音が、それに応えたがっている。<br>ただ、似た響きの辺はほかにもある。"},
+  {fg:()=>gear("sword",160,80,C_FG), who:"剣の封音", t:"次の門は、少し影のある響き。<br>わたしの音は、その影の色になる。"},
+  {fg:()=>gear("armor",160,80,C_FG), who:"鎧の封音", t:"最後の門。わたしの音は、いつか帰ってくる場所の音。"}
+];
+function tale(scenes, done, where){ S.scene="tale"; S.tale={scenes, i:0, done, where:where||"おはなし"}; render(); playTale(); }
+function playTale(){ const sc=S.tale.scenes[S.tale.i]; if(sc.snd && ctx) sc.snd(); }
+function renderTale(){
+  const T=S.tale, sc=T.scenes[T.i];
+  $("where").textContent=T.where; $("hint").innerHTML=`<span style="color:var(--mute)">${T.i+1} / ${T.scenes.length}</span>`;
+  const bg = sc.bg ? (typeof sc.bg==="function"?sc.bg():BG[sc.bg]()) : "";
+  svg.innerHTML = `<g class="fadein">${bg}</g><g class="fadein">${sc.fg()}</g>`;
+  const m=$("msg"); m.className="tale fadein"; m.innerHTML=`<span class="who">${sc.who||""}</span>${sc.t}`;
+  const last=T.i===T.scenes.length-1;
+  $("lower").innerHTML=`<div class="actions">${sc.snd?`<button class="btn" id="bSnd">♪ 音を聞く</button>`:""}<button class="btn primary" id="bNext">${last?"はじめる":"つづき"}</button></div>
+    <div class="actions"><button class="btn small" id="bSkip">とばす</button></div>`;
+  if(sc.snd) $("bSnd").onclick=()=>{ audio(); sc.snd(); };
+  $("bNext").onclick=()=>{ audio(); if(last){ T.done(); return; } T.i++; render(); playTale(); };
+  $("bSkip").onclick=()=>{ audio(); T.done(); };
+}
+
+/* ===== 結末：物の語り → 集めた音で天の歌の終わり（V7→I） ===== */
+function finale(){
+  const n=S.sealed||6, tri=[L(n),L(n),L(n,{r2:true})];
+  tale([
+    {bg:null, fg:()=>drawTriangle(tri,[n,n,`${n}√2`],"rgba(242,210,122,.15)",2), who:"扉", t:"等しき二本を直角に開くと、整数では書けない辺が生まれた。", snd:()=>chordOf(tri,2)},
+    {bg:"cult", fg:()=>gears({col:C_DIM}), who:"封音たち", t:"落ち着かない響き。<br>教団なら、これもきっと封じただろう。"},
+    {bg:null, fg:()=>hammers(), who:"ハンマーの語り", t:"でも、わたしたちは知っている。<br>濁りは、流れの中に置けば道しるべになる。"},
+    {bg:()=>BG.gods(.08), fg:()=>ring(0,false)+gears(), who:"ハンマーの語り", t:"聞いていて。<br>封音と、生まれたばかりの響きで、天の歌を締めくくる。"}
+  ], ()=>{ S.scene="end"; S.done=true; S.lit=0; render(); setTimeout(cadence,500); }, "扉の向こう");
+}
+const MID = m => 440*Math.pow(2,(m-69)/12);
+const CADENCE = [
+  {name:"Fsus4", notes:[41,53,65,70,72], art:"盾 B♭", hl:70},
+  {name:"F",     notes:[41,53,65,69,72]},
+  {name:"Fm",    notes:[41,53,65,68,72], art:"剣 A♭", hl:68},
+  {name:"G7sus4",notes:[43,55,65,67,72], art:"鎧 C",  hl:72},
+  {name:"G7",    notes:[43,59,65,67,71], art:"√2 シ–ファ", hl:59},
+  {name:"C",     notes:[36,48,60,64,67,72], art:"鎧 C（根音）", hl:72, last:true}
+];
+function cadence(){
+  if(S.scene!=="end") return;
+  audio(); const t0=ctx.currentTime+.1, bar=1.5;
+  CADENCE.forEach((c,i)=>{
+    const t=t0+i*bar, dur=c.last?3.2:bar*.95;
+    c.notes.forEach((m,k)=>tone(MID(m), t+k*.03, dur, m===c.hl?.09:.05));
+    setTimeout(()=>{ if(S.scene!=="end") return; twinkle=performance.now(); S.lit=Math.round((i+1)/CADENCE.length*8); drawEnd();
+      say(`♪ ${CADENCE.map((x,j)=>j===i?`<b style="color:#e0b85c">${x.name}</b>`:x.name).join(" → ")}${c.art?`<br>${c.art} の封音が鳴っている`:""}`, "tale"); }, (t-ctx.currentTime)*1000);
+  });
+  setTimeout(()=>{ if(S.scene!=="end") return; S.lit=8; S.full=true; drawEnd();
+    say(`<span class="who">ハンマーの語り</span>天の歌が鳴りわたった。神々は満ち足り、人々はそこに導きを感じた。<br><b>不浄の響きは、導きの響きになった。</b>`,"tale");
+    $("lower").innerHTML=`<div class="actions"><button class="btn" id="bAgainC">終わりの和音をもう一度</button><button class="btn primary" id="bAgain">最初から</button></div>`;
+    $("bAgainC").onclick=cadence; $("bAgain").onclick=restart; }, (t0-ctx.currentTime+CADENCE.length*bar+2)*1000);
+}
+function drawEnd(){
+  const lit=S.lit||0, o=.06+lit/8*.14;
+  svg.innerHTML = `<g>${S.full?BG.world(.2):BG.gods(o)}</g>${ring(lit,true)}${gears({col:lit>=8?C_FG:C_DIM})}`;
+}
+function renderEnd(){
+  $("where").textContent="天の歌";
+  $("hint").innerHTML="<b>封音が流れの中で鳴る</b>";
+  drawEnd(); $("lower").innerHTML="";
+}
+function renderOver(){ $("where").textContent="ゲームオーバー"; $("hint").innerHTML=""; svg.innerHTML="";
+  $("lower").innerHTML=`<div class="actions"><button class="btn primary" id="bAgain">最初から</button></div>`; $("bAgain").onclick=restart; }
+
+function render(){
+  renderTop();
+  if(S.scene==="journey") renderJourney();
+  else if(S.scene==="riddle") renderRiddle();
+  else if(S.scene==="task") renderTask();
+  else if(S.scene==="door") renderDoor();
+  else if(S.scene==="end") renderEnd();
+  else if(S.scene==="over") renderOver();
+  else if(S.scene==="tale") renderTale();
+}
+function restart(){ Object.assign(S,{lives:M().lives, arts:{shield:null,sword:null,armor:null}, scene:"journey", task:0, inv:[], pick:[], scroll:false, zapQueue:[], riddle:null, rsel:null, done:false, over:false, sealed:null, seen:[], lit:0, full:false});
+  tale(PROLOGUE, toJourney, "おはなし：序"); }
+function toJourney(){ S.scene="journey"; render(); say("試作用：3つの謎を解くか、下の「状態」ボタンで準備してから最終章へ。"); }
+$("bMode").onclick=()=>{ S.mode=ORDER[(ORDER.indexOf(S.mode)+1)%ORDER.length]; restart(); toast(M().name+(isFinite(M().lives)?`：ZAPは${M().lives}回まで`:"：ZAPのとき足りない辺を教えます")); };
+
+/* ===== 夜空 ===== */
+let twinkle=0;
+const sky=$("sky"), sx=sky.getContext("2d"); let pts=[];
+function sizeSky(){ const dpr=Math.min(2,devicePixelRatio||1); sky.width=innerWidth*dpr; sky.height=innerHeight*dpr; sx.setTransform(dpr,0,0,dpr,0,0);
+  pts=Array.from({length:90},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*1.2+.2,p:Math.random()*6.28})); }
+function drawSky(now){
+  sx.clearRect(0,0,innerWidth,innerHeight);
+  const g=sx.createRadialGradient(innerWidth*.5,-80,10,innerWidth*.5,-80,innerHeight*1.1); g.addColorStop(0,"#1b2550"); g.addColorStop(1,"#0b1020");
+  sx.fillStyle=g; sx.fillRect(0,0,innerWidth,innerHeight);
+  const boost=Math.max(0,1-(now-twinkle)/1500);
+  pts.forEach(s=>{ const a=reduce?.6:.35+.35*Math.sin(now/1400+s.p)+boost*.4; sx.globalAlpha=Math.min(1,a); sx.fillStyle="#f3ead2"; sx.beginPath(); sx.arc(s.x,s.y,s.r+boost*.6,0,6.283); sx.fill(); });
+  sx.globalAlpha=1; requestAnimationFrame(drawSky);
+}
+addEventListener("resize", sizeSky);
+sizeSky(); restart(); requestAnimationFrame(drawSky);
+})();
+</script>
+</body>
+</html>

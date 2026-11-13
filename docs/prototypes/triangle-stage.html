@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ROOT NOTES 試作</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* layout: スクロールしない1画面。上=8つの星（8小節）とお題、中央=三角形（伸縮）、下=棒と操作。設定・巻物・曲は引き出しに */
+  --night:#0b1020;
+  --panel:#131b36;
+  --line:#2a3560;
+  --ink:#ece6d6;
+  --mute:#9aa2bd;
+  --gold:#e0b85c;
+  --ok:#86dcb6;
+  --warn:#e7907f;
+  --display:"Cinzel","Times New Roman",serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--night);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;overflow:hidden}
+body{-webkit-tap-highlight-color:transparent}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.app{position:relative;z-index:1;height:100%;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:8px;
+  padding:calc(8px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+.top{display:flex;align-items:center;gap:8px}
+h1{font-family:var(--display);font-weight:700;letter-spacing:.12em;font-size:1.15rem;margin:0;color:var(--gold);flex:1;white-space:nowrap}
+.chip{border:1px solid var(--gold);border-radius:999px;background:color-mix(in srgb,var(--gold) 12%,transparent);color:var(--ink);font:inherit;font-size:.78rem;padding:6px 12px;min-height:34px;cursor:pointer;white-space:nowrap}
+.icon{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--ink);font-size:1.1rem;cursor:pointer;display:grid;place-items:center}
+.stage{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.starbtn{background:transparent;border:1px solid var(--line);border-radius:9px;color:var(--mute);padding:2px;font:inherit;font-size:.72rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;min-height:38px;cursor:pointer;line-height:1.1}
+.starbtn .glyph{font-size:.95rem;color:var(--mute)}
+.starbtn.on{border-color:var(--gold);color:var(--ink);background:color-mix(in srgb,var(--gold) 10%,transparent)}
+.starbtn.lit .glyph{color:var(--gold);text-shadow:0 0 8px var(--gold)}
+.starbtn.play{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,transparent)}
+.starbtn.gap{margin-left:6px}
+.starbtn:disabled{cursor:default}
+.sub{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.8rem;color:var(--mute);min-height:1.4em}
+.sub b{color:var(--ink)}
+.gem{color:var(--gold);font-size:.7rem} .gem.lost{color:var(--line)}
+.stagebox{flex:1;min-height:120px;position:relative;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--panel) 70%,transparent);display:flex;flex-direction:column;overflow:hidden}
+svg#tri{flex:1;min-height:0;width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
+#fill{transition:fill-opacity .6s ease}
+.hit{cursor:pointer}
+.status{padding:0 10px 8px;display:flex;flex-direction:column;gap:2px}
+#msg{font-size:.84rem;margin:0;min-height:1.3em}
+#msg.ok{color:var(--ok);font-weight:700}
+#msg.warn{color:var(--warn)}
+#msg .now{color:var(--gold);font-weight:700}
+#info{font-size:.76rem;color:var(--mute);margin:0;font-variant-numeric:tabular-nums;min-height:1.2em}
+#info b{color:var(--ink)}
+.meter{display:flex;gap:10px;align-items:center;font-size:.76rem;font-variant-numeric:tabular-nums;color:var(--mute)}
+.meter .m{display:flex;align-items:center;gap:4px}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--mute)}
+.lower{display:flex;flex-direction:column;gap:6px}
+.sticks{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.stick{position:relative;background:transparent;border:1px solid var(--line);border-radius:10px;color:var(--ink);font:inherit;padding:5px 7px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-height:44px}
+.stick .num{font-family:var(--display);font-size:1rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.stick .bar{height:4px;border-radius:2px;opacity:.55}
+.stick.sel{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,transparent)}
+.stick.sel .bar{opacity:1}
+.stick .ord{position:absolute;top:4px;right:6px;font-size:.66rem;color:var(--gold)}
+.stick:disabled{opacity:.4}
+.actions{display:flex;gap:6px}
+.btn{flex:1;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:.82rem;font-weight:700;cursor:pointer;padding:4px 6px;line-height:1.25}
+.btn.primary{background:var(--gold);color:#1a1405;border-color:var(--gold);flex:1.3}
+.btn:disabled{opacity:.4}
+/* 引き出し */
+.sheet{position:fixed;inset:0;z-index:10;display:none}
+.sheet.open{display:block}
+.sheet .back{position:absolute;inset:0;background:rgba(5,8,18,.6)}
+.sheet .body{position:absolute;left:0;right:0;bottom:0;max-height:84%;overflow:auto;background:var(--panel);border-top:1px solid var(--line);border-radius:18px 18px 0 0;
+  padding:14px max(16px,env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));display:flex;flex-direction:column;gap:12px;max-width:520px;margin:0 auto}
+.sheet h2{font-size:.8rem;letter-spacing:.08em;color:var(--mute);margin:0}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.modes button{min-height:42px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--mute);font:inherit;font-size:.84rem;cursor:pointer}
+.modes button.on{border-color:var(--gold);color:var(--ink);background:color-mix(in srgb,var(--gold) 10%,transparent)}
+.seg{display:grid;grid-template-columns:5em 1fr 1fr;gap:6px;align-items:center;font-size:.82rem}
+.seg span{color:var(--mute)}
+.seg button{min-height:38px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--mute);font:inherit;font-size:.84rem;cursor:pointer}
+.seg button.on{border-color:var(--gold);color:var(--ink);background:color-mix(in srgb,var(--gold) 10%,transparent)}
+.seg button:disabled{opacity:.4}
+.sheet p{font-size:.84rem;color:var(--mute);margin:0}
+.sheet p b{color:var(--ink)}
+.found{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.found li{font-size:.84rem;border-left:3px solid var(--line);padding:2px 0 2px 10px;color:var(--mute)}
+.found li.got{border-color:var(--gold);color:var(--ink)}
+.found li b{display:block}
+#toast{position:fixed;left:50%;top:calc(56px + env(safe-area-inset-top));transform:translateX(-50%);background:var(--gold);color:#1a1405;font-weight:700;padding:8px 14px;border-radius:999px;font-size:.86rem;z-index:20;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.ring{animation:ring .09s linear infinite}
+@keyframes ring{0%{transform:translateY(0)}50%{transform:translateY(.7px)}100%{transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){.ring{animation:none}#toast,#fill{transition:none}}
+@media (max-height:620px){ .stick{min-height:38px} .btn{min-height:42px} }
+</style>
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="app">
+  <div class="top">
+    <h1>ROOT NOTES</h1>
+    <button class="chip" id="bMode" aria-label="遊び方を変える"></button>
+    <button class="icon" id="bMenu" aria-label="設定・曲・発見の巻物を開く">☰</button>
+  </div>
+
+  <div class="stage" id="stars" aria-label="8小節の星"></div>
+  <div class="sub"><span id="hint"></span><span id="lives"></span></div>
+
+  <div class="stagebox">
+    <svg id="tri" viewBox="0 0 320 210" preserveAspectRatio="xMidYMid meet" role="img" aria-label="選んだ棒でできる三角形。辺をタップするかなぞると、その辺の音が鳴る"></svg>
+    <div class="status">
+      <div class="meter" id="meter" hidden></div>
+      <p id="msg"></p>
+      <p id="info"></p>
+    </div>
+  </div>
+
+  <div class="lower">
+    <div class="sticks" id="sticks"></div>
+    <div class="actions" id="actions">
+      <button class="btn" id="bTarget">お題を<br>聞く</button>
+      <button class="btn" id="bMine">和音で<br>鳴らす</button>
+      <button class="btn" id="bCompare">比べる</button>
+      <button class="btn" id="bMeterUse" hidden>メーター</button>
+      <button class="btn primary" id="bAnswer">回答する</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="sheet" aria-hidden="true">
+  <div class="back" id="sheetBack"></div>
+  <div class="body" role="dialog" aria-label="設定・曲・発見の巻物">
+    <h2>遊び方を選ぶ</h2>
+    <div class="modes" id="modes">
+      <button data-m="select">選択プレイ</button><button data-m="free">連続・フリー</button>
+      <button data-m="normal">連続・ノーマル</button><button data-m="expert">連続・エキスパート</button>
+    </div>
+    <p id="modeDesc"></p>
+    <h2>今回の曲</h2>
+    <p id="songInfo"></p>
+    <button class="btn" id="bSong">灯った和音で曲を聴く</button>
+    <h2>発見の巻物</h2>
+    <ul class="found" id="found"></ul>
+    <h2>メーター（フリーのみ）</h2>
+    <div class="seg"><span>表示</span><button id="mMeterOn">表示</button><button id="mMeterOff">隠す</button></div>
+    <h2>遊び方</h2>
+    <p>8つの星が、1曲の8小節です。星ごとにお題の和音を聞き、同じ響きの三角形を棒から作ってください。辺をタップ（なぞる）すると1音ずつ鳴ります。</p>
+    <p>4つの星を灯すたびに、そこまでの和音がベースライン付きのフレーズとして流れます。8つ全部で1曲になります。連続プレイは、遊ぶたびにコード進行とキーが変わります。</p>
+    <p>色は音の高さで決まり、1オクターブ違う音は同じ色です。</p>
+    <button class="btn" id="bReveal">答えを見る（試作用・選択プレイとフリーのみ）</button>
+    <button class="btn primary" id="bClose">閉じる</button>
+  </div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+/* ========== 音楽の材料 ========== */
+const NOTE = ["C","C♯","D","E♭","E","F","F♯","G","A♭","A","B♭","B"];
+const ROMAN = ["I","II","III","IV","V","VI","VII"];
+const DEG_SEMI = [0,2,4,5,7,9,11];          // 長音階の度数 → 主音からの半音数
+const QUAL = {maj:[0,4,7], min:[0,3,7], dim:[0,3,6]};
+const QNAME = {maj:"", min:"m", dim:"dim"};
+const MIDI2F = m => 440*Math.pow(2,(m-69)/12);   // 根音・ベースは12平均律
+const MIN_LEN = 2, MAX_LEN = 24;
+const BARS = 8, PHRASE = 4, BAR_SEC = 1.6;
+
+// コード進行（キーは固定しない。度数で持つ）。b=ベースの度数、label=表示名
+const PROGS = [
+  {name:"1→3m→5→6m", chords:["I","IIIm","V","VIm"]},
+  {name:"王道進行", chords:[{t:"VIm",b:"IV",label:"IVmaj7"},"V",{t:"V",b:"III",label:"IIIm7"},"VIm"]},
+  {name:"カノン進行", chords:["I","V","VIm","IIIm","IV","I","IV","V"]},
+  {name:"小室進行", chords:["VIm","IV","V","I"]},
+  {name:"丸サ進行", chords:[{t:"VIm",b:"IV",label:"IVmaj7"},"III",{t:"I",b:"VI",label:"VIm7"},"I"]}
+];
+function parseChord(s){
+  const m = s.match(/^(VII|VI|V|IV|III|II|I)(m|dim)?$/);
+  return {deg: ROMAN.indexOf(m[1]), q: m[2]==="m" ? "min" : m[2]==="dim" ? "dim" : "maj"};
+}
+
+const gcd = (a,b) => b ? gcd(b, a%b) : a;
+const lcm = (a,b) => a*b/gcd(a,b);
+function smooth(n,p){ for(const q of [2,3,5,7]) { if(q>p) break; while(n%q===0) n/=q; } return n===1; }
+// 三角形で作れる和音の一覧（長さ2〜24、閉じる、長さはすべて違う）
+const VOICINGS = (()=>{
+  const out=[];
+  for(let a=MIN_LEN;a<=MAX_LEN;a++) for(let b=a+1;b<=MAX_LEN;b++) for(let c=b+1;c<=MAX_LEN;c++){
+    if(a+b<=c) continue;
+    const cents=[0,1200*Math.log2(c/b),1200*Math.log2(c/a)];   // 最長辺が最低音
+    const semis=cents.map(x=>Math.round(x/100));
+    if(Math.max(...cents.map((x,i)=>Math.abs(x-100*semis[i])))>20) continue; // 純正の和音だけ
+    if(semis[2]>16) continue;                                   // 広がりすぎない並び
+    const pcs=semis.map(s=>s%12);
+    const mm=lcm(lcm(a,b),c), fr=[mm/c,mm/b,mm/a], g=fr.reduce(gcd);
+    const limit = fr.map(x=>x/g).every(x=>smooth(x,5)) ? 5 : fr.map(x=>x/g).every(x=>smooth(x,7)) ? 7 : 99;
+    if(new Set(pcs).size<3) continue;
+    const got=[...pcs].sort((x,y)=>x-y).join();
+    for(const q in QUAL) for(let inv=0;inv<3;inv++){
+      const iv=QUAL[q], bi=iv[inv];
+      const want=iv.map(x=>((x-bi)%12+12)%12).sort((x,y)=>x-y).join();
+      if(want===got && (q==="dim" ? limit<=7 : limit<=5)) out.push({L:[a,b,c],q,inv});  // 長短は2・3・5だけの比（純正）
+    }
+  }
+  return out;
+})();
+
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+function buildRun(prog, key, seed, decoys){
+  const rnd = mulberry32(seed);
+  let seq = prog.chords.map(c=>typeof c==="string" ? {t:c} : c);
+  while(seq.length<BARS) seq = seq.concat(seq);
+  seq = seq.slice(0,BARS);
+  return seq.map((c,i)=>{
+    const {deg,q} = parseChord(c.t);
+    const rootPc = (key + DEG_SEMI[deg]) % 12;
+    const opts = VOICINGS.filter(v=>v.q===q);
+    const v = opts[Math.floor(rnd()*opts.length)];
+    const bassPc = (rootPc + QUAL[q][v.inv]) % 12;
+    let m = 50; while(m%12!==bassPc) m++;                 // 三角形の最低音：MIDI 50〜61
+    const K = MIDI2F(m) * v.L[2];                          // 星ごとの基準（最長辺がその音になる）
+    const bdeg = c.b ? parseChord(c.b).deg : deg;
+    const blPc = (key + DEG_SEMI[bdeg]) % 12;
+    let bm = 36; while(bm%12!==blPc) bm++;                 // ベースライン：MIDI 36〜47
+    const pool=[]; for(let l=MIN_LEN;l<=MAX_LEN;l++) if(!v.L.includes(l)) pool.push(l);
+    const sticks=[...v.L];
+    for(let k=0;k<decoys;k++){ const j=Math.floor(rnd()*pool.length); sticks.push(pool.splice(j,1)[0]); }
+    sticks.sort((x,y)=>x-y);
+    return {target:v.L, sticks, K, bassF:MIDI2F(bm), label: c.label || (ROMAN[deg]+QNAME[q])};
+  });
+}
+
+/* ========== 遊び方の段階（フロート・ノーツにそろえる。数字は仮置き） ========== */
+const MODES = {
+  select:{name:"選択プレイ", cont:false, chord:false, lives:Infinity, meter:Infinity, decoys:3,
+          desc:"好きな星を選んで遊びます。曲はカノン進行（キーC）で固定。回答するまで自分の和音は鳴らせません。メーターは使うたびに表示します。"},
+  free:  {name:"フリー", cont:true, chord:true, lives:Infinity, meter:"toggle", decoys:3,
+          desc:"星を順番に通します。遊ぶたびに進行とキーが変わります。制限はなく、和音もメーターも自由です。"},
+  normal:{name:"ノーマル", cont:true, chord:false, lives:10, meter:6, decoys:4,
+          desc:"星を順番に通します。失敗はプレイ全体で10回まで。回答まで和音は鳴らせません。メーターは全体で6回。"},
+  expert:{name:"エキスパート", cont:true, chord:false, lives:5, meter:3, decoys:5,
+          desc:"星を順番に通します。失敗はプレイ全体で5回まで。回答まで和音は鳴らせません。メーターは全体で3回。"}
+};
+const FIND = {
+  open:  {t:"閉じない三角形", d:"短い2本を足しても長い1本に届かないと、三角形は閉じず、和音も鳴らない。"},
+  right: {t:"直角の三角形", d:"短い2辺の2乗の和が、長い辺の2乗と等しいと直角ができる。ピタゴラスへの目配せ。"},
+  octave:{t:"1オクターブ違い", d:"同じ形で大きさが2倍（半分）だと、同じ和音が1オクターブ下（上）で鳴る。色も同じになる。"},
+  mirror:{t:"長調と短調の鏡写し", d:"辺の比と音の高さの比を入れ替えると、明るい和音と寂しい和音が入れ替わる。"}
+};
+const TOL_HZ = 0.6;
+const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const S = {stage:0, sel:[], meter:true, mode:"select", livesLeft:Infinity, over:false, meterLeft:Infinity, meterShown:false,
+           found:new Set(), lit:new Set(), run:null, busy:false};
+try{ const d = JSON.parse(localStorage.getItem("rootnotes-proto")||"{}"); (d.found||[]).forEach(k=>S.found.add(k)); }catch(e){}
+function save(){ try{ localStorage.setItem("rootnotes-proto", JSON.stringify({found:[...S.found]})); }catch(e){} }
+
+const $ = id => document.getElementById(id);
+const asc = (a,b) => a-b;
+const M = () => MODES[S.mode];
+const stage = () => S.run.stages[S.stage];
+const Kc = () => stage().K;
+const chordOK = () => M().chord;
+const meterFree = () => M().meter==="toggle";
+const meterOn = () => meterFree() ? S.meter : S.meterShown;
+
+function lens(){ return S.sel.map(i => stage().sticks[i]); }
+function tgtF(){ return stage().target.map(l => Kc()/l).sort(asc); }
+function myF(){ return lens().map(l => Kc()/l).sort(asc); }
+function closed(L){ const s=[...L].sort(asc); return s[0]+s[1] > s[2]; }
+function beats(){ if(S.sel.length<3) return null; const t=tgtF(), m=myF(); return t.map((f,i)=>Math.abs(f-m[i])); }
+
+/* ========== 色：音の高さから。1オクターブ違いは同じ色 ========== */
+function hueOf(f){ const x = Math.log2(f/261.63); return ((x - Math.floor(x)) * 360 + 200) % 360; }
+function hsl2rgb(h,s,l){ s/=100; l/=100; const k=n=>(n+h/30)%12, a=s*Math.min(l,1-l);
+  const f=n=>l - a*Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n), 1))); return [f(0)*255, f(8)*255, f(4)*255]; }
+const colorOfLen = l => `hsl(${hueOf(Kc()/l).toFixed(0)} 75% 66%)`;
+function blendOf(fs){
+  const rgb = fs.map(f=>hsl2rgb(hueOf(f),75,62)).reduce((a,c)=>a.map((v,i)=>v+c[i]/fs.length),[0,0,0]);
+  return `rgb(${rgb.map(v=>Math.round(v)).join(",")})`;
+}
+
+/* ========== 音 ========== */
+let ctx=null, master=null, active=[], timers=[];
+function audio(){
+  if(!ctx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    ctx = new AC();
+    const lp = ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=3000;
+    const comp = ctx.createDynamicsCompressor();
+    master = ctx.createGain(); master.gain.value = 0.9;
+    master.connect(lp); lp.connect(comp); comp.connect(ctx.destination);
+  }
+  if(ctx.state==="suspended") ctx.resume();
+  return ctx;
+}
+function voice(f, t0, dur, peak){
+  peak = peak || 0.07;
+  const o = ctx.createOscillator(); o.type="sawtooth"; o.frequency.setValueAtTime(f, t0);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(peak, t0+0.015); g.gain.setTargetAtTime(peak*0.6, t0+0.03, 0.4);
+  o.connect(g); g.connect(master); o.start(t0);
+  const v = {o,g};
+  g.gain.setTargetAtTime(0, t0+dur, 0.08); o.stop(t0+dur+0.8);
+  active.push(v);
+  o.onended = () => { active = active.filter(x=>x!==v); };
+  return v;
+}
+function pluck(f){
+  audio();
+  const t = ctx.currentTime+0.01;
+  const o = ctx.createOscillator(); o.type="sawtooth"; o.frequency.setValueAtTime(f,t);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.12,t+0.008); g.gain.setTargetAtTime(0,t+0.02,0.35);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+1.8);
+}
+function later(fn, ms){ timers.push(setTimeout(fn, ms)); }
+function stopAll(){
+  if(ctx){
+    const t = ctx.currentTime;
+    active.forEach(v=>{ try{ v.g.gain.cancelScheduledValues(t); v.g.gain.setTargetAtTime(0, t, 0.04); v.o.stop(t+0.3); }catch(e){} });
+  }
+  timers.forEach(clearTimeout); timers=[];
+  active = []; ringOff(); glow(null); S.busy=false; markPlaying(-1);
+}
+let ringTimer=null;
+function ring(sec, only){
+  document.querySelectorAll("#tri .side").forEach(e=>{ if(only==null || +e.dataset.k===only) e.classList.add("ring"); });
+  clearTimeout(ringTimer); if(sec) ringTimer=setTimeout(()=>{ ringOff(); glow(null); }, sec*1000);
+}
+function ringOff(){ document.querySelectorAll("#tri .ring").forEach(e=>e.classList.remove("ring")); }
+function glow(fs){ const p=$("fill"); if(!p) return; p.setAttribute("fill", fs ? blendOf(fs) : "#e0b85c"); p.style.fillOpacity = fs ? .5 : .06; }
+
+function canPlayMine(){
+  if(!chordOK()){ say(`${M().name}では、回答するまで和音は鳴りません。`,"warn"); return false; }
+  if(S.sel.length<3){ say("先に棒を3本選んでください。","warn"); return false; }
+  if(!closed(lens())){ say("閉じていないので和音は鳴りません。辺をタップすると1音ずつ鳴ります。","warn"); return false; }
+  return true;
+}
+function playChord(t, dur){ const fs=myF(); fs.forEach((f,k)=>voice(f,t+k*0.025,dur)); later(()=>{ ring(dur); glow(fs); }, Math.max(0,(t-ctx.currentTime)*1000)); }
+$("bTarget").onclick = () => { if(S.busy) return; audio(); stopAll(); tgtF().forEach((f,k)=>voice(f, ctx.currentTime+0.02+k*0.025, 1.8)); twinkle=performance.now(); };
+$("bMine").onclick = () => { if(S.busy || !canPlayMine()) return; audio(); stopAll(); playChord(ctx.currentTime+0.02, 1.8); };
+$("bCompare").onclick = () => {   // 和音どうしは交互に比べる
+  if(S.busy || !canPlayMine()) return; audio(); stopAll();
+  const t = ctx.currentTime+0.02;
+  tgtF().forEach((f,k)=>voice(f,t+k*0.025,1.4)); twinkle=performance.now(); playChord(t+1.7,1.4);
+};
+$("bMeterUse").onclick = () => {
+  if(S.sel.length<3 || !closed(lens())){ say("閉じた三角形を作ってから使ってください（回数は減りません）。","warn"); return; }
+  if(S.meterShown || S.meterLeft<=0) return;
+  S.meterLeft--; S.meterShown = true; renderAll();
+  say("揺れメーターを表示中。棒を選び直すと消えます。");
+};
+
+/* ========== フレーズと曲 ========== */
+function markPlaying(i){ document.querySelectorAll(".starbtn").forEach(b=>b.classList.toggle("play", +b.dataset.i===i)); }
+function playBars(from, to, title, done){
+  audio(); stopAll(); S.busy = true;
+  const t0 = ctx.currentTime + 0.15;
+  const st = S.run.stages;
+  for(let i=from;i<=to;i++){
+    const s = st[i], t = t0 + (i-from)*BAR_SEC;
+    voice(s.bassF, t, BAR_SEC*0.95, 0.11);                                 // ベース
+    voice(s.bassF, t+BAR_SEC/2, BAR_SEC*0.45, 0.08);                         // 2拍目のベース
+    s.target.map(l=>s.K/l).sort(asc).forEach((f,k)=>voice(f, t+k*0.035, BAR_SEC*0.9, 0.06));          // ジャラン
+    s.target.map(l=>s.K/l).sort(asc).forEach((f,k)=>voice(f, t+BAR_SEC*0.5+k*0.02, BAR_SEC*0.4, 0.04)); // 裏のカッティング
+    later(()=>{
+      markPlaying(i); twinkle = performance.now();
+      const labels = st.slice(from,to+1).map((x,j)=> j===i-from ? `<span class="now">${x.label}</span>` : x.label).join(" → ");
+      const m=$("msg"); m.className=""; m.innerHTML = `♪ ${title}　${labels}`;
+    }, (t - ctx.currentTime)*1000);
+  }
+  later(()=>{ S.busy=false; markPlaying(-1); done && done(); }, ((to-from+1)*BAR_SEC + 0.4)*1000);
+}
+function keyName(){ return "キー " + NOTE[S.run.key]; }
+function songTitle(){ return `${S.run.prog.name}（${keyName()}）`; }
+function litRange(){ let n=0; while(n<BARS && S.lit.has(n)) n++; return n; }
+$("bSong").onclick = () => {
+  const n = litRange(); if(n===0){ toast("まだ灯った和音がありません"); return; }
+  openSheet(false); playBars(0, n-1, n===BARS ? songTitle() : keyName(), ()=>say(n===BARS?"1曲できあがり。":"ここまでの和音でした。","ok"));
+};
+
+/* ========== 辺をタップ・なぞる ========== */
+const svg = $("tri");
+let tracing=false, lastK=null;
+function sideAt(x,y){ const el=document.elementFromPoint(x,y); return el && el.closest ? el.closest(".hit") : null; }
+function touchSide(el){
+  if(!el){ lastK=null; return; }
+  const k = +el.dataset.k; if(k===lastK) return; lastK = k;
+  pluck(Kc()/lens()[k]); ring(0.6, k);
+}
+svg.addEventListener("pointerdown", e=>{ if(S.busy) return; tracing=true; lastK=null; touchSide(sideAt(e.clientX,e.clientY)); });
+svg.addEventListener("pointermove", e=>{ if(tracing) touchSide(sideAt(e.clientX,e.clientY)); });
+["pointerup","pointercancel","pointerleave"].forEach(n=>svg.addEventListener(n, ()=>{ tracing=false; lastK=null; }));
+
+/* ========== 表示 ========== */
+function say(t, cls){ const m=$("msg"); m.textContent=t; m.className=cls||""; }
+let toastTimer=null;
+function toast(t){ const e=$("toast"); e.textContent=t; e.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>e.classList.remove("show"), 2600); }
+
+function renderStars(){
+  $("stars").innerHTML = S.run.stages.map((s,i)=>
+    `<button class="starbtn${i===S.stage?" on":""}${S.lit.has(i)?" lit":""}" data-i="${i}" aria-pressed="${i===S.stage}" aria-label="${i+1}小節目"><span class="glyph">✦</span>${i+1}</button>`).join("");
+  $("stars").querySelectorAll("button").forEach(b=>{
+    if(M().cont) b.disabled = +b.dataset.i!==S.stage;
+    b.onclick=()=>{ if(M().cont || S.busy) return; S.stage=+b.dataset.i; resetStage(); };
+  });
+  const phrase = Math.floor(S.stage/PHRASE)+1, pos = S.stage%PHRASE+1;
+  $("hint").innerHTML = `フレーズ${phrase}の<b>${pos}つ目</b>の和音`;
+  $("lives").innerHTML = isFinite(M().lives)
+    ? Array.from({length:M().lives},(_,i)=>`<span class="gem${i>=S.livesLeft?" lost":""}">◆</span>`).join("")
+    : "";
+}
+function resetStage(){ S.sel=[]; S.meterShown=false; stopAll(); renderAll(); }
+function newRun(){
+  const m = M();
+  let prog, key, seed;
+  if(m.cont){ prog = PROGS[Math.floor(Math.random()*PROGS.length)]; key = Math.floor(Math.random()*12); seed = Math.floor(Math.random()*1e9); }
+  else { prog = PROGS[2]; key = 0; seed = 20261113; }
+  S.run = {prog, key, stages: buildRun(prog, key, seed, m.decoys)};
+  S.stage = 0; S.lit = new Set();
+  S.livesLeft = m.lives; S.meterLeft = (typeof m.meter==="number") ? m.meter : Infinity; S.over = false;
+  resetStage();
+}
+function renderSticks(){
+  const st = stage();
+  $("sticks").innerHTML = st.sticks.map((l,i)=>{
+    const k = S.sel.indexOf(i);
+    return `<button class="stick${k>=0?" sel":""}" data-i="${i}" aria-pressed="${k>=0}" ${S.over?"disabled":""}><span class="num">${l}</span><span class="bar" style="width:${l/MAX_LEN*100}%;background:${colorOfLen(l)}"></span>${k>=0?`<span class="ord">${k+1}</span>`:""}</button>`;
+  }).join("");
+  $("sticks").querySelectorAll("button").forEach(b=>b.onclick=()=>pick(+b.dataset.i));
+}
+function pick(i){
+  if(S.over || S.busy) return;
+  const k = S.sel.indexOf(i);
+  if(k>=0) S.sel.splice(k,1); else { if(S.sel.length>=3) S.sel.shift(); S.sel.push(i); }
+  S.meterShown = false;
+  stopAll();
+  pluck(Kc()/stage().sticks[i]);
+  renderAll(); evalFind();
+}
+
+function hitLine(p,q,k){ return `<line class="hit" data-k="${k}" x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="transparent" stroke-width="30" stroke-linecap="round"/>`; }
+function renderTri(){
+  if(S.sel.length<3){
+    svg.innerHTML = `<text x="160" y="105" text-anchor="middle" fill="#9aa2bd" font-size="13">お題を聞いて、下の棒を3本選んでください</text>`;
+    if(!S.over && !S.busy) say(S.sel.length ? `あと${3-S.sel.length}本選んでください。` : "");
+    $("info").textContent = "";
+    return;
+  }
+  const L = lens();
+  if(!closed(L)){
+    const s=[...L].sort(asc);
+    svg.innerHTML = L.map((l,i)=>{ const w=l/MAX_LEN*260, y=50+i*50, p=[20,y], q=[20+w,y];
+      return `<g class="side" data-k="${i}"><line x1="${p[0]}" y1="${y}" x2="${q[0]}" y2="${y}" stroke="${colorOfLen(l)}" stroke-width="5" stroke-linecap="round" stroke-dasharray="2 7"/></g><text x="${28+w}" y="${y+5}" fill="${colorOfLen(l)}" font-size="14" pointer-events="none">${l}</text>${hitLine(p,q,i)}`; }).join("");
+    if(!S.over) say(`閉じない：${s[0]}＋${s[1]}＝${s[0]+s[1]} は ${s[2]} に届きません。`, "warn");
+    $("info").textContent = "1本ずつタップすると、それぞれの音は鳴ります。";
+    return;
+  }
+  const [a,b,c] = L;
+  const x = (b*b + c*c - a*a)/(2*c), y = Math.sqrt(Math.max(0, b*b - x*x));
+  const minx=Math.min(0,x), maxx=Math.max(c,x);
+  const s = Math.min(260/(maxx-minx), 160/Math.max(y,1e-6));
+  const ox = 160 - (minx+maxx)/2*s, oy = 192;
+  const P = {A:[ox, oy], B:[ox+c*s, oy], C:[ox+x*s, oy - y*s]};
+  const sides = [ [P.B,P.C,0], [P.C,P.A,1], [P.A,P.B,2] ];
+  const cx=(P.A[0]+P.B[0]+P.C[0])/3, cy=(P.A[1]+P.B[1]+P.C[1])/3;
+  svg.innerHTML =
+    `<polygon id="fill" points="${P.A} ${P.B} ${P.C}" fill="#e0b85c" style="fill-opacity:.06"/>` +
+    sides.map(([p,q,k])=>{
+      const mx=(p[0]+q[0])/2, my=(p[1]+q[1])/2, dx=mx-cx, dy=my-cy, d=Math.hypot(dx,dy)||1;
+      const col = colorOfLen(L[k]);
+      return `<g class="side" data-k="${k}"><line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="${col}" stroke-width="4" stroke-linecap="round"/></g>` +
+             `<text x="${mx+dx/d*15}" y="${my+dy/d*15+5}" text-anchor="middle" fill="${col}" font-size="15" font-weight="700" pointer-events="none">${L[k]}</text>`;
+    }).join("") +
+    [P.A,P.B,P.C].map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#ece6d6" pointer-events="none"/>`).join("") +
+    sides.map(([p,q,k])=>hitLine(p,q,k)).join("");
+  const B = [...L].sort(asc);
+  const g = B.reduce(gcd), lr = B.map(v=>v/g);
+  const mm = B.reduce(lcm), fr = B.map(v=>mm/v), fg = fr.reduce(gcd);
+  $("info").innerHTML = `辺 <b>${lr.join(":")}</b> → 音の高さ <b>${fr.map(v=>v/fg).join(":")}</b>（短い辺ほど高い）`;
+  if(!S.over && !S.meterShown && !S.busy) say("辺をタップ（なぞる）して1音ずつ確かめ、納得したら回答。");
+}
+
+const ROWLAB = ["低","中","高"];
+function renderMeter(){
+  const m=$("meter"); m.hidden = !meterOn();
+  m.innerHTML = `<span>揺れ</span>` + ROWLAB.map((l,i)=>`<span class="m">${l}<span class="dot" id="d${i}"></span><span id="t${i}">—</span></span>`).join("");
+}
+function meterText(b){
+  if(b < TOL_HZ) return ["澄","var(--ok)"];
+  if(b > 15) return ["遠い","var(--warn)"];
+  return [`${b.toFixed(1)}/秒`,"var(--gold)"];
+}
+let twinkle = 0;
+function loop(now){
+  if(meterOn()){
+    const bs = beats();
+    for(let i=0;i<3;i++){
+      const d=$("d"+i), t=$("t"+i); if(!d) continue;
+      if(!bs || !closed(lens())){ d.style.background="var(--mute)"; d.style.opacity=.35; t.textContent="—"; t.style.color=""; continue; }
+      const b = bs[i], [txt,col] = meterText(b);
+      t.textContent = txt; t.style.color = col; d.style.background = col;
+      if(reduce || b < TOL_HZ) d.style.opacity = 1;
+      else if(b > 15) d.style.opacity = 0.35 + 0.3*Math.random();
+      else d.style.opacity = 0.55 + 0.45*Math.cos(2*Math.PI*b*now/1000);
+    }
+  }
+  drawSky(now);
+  requestAnimationFrame(loop);
+}
+
+function renderFound(){
+  $("found").innerHTML = Object.entries(FIND).map(([k,v]) =>
+    S.found.has(k) ? `<li class="got"><b>${v.t}</b>${v.d}</li>` : `<li><b>？？？</b>まだ見つかっていない</li>`).join("");
+}
+function prop(a,b){ const r=a[0]/b[0]; return a.every((x,i)=>Math.abs(x/b[i]-r) < 1e-9*Math.max(1,r)); }
+function evalFind(){
+  if(S.sel.length<3) return;
+  const L = lens().sort(asc), T = [...stage().target].sort(asc), got=[];
+  if(!closed(L)) got.push("open");
+  else{
+    if(L[0]*L[0]+L[1]*L[1]===L[2]*L[2]) got.push("right");
+    const r = L[0]/T[0];
+    if(prop(L,T) && (Math.abs(r-2)<1e-9 || Math.abs(r-.5)<1e-9)) got.push("octave");
+    const Fd = T.map(l=>1/l).sort(asc);
+    if(prop(L,Fd) && !prop(L,T)) got.push("mirror");
+  }
+  got.forEach(k=>{ if(!S.found.has(k)){ S.found.add(k); toast("発見：" + FIND[k].t); } });
+  save(); renderFound();
+}
+
+/* ========== 回答 ========== */
+function isRight(){ const L=lens().sort(asc), T=[...stage().target].sort(asc); return L.length===3 && L.every((v,i)=>v===T[i]); }
+$("bAnswer").onclick = () => {
+  if(S.busy) return;
+  if(S.over){ newRun(); return; }
+  if(S.sel.length<3){ say("棒を3本選んでから回答してください。","warn"); return; }
+  if(!closed(lens())){ say("閉じていない三角形では回答できません（失敗には数えません）。","warn"); return; }
+  audio(); stopAll();
+  if(isRight()){
+    S.lit.add(S.stage);
+    playChord(ctx.currentTime+0.02, 2.0); twinkle = performance.now();
+    renderStars(); say(`澄んだ！ ${S.stage+1}小節目は「${stage().label}」。`, "ok");
+    S.busy = true;
+    later(()=>{ S.busy=false; afterClear(); }, 2200);
+    return;
+  }
+  playChord(ctx.currentTime+0.02, 1.0);
+  if(isFinite(S.livesLeft)){
+    S.livesLeft--;
+    if(S.livesLeft<=0){ S.over=true; renderAll(); say("失敗の上限に達しました。ゲームオーバー。「最初から」で新しい曲に挑戦できます。","warn"); return; }
+    renderStars(); say(`違う響きです。失敗の残り ${S.livesLeft} 回。`, "warn");
+  } else {
+    say("違う響きです。辺を1音ずつ鳴らして、お題と比べてみてください。","warn");
+  }
+};
+function afterClear(){
+  const i = S.stage, n = litRange();
+  const phraseEnd = Math.floor(i/PHRASE)*PHRASE + PHRASE - 1;
+  const phraseStart = phraseEnd - PHRASE + 1;
+  const phraseDone = [...Array(PHRASE).keys()].every(k=>S.lit.has(phraseStart+k));
+  const next = () => {
+    if(M().cont){
+      if(i < BARS-1){ S.stage = i+1; resetStage(); toast(`${S.stage+1}小節目へ`); }
+      else { S.over = true; renderAll(); say(`1曲できあがり：${songTitle()}`, "ok"); }
+    } else renderAll();
+  };
+  if(n===BARS){ toast("8小節そろった。1曲を通して流します"); playBars(0, BARS-1, songTitle(), ()=>{ next(); if(!M().cont) say(`1曲できあがり：${songTitle()}`,"ok"); }); return; }
+  if(phraseDone){ toast(`フレーズ${Math.floor(i/PHRASE)+1}が鳴ります`); playBars(phraseStart, phraseEnd, keyName(), next); return; }
+  next();
+}
+
+function renderActions(){
+  const ch = !chordOK();
+  $("bMine").hidden = ch; $("bCompare").hidden = ch;
+  const mu = $("bMeterUse"); mu.hidden = meterFree();
+  mu.innerHTML = S.meterShown ? "メーター<br>表示中" : (isFinite(S.meterLeft) ? `メーター<br>残り${S.meterLeft}` : "メーター<br>を使う");
+  mu.disabled = S.meterShown || S.meterLeft<=0 || S.over;
+  $("bAnswer").textContent = S.over ? "最初から" : "回答する";
+}
+function renderModes(){
+  const set=(id,on)=>$(id).classList.toggle("on",on);
+  $("bMode").textContent = (M().cont ? "連続・" : "") + M().name + " ▾";
+  $("modes").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.m===S.mode));
+  $("modeDesc").textContent = M().desc;
+  set("mMeterOn",S.meter); set("mMeterOff",!S.meter);
+  $("mMeterOn").disabled = $("mMeterOff").disabled = !meterFree();
+  $("bReveal").disabled = isFinite(M().lives);
+  const n = litRange();
+  $("songInfo").innerHTML = n===BARS
+    ? `<b>${songTitle()}</b>：${S.run.stages.map(s=>s.label).join(" → ")}`
+    : n>=PHRASE ? `${keyName()}。ここまで：${S.run.stages.slice(0,n).map(s=>s.label).join(" → ")}（曲名は8小節そろうと分かります）`
+    : "4つの星を灯すと、フレーズが聴けます。";
+  $("bSong").disabled = n===0;
+}
+$("bMode").onclick=()=>openSheet(true);
+$("modes").querySelectorAll("button").forEach(b=>b.onclick=()=>{ S.mode=b.dataset.m; newRun(); openSheet(false); toast(M().name+"で遊びます"); });
+$("mMeterOn").onclick=()=>{S.meter=true; renderAll();};
+$("mMeterOff").onclick=()=>{S.meter=false; renderAll();};
+$("bReveal").onclick=()=>toast("答え：" + [...stage().target].sort(asc).join("・") + "（" + stage().label + "）");
+
+const sheet=$("sheet");
+function openSheet(on){ if(on) renderModes(); sheet.classList.toggle("open",on); sheet.setAttribute("aria-hidden", on?"false":"true"); }
+$("bMenu").onclick=()=>openSheet(true);
+$("bClose").onclick=()=>openSheet(false);
+$("sheetBack").onclick=()=>openSheet(false);
+
+function renderAll(){ renderStars(); renderSticks(); renderTri(); renderMeter(); renderModes(); renderFound(); renderActions(); }
+
+/* ========== 夜空 ========== */
+const sky=$("sky"), sx=sky.getContext("2d"); let pts=[];
+function sizeSky(){
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  sky.width=innerWidth*dpr; sky.height=innerHeight*dpr; sx.setTransform(dpr,0,0,dpr,0,0);
+  pts = Array.from({length:90},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*1.2+.2,p:Math.random()*6.28}));
+}
+function drawSky(now){
+  sx.clearRect(0,0,innerWidth,innerHeight);
+  const g=sx.createRadialGradient(innerWidth*.5,-80,10,innerWidth*.5,-80,innerHeight*1.1);
+  g.addColorStop(0,"#1b2550"); g.addColorStop(1,"#0b1020");
+  sx.fillStyle=g; sx.fillRect(0,0,innerWidth,innerHeight);
+  const boost = Math.max(0, 1-(now-twinkle)/1500);
+  pts.forEach(s=>{
+    const a = reduce ? .6 : .35+.35*Math.sin(now/1400+s.p) + boost*.4;
+    sx.globalAlpha=Math.min(1,a); sx.fillStyle="#f3ead2";
+    sx.beginPath(); sx.arc(s.x,s.y,s.r+boost*.6,0,6.283); sx.fill();
+  });
+  sx.globalAlpha=1;
+}
+addEventListener("resize", sizeSky);
+
+// 試作用の自己点検（コンソール）
+window.__ROOT_CHECK = () => {
+  const by={}; VOICINGS.forEach(v=>{ const k=v.q+v.inv; by[k]=(by[k]||0)+1; }); return by;
+};
+
+sizeSky(); newRun(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ROOT NOTES 第1章 試作</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* layout: スクロールしない1画面。上=星（1-1〜1-5と章末の謎）、中央=一弦の琴、下=微調整つまみと操作 */
+  --night:#0b1020;
+  --panel:#131b36;
+  --line:#2a3560;
+  --ink:#ece6d6;
+  --mute:#9aa2bd;
+  --gold:#e0b85c;
+  --ok:#86dcb6;
+  --warn:#e7907f;
+  --display:"Cinzel","Times New Roman",serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--night);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;overflow:hidden}
+body{-webkit-tap-highlight-color:transparent}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.app{position:relative;z-index:1;height:100%;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:8px;
+  padding:calc(8px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+.top{display:flex;align-items:center;gap:8px}
+h1{font-family:var(--display);font-weight:700;letter-spacing:.12em;font-size:1.1rem;margin:0;color:var(--gold);flex:1;white-space:nowrap}
+h1 small{font-family:var(--body);letter-spacing:.04em;font-size:.72rem;color:var(--mute);font-weight:400;margin-left:6px}
+.chip{border:1px solid var(--gold);border-radius:999px;background:color-mix(in srgb,var(--gold) 12%,transparent);color:var(--ink);font:inherit;font-size:.76rem;padding:6px 12px;min-height:34px;cursor:pointer;white-space:nowrap}
+.chip.off{border-color:var(--line);background:transparent;color:var(--mute)}
+.stage{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.starbtn{background:transparent;border:1px solid var(--line);border-radius:9px;color:var(--mute);padding:2px;font:inherit;font-size:.72rem;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:40px;cursor:pointer;line-height:1.15}
+.starbtn .glyph{font-size:.95rem;color:var(--mute)}
+.starbtn.on{border-color:var(--gold);color:var(--ink);background:color-mix(in srgb,var(--gold) 10%,transparent)}
+.starbtn.lit .glyph{color:var(--gold);text-shadow:0 0 8px var(--gold)}
+.sub{font-size:.82rem;color:var(--mute);min-height:2.6em;margin:0}
+.sub b{color:var(--ink)}
+.stagebox{flex:1;min-height:150px;position:relative;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--panel) 70%,transparent);display:flex;flex-direction:column;overflow:hidden}
+svg#lyre{flex:1;min-height:0;width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
+.status{padding:0 10px 8px;display:flex;flex-direction:column;gap:4px}
+#msg{font-size:.86rem;margin:0;min-height:1.3em}
+#msg.ok{color:var(--ok);font-weight:700}
+#msg.warn{color:var(--warn)}
+.meter{display:flex;gap:8px;align-items:center;font-size:.8rem;font-variant-numeric:tabular-nums;color:var(--mute)}
+.dot{width:14px;height:14px;border-radius:50%;background:var(--mute)}
+.hold{height:5px;border-radius:3px;background:var(--line);overflow:hidden}
+.hold i{display:block;height:100%;width:0;background:var(--ok)}
+.lower{display:flex;flex-direction:column;gap:8px}
+.tunerow{display:flex;gap:8px;align-items:stretch}
+.btn.side{flex:1;min-height:0;font-size:.9rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.btn.drone{width:100%;flex:none;font-size:.95rem}
+.actions .btn{font-size:.95rem}
+.knobwrap{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.7rem;color:var(--mute)}
+svg#knob{width:136px;height:136px;touch-action:none;cursor:grab}
+.nudges{display:flex;flex-direction:column;gap:6px;flex:1}
+.nudges .row{display:flex;gap:6px}
+.btn{flex:1;min-height:46px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:.82rem;font-weight:700;cursor:pointer;padding:4px 6px;line-height:1.25}
+.btn.primary{background:var(--gold);color:#1a1405;border-color:var(--gold)}
+.btn.on{border-color:var(--ok);color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,var(--panel))}
+.btn:disabled{opacity:.4}
+.actions{display:flex;gap:6px}
+.sticks{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.stick{background:transparent;border:1px solid var(--line);border-radius:10px;color:var(--ink);font:inherit;padding:6px 8px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-height:46px}
+.stick .num{font-family:var(--display);font-size:1rem;font-weight:700}
+.stick .bar{height:4px;border-radius:2px;background:var(--mute);opacity:.6}
+.stick.sel{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,transparent)}
+.stick.sel .bar{background:var(--gold);opacity:1}
+#toast{position:fixed;left:50%;top:calc(56px + env(safe-area-inset-top));transform:translateX(-50%);background:var(--gold);color:#1a1405;font-weight:700;padding:8px 14px;border-radius:999px;font-size:.86rem;z-index:20;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+@media (max-height:640px){ svg#knob{width:112px;height:112px} .btn{min-height:42px} }
+</style>
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="app">
+  <div class="top">
+    <h1>ROOT NOTES<small>第1章 一弦の琴</small></h1>
+    <button class="chip" id="bMeter" aria-pressed="true">メーター 表示</button>
+  </div>
+
+  <div class="stage" id="stars"></div>
+  <p class="sub" id="hint"></p>
+
+  <div class="stagebox">
+    <svg id="lyre" viewBox="0 0 320 200" preserveAspectRatio="xMidYMid meet" role="img" aria-label="一弦の琴。駒を左右に動かすと、鳴る部分の長さが変わる"></svg>
+    <div class="status">
+      <div class="meter" id="meter"><span>揺れ</span><span class="dot" id="dot"></span><span id="beatTxt">—</span></div>
+      <div class="hold" aria-hidden="true"><i id="holdBar"></i></div>
+      <p id="msg"></p>
+    </div>
+  </div>
+
+  <div class="lower" id="lower"></div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+/* 一弦の琴：弦全体の音 F0。駒で区切った長さ r（0〜1）の部分が鳴り、音の高さは F0 ÷ r（長さに反比例） */
+const F0 = 196;                 // 弦全体の音（G3）
+const PASS_HZ = 1.0;            // 揺れ 1秒に1回未満
+const PASS_HOLD = 1.0;          // を1秒保つ
+const STAGES = [
+  {id:"1-1", num:1, den:2, name:"1オクターブ上", word:"半分の長さで、同じ名前の高い音"},
+  {id:"1-2", num:2, den:3, name:"5度上",         word:"2:3。よく響き合う音"},
+  {id:"1-3", num:3, den:4, name:"4度上",         word:"3:4"},
+  {id:"1-4", num:4, den:5, name:"長3度上",       word:"4:5"},
+  {id:"1-5", num:5, den:6, name:"短3度上",       word:"5:6。ここまでの比が、次の章で三角形になる"},
+  {id:"謎",  riddle:true, open:12, answer:8, sticks:[6,8,9,10,16], name:"章末の謎",
+   word:"長さ12の弦の 8/12＝2/3。5度上の音"}
+];
+const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = id => document.getElementById(id);
+const S = {i:0, r:0.9, lit:new Set(), drone:null, meter:true, hold:0, passed:false, pick:null, pluckT:-9, pluckF:0};
+
+/* ---------- 音 ---------- */
+let ctx=null, master=null;
+function audio(){
+  if(!ctx){
+    const AC = window.AudioContext||window.webkitAudioContext; ctx = new AC();
+    const lp = ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=2600;
+    const comp = ctx.createDynamicsCompressor();
+    master = ctx.createGain(); master.gain.value=.9;
+    master.connect(lp); lp.connect(comp); comp.connect(ctx.destination);
+  }
+  if(ctx.state==="suspended") ctx.resume();
+}
+function tone(f, t0, dur, peak){
+  const o=ctx.createOscillator(); o.type="sawtooth"; o.frequency.setValueAtTime(f,t0);
+  const g=ctx.createGain(); g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(peak,t0+.02); g.gain.setTargetAtTime(peak*.7,t0+.04,.4);
+  o.connect(g); g.connect(master); o.start(t0);
+  if(dur){ g.gain.setTargetAtTime(0,t0+dur,.08); o.stop(t0+dur+.8); }
+  return {o,g};
+}
+function pluck(f){
+  audio(); const t=ctx.currentTime+.01;
+  const o=ctx.createOscillator(); o.type="sawtooth"; o.frequency.setValueAtTime(f,t);
+  const g=ctx.createGain(); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.13,t+.006); g.gain.setTargetAtTime(0,t+.02,.45);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+2.4);
+  S.pluckT = performance.now(); S.pluckF = f;
+}
+function stopDrone(){
+  if(S.drone && ctx){ const t=ctx.currentTime; S.drone.forEach(v=>{ try{ v.g.gain.cancelScheduledValues(t); v.g.gain.setTargetAtTime(0,t,.05); v.o.stop(t+.4);}catch(e){} }); }
+  S.drone=null; S.hold=0; renderButtons();
+}
+function startDrone(){
+  audio(); stopDrone(); const t=ctx.currentTime+.02;
+  S.drone=[tone(targetF(),t,0,.07), tone(stringF(),t,0,.07)];
+  renderButtons();
+}
+
+/* ---------- 計算 ---------- */
+const st = () => STAGES[S.i];
+function targetF(){ const s=st(); return s.riddle ? F0*s.open/s.answer : F0*s.den/s.num; }
+function stringF(){ const s=st(); if(s.riddle) return S.pick==null ? F0 : F0*s.open/s.sticks[S.pick]; return F0/S.r; }
+function beat(){ return Math.abs(stringF()-targetF()); }
+function setR(r){
+  S.r = Math.min(.98, Math.max(.3, r));
+  if(S.drone && ctx) S.drone[1].o.frequency.setTargetAtTime(stringF(), ctx.currentTime, .015);
+}
+
+/* ---------- 一弦の琴の描画 ---------- */
+const svg=$("lyre");
+const X0=24, X1=296, Y=96;
+function bx(){ return X0 + (X1-X0)*S.r; }
+function drawLyre(now){
+  const s=st(), riddle=!!s.riddle;
+  const r = riddle ? (S.pick==null ? 1 : s.sticks[S.pick]/s.open) : S.r;
+  const xb = X0+(X1-X0)*r;
+  // 振動：重ねて鳴らしているときは、メーター表示中だけ揺れ（うなり）の大きさで振幅を変える
+  let amp=0;
+  if(S.drone){ amp = (S.meter && !reduce) ? 7*Math.abs(Math.cos(Math.PI*Math.min(beat(),20)*now/1000))+1 : 4; }
+  const since=(now-S.pluckT)/1000; if(since<2) amp=Math.max(amp, 8*Math.exp(-since*2.2));
+  const n=40, pts=[];
+  for(let k=0;k<=n;k++){ const x=X0+(xb-X0)*k/n; const env=Math.sin(Math.PI*k/n); const w=reduce?0:Math.sin(now/18+k*0.0); pts.push(`${x.toFixed(1)},${(Y+amp*env*w).toFixed(1)}`); }
+  let ticks="";
+  for(let k=1;k<12;k++){ const x=X0+(X1-X0)*k/12; ticks+=`<line x1="${x}" y1="${Y+30}" x2="${x}" y2="${Y+(k%3===0?40:36)}" stroke="#2a3560" stroke-width="1.5"/>`; }
+  const litMarks = STAGES.filter(t=>!t.riddle && S.lit.has(t.id)).map(t=>{ const x=X0+(X1-X0)*t.num/t.den;
+    return `<line x1="${x}" y1="${Y-34}" x2="${x}" y2="${Y+24}" stroke="#e0b85c" stroke-width="1" stroke-dasharray="2 4" opacity=".6"/><text x="${x}" y="${Y-40}" text-anchor="middle" fill="#e0b85c" font-size="11">${t.num}/${t.den}</text>`; }).join("");
+  const label = (!riddle && S.passed) ? `<text x="${xb}" y="${Y+62}" text-anchor="middle" fill="#86dcb6" font-size="16" font-weight="700">${s.num}/${s.den}</text>` : "";
+  svg.innerHTML =
+    `<rect x="${X0-10}" y="${Y-18}" width="${X1-X0+20}" height="36" rx="10" fill="rgba(224,184,92,.05)" stroke="#2a3560"/>` +
+    ticks + litMarks +
+    `<polyline points="${pts.join(" ")}" fill="none" stroke="${S.drone?"#f2d27a":"#ece6d6"}" stroke-width="2.6" stroke-linecap="round"/>` +
+    `<line x1="${xb}" y1="${Y}" x2="${X1}" y2="${Y}" stroke="#5d668a" stroke-width="2" stroke-linecap="round"/>` +
+    `<circle cx="${X0}" cy="${Y}" r="5" fill="#ece6d6"/><circle cx="${X1}" cy="${Y}" r="5" fill="#ece6d6"/>` +
+    (riddle && S.pick==null ? "" : `<g id="bridge"><polygon points="${xb-11},${Y+22} ${xb+11},${Y+22} ${xb},${Y-2}" fill="#e0b85c"/><rect x="${xb-22}" y="${Y-30}" width="44" height="74" fill="transparent"/></g>`) +
+    `<text x="${X0}" y="${Y+58}" fill="#9aa2bd" font-size="11">弦全体＝1</text>` + label;
+}
+
+/* 駒をドラッグ（大まかに） */
+let dragging=false;
+function svgX(e){ const p=svg.getBoundingClientRect(); const vb=320/p.width, vh=200/p.height, sc=Math.max(vb,vh); return (e.clientX-p.left - (p.width-320/sc)/2)*sc; }
+svg.addEventListener("pointerdown", e=>{
+  if(st().riddle){ if(S.pick!=null) pluck(stringF()); return; }
+  const x=svgX(e);
+  if(Math.abs(x-bx())<34){ dragging=true; svg.setPointerCapture(e.pointerId); }
+  else if(x<bx()){ pluck(stringF()); }       // 鳴る側をタップ＝弦をはじく
+});
+svg.addEventListener("pointermove", e=>{ if(!dragging) return; setR((svgX(e)-X0)/(X1-X0)); S.passed=false; });
+["pointerup","pointercancel"].forEach(n=>svg.addEventListener(n,()=>{ dragging=false; }));
+
+/* ---------- 下の操作部 ---------- */
+function renderLower(){
+  const s=st(), L=$("lower");
+  if(s.riddle){
+    L.innerHTML = `<div class="sticks" id="sticks">${s.sticks.map((l,i)=>`<button class="stick${S.pick===i?" sel":""}" data-i="${i}"><span class="num">${l}</span><span class="bar" style="width:${l/16*100}%"></span></button>`).join("")}</div>
+      <div class="actions"><button class="btn" id="bTarget">お題を<br>聞く</button><button class="btn primary" id="bAnswer">この長さで<br>回答する</button></div>`;
+    L.querySelectorAll(".stick").forEach(b=>b.onclick=()=>{ S.pick=+b.dataset.i; pluck(stringF()); renderLower(); say(`長さ${s.sticks[S.pick]}の弦の音です。`); });
+    $("bTarget").onclick=()=>{ audio(); tone(targetF(), ctx.currentTime+.02, 1.6, .08); twinkle=performance.now(); };
+    $("bAnswer").onclick=answerRiddle;
+    return;
+  }
+  L.innerHTML = `<div class="actions"><button class="btn" id="bTarget">お題を聞く</button><button class="btn" id="bPluck">弦をはじく</button></div>
+    <div class="tunerow">
+      <button class="btn side" id="bLeft" aria-label="駒を少し左へ（弦を少し短く）">◀<br>少し短く</button>
+      <div class="knobwrap"><svg id="knob" viewBox="0 0 100 100" role="slider" aria-label="微調整つまみ。回すと駒がゆっくり動く" tabindex="0"></svg>微調整つまみ</div>
+      <button class="btn side" id="bRight" aria-label="駒を少し右へ（弦を少し長く）">▶<br>少し長く</button>
+    </div>
+    <button class="btn drone" id="bDrone">重ねて鳴らす</button>`;
+  $("bTarget").onclick=()=>{ audio(); tone(targetF(), ctx.currentTime+.02, 1.6, .08); twinkle=performance.now(); };
+  $("bPluck").onclick=()=>pluck(stringF());
+  $("bDrone").onclick=()=>{ S.drone ? stopDrone() : startDrone(); };
+  const step=0.0006;
+  hold($("bLeft"), ()=>{ setR(S.r-step); });
+  hold($("bRight"), ()=>{ setR(S.r+step); });
+  setupKnob();
+  renderButtons();
+}
+function hold(btn, fn){ let t=null; const go=()=>{ fn(); t=setTimeout(()=>{ t=setInterval(fn,40); },350); };
+  btn.addEventListener("pointerdown", e=>{ e.preventDefault(); go(); });
+  ["pointerup","pointerleave","pointercancel"].forEach(n=>btn.addEventListener(n,()=>{ clearTimeout(t); clearInterval(t); }));
+}
+let knobAngle=0;
+function drawKnob(){
+  const k=$("knob"); if(!k) return;
+  const a=knobAngle, x=50+30*Math.sin(a), y=50-30*Math.cos(a);
+  let ticks=""; for(let i=0;i<24;i++){ const b=i/24*Math.PI*2; ticks+=`<line x1="${50+40*Math.sin(b)}" y1="${50-40*Math.cos(b)}" x2="${50+45*Math.sin(b)}" y2="${50-45*Math.cos(b)}" stroke="#2a3560" stroke-width="2"/>`; }
+  k.innerHTML = ticks + `<circle cx="50" cy="50" r="36" fill="#131b36" stroke="#e0b85c" stroke-width="2"/><circle cx="${x}" cy="${y}" r="5" fill="#e0b85c"/>`;
+}
+function setupKnob(){
+  const k=$("knob"); let last=null;
+  const ang = e=>{ const r=k.getBoundingClientRect(); return Math.atan2(e.clientX-(r.left+r.width/2), -(e.clientY-(r.top+r.height/2))); };
+  k.addEventListener("pointerdown", e=>{ k.setPointerCapture(e.pointerId); last=ang(e); });
+  k.addEventListener("pointermove", e=>{ if(last==null) return; let a=ang(e), d=a-last; if(d>Math.PI) d-=2*Math.PI; if(d<-Math.PI) d+=2*Math.PI; last=a;
+    knobAngle+=d; setR(S.r + d*0.004); S.passed=false; drawKnob(); });   // 1回転で弦の約2.5%
+  ["pointerup","pointercancel"].forEach(n=>k.addEventListener(n,()=>{ last=null; }));
+  k.addEventListener("keydown", e=>{ if(e.key==="ArrowRight"||e.key==="ArrowUp"){ setR(S.r+0.0006); e.preventDefault(); } if(e.key==="ArrowLeft"||e.key==="ArrowDown"){ setR(S.r-0.0006); e.preventDefault(); } });
+  drawKnob();
+}
+function renderButtons(){ const b=$("bDrone"); if(!b) return; b.classList.toggle("on",!!S.drone); b.textContent = S.drone ? "止める" : "重ねて鳴らす（星の音と弦を一緒に）"; }
+
+/* ---------- 表示 ---------- */
+function say(t,cls){ const m=$("msg"); m.textContent=t; m.className=cls||""; }
+let toastTimer=null;
+function toast(t){ const e=$("toast"); e.textContent=t; e.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>e.classList.remove("show"),2600); }
+function renderStars(){
+  $("stars").innerHTML = STAGES.map((s,i)=>`<button class="starbtn${i===S.i?" on":""}${S.lit.has(s.id)?" lit":""}" data-i="${i}"><span class="glyph">✦</span>${s.id}</button>`).join("");
+  $("stars").querySelectorAll("button").forEach(b=>b.onclick=()=>goStage(+b.dataset.i));
+  const s=st();
+  $("hint").innerHTML = s.riddle
+    ? `<b>章末の謎</b>：長さ12の弦がある。星が鳴らす音は、何の長さの弦の音か。棒を選ぶと、その長さの弦の音が鳴る。`
+    : `お題：<b>${s.name}</b>の音。「重ねて鳴らす」で星の音と弦を一緒に鳴らし、揺れが消える位置に駒を合わせる。`;
+}
+function goStage(i){
+  stopDrone(); S.i=i; S.passed=false; S.hold=0; S.pick=null; knobAngle=0;   // ステージが変わったら微調整つまみを初期位置へ
+  const s=st();
+  if(!s.riddle){ const t=s.num/s.den; let r; do{ r=t + (Math.random()<.5?-1:1)*(0.06+Math.random()*0.1); } while(r<.32||r>.97); S.r=r; }
+  renderStars(); renderLower();
+  say(s.riddle ? "お題を聞いてから、棒を選んでください。" : "駒（金色の三角）を指で動かし、微調整つまみで詰めます。");
+}
+$("bMeter").onclick=()=>{ S.meter=!S.meter; const b=$("bMeter"); b.textContent = S.meter?"メーター 表示":"メーター 隠す"; b.classList.toggle("off",!S.meter); b.setAttribute("aria-pressed",String(S.meter)); };
+
+function answerRiddle(){
+  const s=st(); if(S.pick==null){ say("棒を1本選んでください。","warn"); return; }
+  audio();
+  if(s.sticks[S.pick]===s.answer){
+    S.lit.add(s.id); tone(targetF(), ctx.currentTime+.02, 1.6, .06); tone(stringF(), ctx.currentTime+.02, 1.6, .06);
+    renderStars(); say(`正解。${s.word}。`,"ok"); toast("第1章の星がすべて灯りました"); twinkle=performance.now();
+  } else {
+    say(`違う音です。長さ${s.sticks[S.pick]}は、12の ${s.sticks[S.pick]}/12。もう一度聞き比べてください。`,"warn");
+  }
+}
+
+/* ---------- 毎フレーム：揺れの表示と合格の判定 ---------- */
+let twinkle=0, lastNow=performance.now();
+function loop(now){
+  const dt=(now-lastNow)/1000; lastNow=now;
+  const s=st();
+  const showMeter = S.meter && !s.riddle;
+  $("meter").style.visibility = showMeter ? "visible" : "hidden";
+  if(!s.riddle){
+    const b=beat();
+    if(showMeter){
+      const d=$("dot"), t=$("beatTxt");
+      if(!S.drone){ d.style.opacity=.35; d.style.background="var(--mute)"; t.textContent="「重ねて鳴らす」で表示"; t.style.color=""; }
+      else if(b<PASS_HZ){ d.style.opacity=1; d.style.background="var(--ok)"; t.textContent=`澄んでいる（${b.toFixed(2)} 回/秒）`; t.style.color="var(--ok)"; }
+      else if(b>15){ d.style.opacity=.35+.3*Math.random(); d.style.background="var(--warn)"; t.textContent="ざらざら（遠い）"; t.style.color="var(--warn)"; }
+      else { d.style.background="var(--gold)"; d.style.opacity= reduce?1:.55+.45*Math.cos(2*Math.PI*b*now/1000); t.textContent=`揺れ ${b.toFixed(1)} 回/秒`; t.style.color="var(--gold)"; }
+    }
+    // 合格：重ねて鳴らしている間に、揺れ1秒に1回未満を1秒保つ
+    if(S.drone && !S.passed && b<PASS_HZ){ S.hold+=dt; } else if(!S.passed){ S.hold=0; }
+    $("holdBar").style.width = (S.passed?100:Math.min(100,S.hold/PASS_HOLD*100))+"%";
+    if(S.drone && !S.passed && S.hold>=PASS_HOLD){
+      S.passed=true; S.lit.add(s.id); renderStars(); twinkle=now;
+      say(`合った！ 弦の ${s.num}/${s.den}。${s.word}。`,"ok"); toast(`${s.id} の星が灯った`);
+      setTimeout(()=>{ stopDrone(); if(S.i<STAGES.length-1) goStage(S.i+1); }, 2600);
+    }
+  } else { $("holdBar").style.width = S.lit.has(s.id)?"100%":"0"; }
+  drawLyre(now);
+  drawSky(now);
+  requestAnimationFrame(loop);
+}
+
+/* ---------- 夜空 ---------- */
+const sky=$("sky"), sx=sky.getContext("2d"); let pts=[];
+function sizeSky(){ const dpr=Math.min(2,devicePixelRatio||1); sky.width=innerWidth*dpr; sky.height=innerHeight*dpr; sx.setTransform(dpr,0,0,dpr,0,0);
+  pts=Array.from({length:90},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*1.2+.2,p:Math.random()*6.28})); }
+function drawSky(now){
+  sx.clearRect(0,0,innerWidth,innerHeight);
+  const g=sx.createRadialGradient(innerWidth*.5,-80,10,innerWidth*.5,-80,innerHeight*1.1); g.addColorStop(0,"#1b2550"); g.addColorStop(1,"#0b1020");
+  sx.fillStyle=g; sx.fillRect(0,0,innerWidth,innerHeight);
+  const boost=Math.max(0,1-(now-twinkle)/1500);
+  pts.forEach(s=>{ const a=reduce?.6:.35+.35*Math.sin(now/1400+s.p)+boost*.4; sx.globalAlpha=Math.min(1,a); sx.fillStyle="#f3ead2"; sx.beginPath(); sx.arc(s.x,s.y,s.r+boost*.6,0,6.283); sx.fill(); });
+  sx.globalAlpha=1;
+}
+addEventListener("resize", sizeSky);
+
+sizeSky(); goStage(0); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
