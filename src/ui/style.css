@@ -297,7 +297,9 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .toast.show { opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
-  .side.ring, .shake, .btn.cue, .result-toast, .flash { animation: none; }
+  .side.ring, .shake, .btn.cue, .result-toast, .flash, .lyre-bridge.flash-bridge .lyre-bridge-halo { animation: none; }
+  .lyre-bridge.flash-bridge .lyre-bridge-halo { opacity: 1; }
+  .coach-target, .lyre-bridge.coach-target .lyre-bridge-halo { animation: none; }
   .flash { box-shadow: 0 0 0 3px var(--gold); }
   #tri-fill, .toast { transition: none; }
 }
@@ -351,6 +353,8 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .stick.sel.fading { border-color: var(--gold); }
 
 /* ---------- 第1章「一弦の琴」（段階4）。並びは遊ぶ画面（.app）と同じ ---------- */
+/* 長押しで文字が選ばれたり、メニューが出たりしないように（2026-11-14 発案者：「少し長く／少し短く」の長押しが効かなかった） */
+.app button, .interlude button, #knob, #lyre { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .stars.five { grid-template-columns: repeat(5, 1fr); }
 span.chip { display: inline-flex; align-items: center; cursor: default; }
 #lyre { flex: 1; min-height: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -377,6 +381,49 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 .knob-tick { stroke: var(--line); stroke-width: 2; }
 .knob-dot { fill: #3b2a10; }
 #mono-drone.on { background: var(--tile); color: var(--ink); border-color: var(--gold); }
+/* 案内の帯（チュートリアル）。前作 PRISM の案内の帯（src/ui/tutorial.css）の形を、ROOT の深緑・金に置き換えた。盤面の外に置く */
+.app.mono { grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto; grid-template-areas: "head" "stars" "sub" "guide" "board" "sticks" "actions"; }
+.mono-guide { grid-area: guide; display: flex; gap: 10px; align-items: stretch; padding: 10px 12px; border: 1px solid #9b8557; border-radius: 14px; background: linear-gradient(120deg, #0d3a34, #062522 78%); box-shadow: inset 3px 0 #d9bb6b, 0 3px 15px #0003; }
+.guide-spirit { flex: none; width: 56px; height: 72px; object-fit: contain; align-self: center; }
+.guide-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.guide-count { font-size: 0.68rem; letter-spacing: 0.14em; color: var(--mute); font-variant-numeric: tabular-nums; }
+.guide-heading { font-size: 1rem; color: var(--gold); }
+.guide-text { font-size: 0.95rem; line-height: 1.5; color: var(--ink); }
+.guide-note { font-size: 0.8rem; line-height: 1.45; color: var(--mute); }
+.guide-progress { display: flex; gap: 5px; height: 3px; margin-top: 4px; }
+.guide-progress i { flex: 1; border-radius: 2px; background: #2f4a44; }
+.guide-progress i.done { background: #b69b60; }
+.guide-progress i.current { background: #f0d797; box-shadow: 0 0 8px #ddc68a40; }
+.guide-actions { flex: none; display: flex; flex-direction: column; justify-content: flex-start; gap: 6px; }
+.guide-actions .btn { min-height: 40px; flex: none; padding: 4px 10px; font-size: 0.8rem; }
+.mono-guide.clear { border-color: #e6c984; }
+/* 案内で今触る所：光の縁を出し続ける（ゆっくり明滅。動きを減らす設定では明滅しない） */
+.coach-target { box-shadow: 0 0 0 2px var(--gold), 0 0 14px #d9bb6b99 !important; animation: coach-pulse 1.6s ease-in-out infinite; }
+#knob.coach-target { border-radius: 50%; }
+@keyframes coach-pulse { 50% { box-shadow: 0 0 0 2px var(--gold), 0 0 4px #d9bb6b44; } }
+.lyre-bridge.coach-target { box-shadow: none !important; animation: none; }
+.lyre-bridge.coach-target .lyre-bridge-halo { opacity: 1; animation: halo-pulse 1.6s ease-in-out infinite; }
+@keyframes halo-pulse { 50% { opacity: 0.35; } }
+/* 指先の輪のお手本（PRISM の tutorial-finger-ring と同じ形。色は ROOT の生成り色・金） */
+.demo-finger, .demo-finger * { pointer-events: none; }
+.demo-ring { fill: #06252255; stroke: #f2e9d8; stroke-width: 2; filter: drop-shadow(0 0 3px #d9bb6b); }
+.demo-center { fill: #f2e9d822; stroke: #f2e9d8; stroke-width: 1; }
+.demo-path { fill: none; stroke: #f2e9d8; stroke-width: 1.5; stroke-dasharray: 3 6; opacity: 0.6; }
+@media (orientation: landscape) {
+  .app.mono { grid-template-rows: auto auto auto minmax(0, 1fr) auto; grid-template-areas: "head stars" "board sub" "board guide" "board sticks" "board actions"; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .mono-guide { padding: 6px 10px; }
+  .guide-note, .guide-progress, .guide-count { display: none; }
+  .guide-spirit { width: 40px; height: 52px; }
+  .guide-text { font-size: 0.85rem; }
+  .guide-actions .btn { min-height: 34px; }
+}
+/* 導線：駒を光らせる（SVG なので影でなく光の輪で） */
+.lyre-bridge-halo { fill: none; stroke: var(--gold); stroke-width: 2; opacity: 0; pointer-events: none; }
+.lyre-bridge.flash-bridge .lyre-bridge-halo { animation: bridge-flash 1.75s ease 1 both; }
+@keyframes bridge-flash { 0%, 40%, 60%, 100% { opacity: 0; } 7%, 24%, 67%, 84% { opacity: 1; } }
+#knob.flash { border-radius: 50%; }
 @media (orientation: landscape) and (max-height: 500px) {
   #knob { width: clamp(56px, 22vh, 84px); height: clamp(56px, 22vh, 84px); }
   .btn.nudge { min-height: 46px; }

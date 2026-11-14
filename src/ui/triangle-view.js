@@ -6,7 +6,7 @@
 import { svg } from './svg.js';
 import { lengthValue, formatLength } from '../core/length.js';
 import { STAGE_RULES } from '../content/stage-rules.js';
-import { woodDefs, woodBar, part, CORNER, PIN } from './instrument-parts.js';
+import { woodDefs, woodBar, part, FRAME, CORNER, PIN } from './instrument-parts.js';
 
 const W = 320, H = 210;
 const INSET = 17; // 木枠から弦までの間（Codex の見本と同じ）
@@ -64,14 +64,18 @@ export function drawClosed(root, sides, { hint = false } = {}) {
   const area = Math.abs((B[0] - A[0]) * (C[1] - A[1]) - (C[0] - A[0]) * (B[1] - A[1])) / 2;
   const r = (2 * area) / per;
   const d = Math.min(INSET, r * 0.6), t = r > 0 ? (r - d) / r : 1;
+  // 枠の太さと金具の大きさは、内側の広さ（内接円の半径）に合わせる。平たい三角形ほど細く（半分ほどまで）、ふつうの形は FRAME のまま
+  // （2026-11-14 発案者「平たい三角形で枠の幅が広く、見た目が悪い」）
+  const frame = Math.max(5, Math.min(FRAME, r * 0.35));
+  const corner = Math.max(14, Math.min(CORNER, frame * 1.85));
   const inner = P => [I[0] + (P[0] - I[0]) * t, I[1] + (P[1] - I[1]) * t];
   const iA = inner(A), iB = inner(B), iC = inner(C);
   const strings = [[iB, iC, a], [iC, iA, b], [iA, iB, c]];
   const cx = (A[0] + B[0] + C[0]) / 3, cy = (A[1] + B[1] + C[1]) / 3;
 
   root.append(svg('polygon', { id: 'tri-fill', points: `${iA} ${iB} ${iC}` }));
-  for (const [p, q] of segs) root.append(woodBar(p, q, root));
-  for (const p of [A, B, C]) root.append(part('corner-brass', p, CORNER, '#c9a456'));
+  for (const [p, q] of segs) root.append(woodBar(p, q, root, frame));
+  for (const p of [A, B, C]) root.append(part('corner-brass', p, corner, '#c9a456'));
   for (const [p, q, side] of strings) root.append(stringLine(side.k, p, q, side.color));
   for (const p of [iA, iB, iC]) root.append(part('string-pin', p, PIN, '#caa25a'));
   for (const [p, q, side] of segs) {

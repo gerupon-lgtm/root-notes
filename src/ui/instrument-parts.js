@@ -20,12 +20,12 @@ export function woodDefs(root) {
   root.append(defs);
 }
 
-// p から q へ、木枠1本（長さ方向に木目を繰り返し、辺の向きに回す）
-export function woodBar(p, q, root) {
+// p から q へ、木枠1本（長さ方向に木目を繰り返し、辺の向きに回す）。thick は枠の太さ
+export function woodBar(p, q, root, thick = FRAME) {
   const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
   const deg = (Math.atan2(q[1] - p[1], q[0] - p[0]) * 180) / Math.PI;
   const g = svg('g', { class: 'frame', transform: `translate(${p[0]},${p[1]}) rotate(${deg})`, 'aria-hidden': 'true' });
-  g.append(svg('rect', { x: 0, y: -FRAME / 2, width: len, height: FRAME, rx: 2, fill: `url(#${woodId(root)})`, class: 'frame-bar' }));
+  g.append(svg('rect', { x: 0, y: -thick / 2, width: len, height: thick, rx: Math.min(2, thick / 4), fill: `url(#${woodId(root)})`, class: 'frame-bar' }));
   return g;
 }
 

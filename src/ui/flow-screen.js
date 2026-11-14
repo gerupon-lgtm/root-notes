@@ -73,8 +73,16 @@ export function createFlow({ audio, screens, mono, stage, onTitle }) {
     else { show('stage'); stage.start(mode, { onChapterEnd: null }); }
   }
 
-  // タイトルの入口から
+  // タイトルの入口から。'tutorial' はタイトルの「チュートリアル」（前作と同じ入口。ボタンは Codex がタイトルに足す）：
+  // 第1章の 1-1 を案内つきで始める（フリーと同じ遊び方）。第1章を最後まで続けたら、タイトルへ戻る（AQUA と同じ）
   function start(modeId) {
+    if (modeId === 'tutorial') {
+      mode = 'free';
+      audio.stopAll();
+      show('mono');
+      mono.start('free', { tutorial: true, onDone: toTitle, onTitle: toTitle, endLabel: 'タイトルへ' });
+      return;
+    }
     mode = modeId;
     if (modeId === 'select') chooseChapter();
     else go(firstStep());

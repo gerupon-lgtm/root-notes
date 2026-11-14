@@ -35,7 +35,12 @@ export const ART = Object.freeze({
   'play-felt': 'play-felt.webp', // 背景の布。上下左右に繰り返せる
   'frame-wood': 'frame-wood.webp', // 木枠の1辺。左右に繰り返せる（木目は横向き）
   'corner-brass': 'corner-brass.webp', // 角の丸い金具（背景透明。角度に左右されない形）
-  'string-pin': 'string-pin.webp' // 弦を留める小さなピン（背景透明）
+  'string-pin': 'string-pin.webp', // 弦を留める小さなピン（背景透明）
+  // 案内の帯（チュートリアル）の精霊。タイトルの絵の精霊と同じ絵柄で Codex に依頼中（request-codex-tutorial-ROOT.md）。
+  // 届くまでは null で、案内は文字だけで出す（トンマナの違う仮の絵は作らない。2026-11-14 発案者）
+  'guide-spirit-normal': null,
+  'guide-spirit-listening': null,
+  'guide-spirit-smiling': null
 });
 
 // 名前から、絵の場所（URL）を返す。まだ採用していない絵は null。

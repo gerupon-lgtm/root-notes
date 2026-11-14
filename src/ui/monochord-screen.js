@@ -3,6 +3,9 @@
 // - 駒（金色の三角）を指で大まかに動かし、微調整つまみ（と ◀▶）でゆっくり詰める。張りは変えない（C-01）
 // - 「重ねて鳴らす」で、お題の単音と自分の弦を同時に鳴らし続ける。揺れが1秒に1回未満を1秒保ったら合格
 // - 選択プレイ・フリーは揺れメーターを使える。ノーマル・エキスパートは耳で合わせる【想定】（要件6.6）
+// - 導線（2026-11-14 発案者）：1-1 は案内つきの練習（チュートリアル。前作 PRISM・AQUA の形：案内の帯、光の縁、指先の輪のお手本）。
+//   初めての1回は自動で出し、見出しの「案内」とタイトルの「チュートリアル」から見直せる。
+//   1-2〜1-5 は、次にする所を2回光らせる（お題 → はじく → 駒・つまみ → 重ねて鳴らす）
 import { svg } from './svg.js';
 import { woodDefs, woodBar, part } from './instrument-parts.js';
 import { MONOCHORD_STAGES, OPEN_HZ, KNOB_PER_RADIAN, NUDGE, PASS_BEAT, PASS_HOLD } from '../content/monochord.js';
@@ -10,6 +13,12 @@ import { stringHz, targetHz, beatHz, holdStep, startPosition, clampBridge } from
 import { MODES } from '../content/modes.js';
 import { TIMBRES } from '../content/timbres.js';
 import { BEAT_FAR_ABOVE } from '../core/pitch.js';
+import { CH1_STEPS, CH1_CLEAR, CH1_FLASH, STEP_IDS, advanceStep } from '../content/tutorial.js';
+import { TutorialBook } from '../game/tutorial-book.js';
+import { artPath } from '../content/assets.js';
+
+// 端末の保存場所（使えない端末では null。案内の記録は保存できなくても遊べる）
+function localStore() { try { return globalThis.localStorage ?? null; } catch { return null; } }
 
 // 重ねて鳴らすときの音色：音量が落ちず、揺れを聞き取りやすいオルガン（仮。2026-11-14 発案者 OK。A区分）
 const TIMBRE = TIMBRES.organ;
@@ -23,8 +32,11 @@ export function createMonochordScreen({ audio }) {
   const S = {
     mode: MODES.free, i: 0, r: 0.8, lit: new Set(), drone: null, meterOn: true,
     hold: 0, passed: false, pluckAt: -1e9, knob: 0, dragging: false, raf: 0, last: 0,
-    onDone: () => {}, onTitle: () => {}, nextTimer: 0, ended: false
+    onDone: () => {}, onTitle: () => {}, nextTimer: 0, ended: false,
+    // 導線：step は今の手順（CH1_STEPS の番号）。tutorial は案内つきのとき 'auto'（初めて）・'replay'（「案内」）・'title'（タイトルから）
+    step: 0, tutorial: null, touching: false, endLabel: null
   };
+  const book = new TutorialBook(localStore());
   const stage = () => MONOCHORD_STAGES[S.i];
   const meterAllowed = () => S.mode.id === 'select' || S.mode.id === 'free';
   const showMeter = () => meterAllowed() && S.meterOn;
@@ -44,9 +56,17 @@ export function createMonochordScreen({ audio }) {
     stopDrone();
     S.drone = [audio.hold(target(), TIMBRE, { level: 0.55 }), audio.hold(current(), TIMBRE, { level: 0.55 })];
     renderButtons();
+    reach('drone');
   }
-  function pluck() { audio.pluck(current(), 'overlap', TIMBRE); S.pluckAt = performance.now(); }
-  function playTarget() { audio.chord([target()], { timbre: TIMBRE, duration: 1.6, level: 0.8 }); twinkle(); }
+  function pluck() { audio.pluck(current(), 'overlap', TIMBRE); S.pluckAt = performance.now(); reach('pluck'); }
+  function playTarget() {
+    audio.chord([target()], { timbre: TIMBRE, duration: 1.6, level: 0.8 });
+    twinkle();
+    $('mono-target').classList.remove('guide');
+    reach('target');
+  }
+  // 駒を動かした（ドラッグ・◀▶・つまみ・キー）
+  const moved = () => reach('move');
   function setR(r) {
     S.r = clampBridge(r);
     if (S.drone) S.drone[1]?.setHz(current());
@@ -64,16 +84,17 @@ export function createMonochordScreen({ audio }) {
       const x = X0 + ((X1 - X0) * k) / 12;
       root.append(svg('line', { x1: x, y1: Y + 40, x2: x, y2: Y + (k % 3 === 0 ? 52 : 47), class: 'lyre-tick' }));
     }
-    // 合格した比を残す
+    // 合格した比を残す。ただし、いま遊んでいる面の印は合格するまで出さない（見直しのとき答えが見えてしまうため）
     for (const s of MONOCHORD_STAGES) {
-      if (!S.lit.has(s.id)) continue;
+      if (!S.lit.has(s.id) || (s.id === stage().id && !S.passed)) continue;
       const x = X0 + ((X1 - X0) * s.num) / s.den;
       root.append(svg('line', { x1: x, y1: Y - 34, x2: x, y2: Y + 22, class: 'lyre-mark' }));
       root.append(svg('text', { x, y: Y - 40, 'text-anchor': 'middle', class: 'lyre-mark-text' }, `${s.num}/${s.den}`));
     }
     const muted = svg('line', { x1: X0, y1: Y, x2: X1, y2: Y, class: 'lyre-muted' });
     const string = svg('polyline', { points: '', class: 'lyre-string' });
-    const bridge = svg('g', { class: 'lyre-bridge' });
+    const bridge = svg('g', { class: 'lyre-bridge', id: 'mono-bridge' });
+    bridge.append(svg('circle', { cx: 0, cy: 10, r: 20, class: 'lyre-bridge-halo' }));
     bridge.append(svg('polygon', { points: '-11,24 11,24 0,-2', class: 'lyre-bridge-body' }));
     bridge.append(svg('rect', { x: -24, y: -34, width: 48, height: 82, fill: 'transparent' }));
     const ratio = svg('text', { x: 0, y: 64, 'text-anchor': 'middle', class: 'lyre-ratio' }, '');
@@ -81,6 +102,8 @@ export function createMonochordScreen({ audio }) {
     root.append(muted, string, part('string-pin', [X0, Y], 9, '#caa25a'), part('string-pin', [X1, Y], 9, '#caa25a'), bridge, ratio);
     root.append(svg('text', { x: X0 - 8, y: Y + 72, class: 'lyre-note' }, '弦全体＝1'));
     parts = { muted, string, bridge, ratio };
+    drawMoving(performance.now());
+    renderCoach();
   }
   function drawMoving(now) {
     if (!parts) return;
@@ -136,6 +159,8 @@ export function createMonochordScreen({ audio }) {
     renderStars(); drawStatic(); twinkle();
     say(`合った！ 弦の ${s.num}/${s.den}。${s.word}。`, 'ok');
     clearTimeout(S.nextTimer);
+    // 案内つきの練習は、クリアの知らせを出し、「次へ」を押すまで待つ（PRISM のチュートリアルクリアと同じ）
+    if (S.tutorial) { book.complete('ch1'); renderGuide(); renderCoach(); return; }
     S.nextTimer = setTimeout(() => {
       stopDrone();
       const rest = MONOCHORD_STAGES.findIndex((x, k) => k > S.i && !S.lit.has(x.id));
@@ -149,7 +174,110 @@ export function createMonochordScreen({ audio }) {
     say('第1章の星がすべて灯りました。弦の長さの比 1/2・2/3・3/4・4/5・5/6 が、澄んだ響きを生みます。', 'ok');
     $('mono-actions').hidden = true;
     $('mono-end').hidden = false;
-    $('mono-next').textContent = S.mode.continuous ? '次へ ▶' : '章を選ぶ';
+    $('mono-next').textContent = S.endLabel ?? (S.mode.continuous ? '次へ ▶' : '章を選ぶ');
+    $('mono-end-title').hidden = S.endLabel === 'タイトルへ';
+  }
+  // 次の面（今より後ろで灯っていない面。なければ前から）
+  function nextUnlit() {
+    const rest = MONOCHORD_STAGES.findIndex((x, k) => k > S.i && !S.lit.has(x.id));
+    return rest >= 0 ? rest : MONOCHORD_STAGES.findIndex(x => !S.lit.has(x.id));
+  }
+
+  // ---------- 導線（案内の帯・光の縁・お手本・光らせる） ----------
+  const targetEl = id => (id === 'bridge' ? parts?.bridge : $(id));
+  const guiding = () => !!S.tutorial && !S.passed;
+  // 案内の帯
+  function renderGuide() {
+    const bar = $('mono-guide');
+    bar.hidden = !S.tutorial;
+    if (!S.tutorial) return;
+    const clear = S.passed, copy = clear ? CH1_CLEAR : CH1_STEPS[S.step];
+    bar.classList.toggle('clear', clear);
+    $('mono-guide-count').textContent = clear ? 'CLEAR' : `${S.step + 1} / ${CH1_STEPS.length}`;
+    $('mono-guide-heading').textContent = copy.heading;
+    $('mono-guide-text').textContent = copy.text;
+    $('mono-guide-note').textContent = copy.note;
+    [...$('mono-guide-progress').children].forEach((seg, k) => {
+      seg.className = clear || k < S.step ? 'done' : k === S.step ? 'current' : '';
+    });
+    $('mono-guide-skip').hidden = clear;
+    $('mono-guide-next').hidden = !clear;
+    $('mono-guide-next').textContent = S.tutorial === 'title' ? '第1章を続ける ▶' : '次へ ▶';
+    $('mono-guide-title').hidden = !(clear && S.tutorial === 'title');
+    // 精霊（Codex の絵が届くまでは出さない）
+    const id = STEP_IDS[S.step];
+    const spirit = artPath(clear ? 'guide-spirit-smiling' : id === 'drone' || id === 'tune' ? 'guide-spirit-listening' : 'guide-spirit-normal');
+    const img = $('mono-guide-spirit');
+    img.hidden = !spirit;
+    if (spirit && img.getAttribute('src') !== spirit) img.src = spirit;
+  }
+  // 案内で今触る所に、光の縁を出し続ける
+  function renderCoach() {
+    for (const el of document.querySelectorAll('#mono-screen .coach-target')) el.classList.remove('coach-target');
+    if (guiding()) for (const id of CH1_STEPS[S.step].targets) targetEl(id)?.classList.add('coach-target');
+    renderDemo();
+  }
+  // 指先の輪のお手本（PRISM の tutorial-guide.js と同じ考え方）。触っている間は止め、離したら戻す。動きを減らす設定では止まった印
+  function renderDemo() {
+    for (const el of document.querySelectorAll('#mono-screen .demo-finger')) el.remove();
+    const demo = guiding() && !S.touching ? CH1_STEPS[S.step].demo : null;
+    if (!demo) return;
+    const still = reduceMotion();
+    const dur = demo === 'bridge' ? '3.2s' : '2.4s';
+    const finger = (host, d, at) => {
+      const g = svg('g', { class: 'demo-finger', 'aria-hidden': 'true' });
+      g.append(svg('path', { d, class: 'demo-path' }));
+      const ring = svg('g', still ? { transform: `translate(${at[0]} ${at[1]})` } : {});
+      ring.append(svg('circle', { r: 11, class: 'demo-ring' }), svg('circle', { r: 3.5, class: 'demo-center' }));
+      if (!still) {
+        ring.append(svg('animateMotion', { path: d, dur, repeatCount: 'indefinite' }));
+        ring.append(svg('animate', { attributeName: 'opacity', values: '0;1;1;1;0', keyTimes: '0;0.1;0.5;0.85;1', dur, repeatCount: 'indefinite' }));
+      }
+      g.append(ring);
+      host.append(g);
+    };
+    if (demo === 'bridge' && parts) {
+      // 駒の上で、指が左右へ動かすお手本（答えの向きは示さない）
+      const xb = bx(), y = Y + 8;
+      finger(root, `M${xb} ${y} L${Math.min(X1, xb + 45)} ${y} L${Math.max(X0, xb - 45)} ${y} L${xb} ${y}`, [xb, y]);
+    } else if (demo === 'knob') {
+      // つまみの縁に沿って回すお手本
+      finger($('knob'), 'M50 16 A34 34 0 0 1 84 50 A34 34 0 0 1 50 84', [50, 16]);
+    }
+  }
+  // 操作をしたら次の手順へ。案内つきなら帯と縁を更新し、そうでなければ次にする所を2回光らせる
+  function reach(action) {
+    if (S.passed) return;
+    const before = S.step;
+    S.step = advanceStep(S.step, action);
+    if (S.step === before) return;
+    if (S.tutorial) { renderGuide(); renderCoach(); }
+    else flash(CH1_FLASH[STEP_IDS[S.step]]);
+  }
+  let flashTimer = 0;
+  function flash(ids) {
+    for (const el of document.querySelectorAll('#mono-screen .flash')) el.classList.remove('flash');
+    parts?.bridge.classList.remove('flash-bridge');
+    clearTimeout(flashTimer);
+    const els = ids.map(id => [id, targetEl(id)]).filter(([, el]) => el);
+    for (const [id, el] of els) {
+      const cls = id === 'bridge' ? 'flash-bridge' : 'flash';
+      el.classList.remove(cls);
+      void el.getBoundingClientRect();
+      el.classList.add(cls);
+    }
+    flashTimer = setTimeout(() => { for (const [, el] of els) el.classList.remove('flash', 'flash-bridge'); }, 2000);
+  }
+  // 面の始まりの合図：「お題を聞く」を2回光らせ、聞くまで金色の縁を残す（三角形の章と同じ）。案内つきのときは光の縁で示す
+  function startCue() {
+    const b = $('mono-target');
+    b.classList.add('guide');
+    b.classList.remove('cue');
+    void b.offsetWidth;
+    if (!reduceMotion() && !S.tutorial) b.classList.add('cue');
+  }
+  function startTutorial(kind) {
+    goStage(0, { tutorial: kind });
   }
 
   // ---------- 表示 ----------
@@ -195,19 +323,24 @@ export function createMonochordScreen({ audio }) {
     face.append(part('corner-brass', [50, 50], 78, '#c9a456'));
     face.append(svg('circle', { cx: 50, cy: 20, r: 5, class: 'knob-dot' }));
     k.append(face);
+    renderDemo();
   }
 
-  function goStage(i) {
+  // tutorial：この面を案内つきにするか（1-1 だけ）。渡さなければ案内なし
+  function goStage(i, { tutorial = null } = {}) {
     clearTimeout(S.nextTimer);
     stopDrone();
-    S.i = i; S.passed = false; S.hold = 0; S.knob = 0; S.ended = false;
+    S.i = i; S.passed = false; S.hold = 0; S.knob = 0; S.ended = false; S.step = 0;
+    S.tutorial = i === 0 ? tutorial : null;
     S.r = startPosition(stage().num / stage().den, Math.random);
     $('mono-actions').hidden = false;
     $('mono-end').hidden = true;
-    renderStars(); renderButtons(); drawStatic(); drawKnob();
-    say(meterAllowed()
+    renderStars(); renderButtons(); renderGuide(); drawStatic(); drawKnob();
+    if (S.tutorial) say('');
+    else say(meterAllowed()
       ? '駒（金色の三角）を指で動かし、「重ねて鳴らす」で揺れが消える所を、微調整つまみで探します。'
       : '駒（金色の三角）を指で動かし、「重ねて鳴らす」で揺れが消える所を、耳で探します。');
+    startCue();
   }
 
   // ---------- 操作 ----------
@@ -216,24 +349,33 @@ export function createMonochordScreen({ audio }) {
     if (!m) return 0;
     return new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse()).x;
   };
+  const touch = on => { S.touching = on; renderDemo(); };
   root.addEventListener('pointerdown', e => {
     audio.unlock();
     const x = svgX(e);
-    if (Math.abs(x - bx()) < 30) { S.dragging = true; root.setPointerCapture(e.pointerId); }
+    if (Math.abs(x - bx()) < 30) { S.dragging = true; root.setPointerCapture(e.pointerId); touch(true); }
     else if (x < bx()) pluck(); // 鳴る側をタップ＝弦をはじく
   });
   root.addEventListener('pointermove', e => {
     if (!S.dragging) return;
     setR((svgX(e) - X0) / (X1 - X0));
+    moved();
   });
-  for (const n of ['pointerup', 'pointercancel']) root.addEventListener(n, () => { S.dragging = false; });
+  for (const n of ['pointerup', 'pointercancel']) root.addEventListener(n, () => { if (S.dragging) { S.dragging = false; touch(false); } });
 
   // ◀▶：押している間、少しずつ動く（0.35秒で連続に）
   function holdButton(btn, step) {
     let t = 0, iv = 0;
     const end = () => { clearTimeout(t); clearInterval(iv); };
-    btn.addEventListener('pointerdown', e => { e.preventDefault(); setR(S.r + step); t = setTimeout(() => { iv = setInterval(() => setR(S.r + step), 40); }, 350); });
-    for (const n of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(n, end);
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      // 指が少しずれても押し続けられるように、離すまで受け取る
+      try { btn.setPointerCapture(e.pointerId); } catch { /* 受け取れない端末 */ }
+      setR(S.r + step); moved();
+      t = setTimeout(() => { iv = setInterval(() => setR(S.r + step), 40); }, 350);
+    });
+    for (const n of ['pointerup', 'pointerleave', 'pointercancel', 'lostpointercapture']) btn.addEventListener(n, end);
+    btn.addEventListener('contextmenu', e => e.preventDefault()); // 長押しのメニューを出さない
   }
   holdButton($('mono-left'), -NUDGE);
   holdButton($('mono-right'), NUDGE);
@@ -242,7 +384,7 @@ export function createMonochordScreen({ audio }) {
   const knob = $('knob');
   let lastAngle = null;
   const angleOf = e => { const b = knob.getBoundingClientRect(); return Math.atan2(e.clientX - (b.left + b.width / 2), -(e.clientY - (b.top + b.height / 2))); };
-  knob.addEventListener('pointerdown', e => { knob.setPointerCapture(e.pointerId); lastAngle = angleOf(e); });
+  knob.addEventListener('pointerdown', e => { knob.setPointerCapture(e.pointerId); lastAngle = angleOf(e); touch(true); });
   knob.addEventListener('pointermove', e => {
     if (lastAngle === null) return;
     const a = angleOf(e);
@@ -252,12 +394,13 @@ export function createMonochordScreen({ audio }) {
     lastAngle = a;
     S.knob += d;
     setR(S.r + d * KNOB_PER_RADIAN);
+    moved();
     drawKnob();
   });
-  for (const n of ['pointerup', 'pointercancel']) knob.addEventListener(n, () => { lastAngle = null; });
+  for (const n of ['pointerup', 'pointercancel']) knob.addEventListener(n, () => { if (lastAngle !== null) { lastAngle = null; touch(false); } });
   knob.addEventListener('keydown', e => {
     const step = { ArrowRight: NUDGE, ArrowUp: NUDGE, ArrowLeft: -NUDGE, ArrowDown: -NUDGE }[e.key];
-    if (step) { setR(S.r + step); S.knob += step / KNOB_PER_RADIAN; drawKnob(); e.preventDefault(); }
+    if (step) { setR(S.r + step); S.knob += step / KNOB_PER_RADIAN; moved(); drawKnob(); e.preventDefault(); }
   });
 
   $('mono-target').addEventListener('click', playTarget);
@@ -269,6 +412,20 @@ export function createMonochordScreen({ audio }) {
     if (b && !b.disabled) goStage(Number(b.dataset.i));
   });
   $('mono-title').addEventListener('click', () => { stop(); S.onTitle(); });
+  $('mono-guide-open').addEventListener('click', () => startTutorial('replay'));
+  $('mono-guide-skip').addEventListener('click', () => {
+    book.skip('ch1');
+    S.tutorial = null;
+    renderGuide(); renderCoach();
+    say('案内をスキップしました。見出しの「案内」から、いつでも見直せます。');
+    flash(CH1_FLASH[STEP_IDS[S.step]]);
+  });
+  $('mono-guide-next').addEventListener('click', () => {
+    S.tutorial = null;
+    const next = nextUnlit();
+    if (next < 0) chapterEnd(); else goStage(next);
+  });
+  $('mono-guide-title').addEventListener('click', () => { stop(); S.onTitle(); });
   $('mono-end-title').addEventListener('click', () => { stop(); S.onTitle(); });
   $('mono-next').addEventListener('click', () => { stop(); S.onDone(); });
 
@@ -279,14 +436,15 @@ export function createMonochordScreen({ audio }) {
     S.raf = 0;
   }
 
-  // 第1章を始める。mode：MODES の名前。onDone：章が終わって「次へ」を押したとき。onTitle：タイトルへ戻るとき
-  function start(modeId, { onDone = () => {}, onTitle = () => {} } = {}) {
+  // 第1章を始める。mode：MODES の名前。onDone：章が終わって「次へ」を押したとき。onTitle：タイトルへ戻るとき。
+  // tutorial：タイトルの「チュートリアル」から入ったとき true（1-1 を案内つきで始める）。endLabel：章の終わりのボタンの文言
+  function start(modeId, { onDone = () => {}, onTitle = () => {}, tutorial = false, endLabel = null } = {}) {
     stop();
     S.mode = MODES[modeId] ?? MODES.free;
-    S.onDone = onDone; S.onTitle = onTitle;
-    S.lit = new Set(); S.meterOn = true; S.last = 0;
-    $('mono-mode').textContent = S.mode.label;
-    goStage(0);
+    S.onDone = onDone; S.onTitle = onTitle; S.endLabel = endLabel;
+    S.lit = new Set(); S.meterOn = true; S.last = 0; S.touching = false;
+    $('mono-mode').textContent = tutorial ? 'チュートリアル' : S.mode.label;
+    goStage(0, { tutorial: tutorial ? 'title' : book.shouldAuto('ch1') ? 'auto' : null });
     S.raf = requestAnimationFrame(loop);
   }
 
