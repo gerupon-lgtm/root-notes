@@ -264,7 +264,7 @@
 | 1→3m→5→6m | I → IIIm → V → VIm |
 | 王道進行 | IVmaj7（VIm/IV）→ V → IIIm7（V/III）→ VIm |
 | カノン進行 | I → V → VIm → IIIm → IV → I → IV → V |
-| 小室進行 | VIm → IV → V → I |
+| TK進行（旧名 小室進行。2026-11-14 発案者） | VIm → IV → V → I |
 | 丸サ進行 | IVmaj7（VIm/IV）→ III → VIm7（I/VI）→ I |
 
 ### 6.6 遊び方の段階

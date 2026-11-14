@@ -264,14 +264,13 @@ export function createStageScreen({ audio, onTitle }) {
     $('staff-panel').hidden = false;
   }
   const hideStaff = () => { $('staff-panel').hidden = true; };
-  $('staff-panel').addEventListener('click', e => { if (!e.target.closest('#staff-replay')) hideStaff(); });
-  // コード進行を聞き直す（2026-11-14 発案者）。最後に流したフレーズ・1曲をもう一度流す
+  $('staff-panel').addEventListener('click', hideStaff);
+  // コード進行を聞き直す（2026-11-14 発案者）。最後に流したフレーズ・1曲をもう一度流す。結果のトーストから選ぶ（譜面には置かない）
   function replay() {
     if (s.busy || !s.lastMusic) return;
     const { from, to, title } = s.lastMusic;
     playMusic(from, to, title);
   }
-  $('staff-replay').addEventListener('click', replay);
 
   // ---------- 曲 ----------
   function playMusic(from, to, title, done = () => {}) {
@@ -282,7 +281,6 @@ export function createStageScreen({ audio, onTitle }) {
     const labels = p.run.stages.slice(from, to + 1).map(x => x.label);
     s.lastMusic = { from, to, title };
     showStaff(from, to);
-    $('staff-replay').disabled = true;
     audio.playScore(buildScore(p.run.stages, from, to, { carryOver: s.carryOver }), {
       chordTimbre: TIMBRES[SONG_TIMBRE],
       bassTimbre: TIMBRES[BASS_TIMBRE],
@@ -294,7 +292,7 @@ export function createStageScreen({ audio, onTitle }) {
         msg.className = '';
         msg.replaceChildren(`♪ ${title}　`, ...labels.flatMap((l, j) => [j ? ' → ' : '', from + j === bar ? el('span', { class: 'now' }, chordText(l)) : l]));
       },
-      onEnd: () => { s.playingBar = -1; s.busy = false; $('staff-replay').disabled = false; markStaff($('staff'), -1); done(); renderAll(); }
+      onEnd: () => { s.playingBar = -1; s.busy = false; markStaff($('staff'), -1); done(); renderAll(); }
     });
   }
 
@@ -315,8 +313,6 @@ export function createStageScreen({ audio, onTitle }) {
            ...(phrase ? [`フレーズ${r.music.from / PHRASE + 1}がそろいました`, ...progressionLines(r.music.from, r.music.to)] : [])];
       if (p.mode.continuous) buttons = bar === BARS ? [['restart', '新しい曲で遊ぶ', true], ['title', 'タイトルへ']] : [['next', '次の星へ ▶', true]];
       else buttons = p.nextBar() === null ? [['close', '閉じる', true]] : [['next', '次の星へ ▶', true], ['close', 'この星に残る']];
-      // フレーズや1曲がそろったときは、聞き直せるようにする
-      if (song || phrase) buttons = [['replay', 'もう一度聴く'], ...buttons];
     } else if (r.gameOver) {
       head = 'ゲームオーバー';
       body = ['失敗の上限に達しました。新しい曲でもう一度挑戦できます。'];
@@ -330,8 +326,12 @@ export function createStageScreen({ audio, onTitle }) {
     const t = $('result-toast');
     t.className = `result-toast ${kind === 'correct' ? 'ok' : 'ng'}`;
     t.replaceChildren(
-      el('div', { class: 'result-head' }, el('h3', {}, head), el('button', { type: 'button', class: 'close', 'data-act': 'close', 'aria-label': '閉じる' }, '×')),
-      ...body.map((line, i) => el('p', { class: i ? 'sub-line' : '' }, line)),
+      // 見出し（「1曲できあがり」とキーの行）の右に「もう一度聴く」（フレーズや1曲がそろったとき。2026-11-14 発案者）
+      el('div', { class: 'result-head' },
+        el('div', { class: 'result-title' }, el('h3', {}, head), el('p', {}, body[0])),
+        r?.music ? el('button', { type: 'button', class: 'replay', 'data-act': 'replay' }, '▶ もう一度聴く') : '',
+        el('button', { type: 'button', class: 'close', 'data-act': 'close', 'aria-label': '閉じる' }, '×')),
+      ...body.slice(1).map(line => el('p', { class: 'sub-line' }, line)),
       el('div', { class: 'result-actions' }, ...buttons.map(([act, text, primary]) => el('button', { type: 'button', class: primary ? 'btn primary' : 'btn', 'data-act': act }, text))));
     t.hidden = false;
     placeResult();
