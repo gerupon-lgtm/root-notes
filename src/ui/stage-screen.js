@@ -436,10 +436,14 @@ export function createStageScreen({ audio, onTitle }) {
     const used = p.selected.includes(i), full = !used && p.selected.length === 3;
     // 棒の操作は2通りを比べられる（2026-11-14 発案者）。
     // second：1回目で選ぶ、2回目（間があいてもよい）で使う・外す。double：1回は選ぶ（音を聞く）だけ、素早い2回で使う・外す
+    // double は「タップで選ぶ → 選んだあとのダブルタップで使う」（2026-11-14 発案者）。
+    // ダブルタップの1回目が「すでに選んでいる棒を、間をおいてタップした」ときだけ数える。
+    // 選んでいない棒を素早く何度タップしても、選ぶ（音を聞く）だけで入らない
     const now = performance.now();
     const quick = s.lastTap && s.lastTap.i === i && now - s.lastTap.t < 350;
-    s.lastTap = { i, t: now };
-    const act = s.tapMode === 'double' ? quick : s.focus === i;
+    const opensDouble = s.focus === i && !quick; // ダブルタップの1回目になれるタップ
+    const act = s.tapMode === 'double' ? quick && s.lastTap.opensDouble : s.focus === i;
+    s.lastTap = { i, t: now, opensDouble };
     if (!act) {
       s.focus = i;
       audio.pluck(hz(p.stage.sticks[i]), p.sustain, timbre());
