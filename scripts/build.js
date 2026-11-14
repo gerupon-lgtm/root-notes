@@ -10,6 +10,8 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// アプリのアイコン（Codex 素材 アイコン v1.0.0、B案。2026-11-14 発案者が採用）。public/ に置くと、マニフェストと入口のページに入る
+const APP_ICONS = ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 export function build({ root = repo, output = join(root, 'dist') } = {}) {
   const read = p => readFileSync(join(root, p), 'utf8');
@@ -34,6 +36,8 @@ export function build({ root = repo, output = join(root, 'dist') } = {}) {
       const source = posix.join(dir, entry.name);
       if (entry.isDirectory()) { if (source !== 'src/pwa') copyTree(source); continue; }
       if (!/\.(js|css|png|svg|webp|ttf|txt)$/.test(entry.name)) continue;
+      // アプリのアイコンは版のフォルダの外にだけ置く（下の icons。版のフォルダにも写すと、使わない写しが保存場所に二重に入る）
+      if (dir === 'public' && APP_ICONS.includes(entry.name)) continue;
       const target = posix.join(prefix, source);
       mkdirSync(join(output, posix.dirname(target)), { recursive: true });
       copyFileSync(join(root, source), join(output, target));
@@ -45,7 +49,7 @@ export function build({ root = repo, output = join(root, 'dist') } = {}) {
 
   // アイコンは版のフォルダの外の決まった場所にも置き、マニフェストと画面はこちらを指す（AQUA 2026-11-03：
   // 古い版の画面のままホーム画面に追加すると、版つきのアイコンが見つからずインストールできないことがあった）
-  const icons = ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].filter(name => existsSync(join(root, 'public', name)));
+  const icons = APP_ICONS.filter(name => existsSync(join(root, 'public', name)));
   for (const name of icons) copyFileSync(join(root, 'public', name), join(output, name));
 
   let index = read('index.html');

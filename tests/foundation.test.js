@@ -71,6 +71,14 @@ test('公開用のまとめ：版のフォルダに部品を置き、入口の�
     const manifest = JSON.parse(readFileSync(join(output, 'manifest.webmanifest'), 'utf8'));
     assert.equal(manifest.short_name, 'ROOT NOTES');
     assert.equal(manifest.display, 'standalone');
+    // アプリのアイコン（B案）：版のフォルダの外にだけ置き、マニフェストと入口のページが指す（参照は1つずつ）
+    for (const name of ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png']) {
+      assert.ok(info.assets.includes(`./${name}`), `${name} が資材にない`);
+      assert.ok(!existsSync(join(output, `v${version}`, 'public', name)), `${name} が版のフォルダにもある`);
+    }
+    assert.deepEqual(manifest.icons.map(i => [i.src, i.sizes]), [['./icon-192.png', '192x192'], ['./icon-512.png', '512x512']]);
+    assert.equal(index.split('rel="icon"').length - 1, 1);
+    assert.equal(index.split('rel="apple-touch-icon"').length - 1, 1);
   } finally {
     rmSync(output, { recursive: true, force: true });
   }
