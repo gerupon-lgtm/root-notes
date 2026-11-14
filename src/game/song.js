@@ -11,7 +11,8 @@ export function buildScore(stages, from, to, { carryOver = false } = {}) {
   const notes = [];
   for (let bar = from; bar <= to; bar++) {
     const stage = stages[bar], start = (bar - from) * BAR_SECONDS;
-    const bass = midiToHz(stage.bassMidi);
+    // bassCents：分数コードでベースを三角形の3度に合わせた分（v0.19）
+    const bass = midiToHz(stage.bassMidi) * 2 ** ((stage.bassCents ?? 0) / 1200);
     notes.push({ bar, part: 'bass', time: start, hz: bass, duration: BAR_SECONDS * 0.95, gain: 0.11 });
     notes.push({ bar, part: 'bass', time: start + BAR_SECONDS / 2, hz: bass, duration: BAR_SECONDS * 0.45, gain: 0.08 });
     frequencies(stage.target, stage.K).forEach((hz, k) => {

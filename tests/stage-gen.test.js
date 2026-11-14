@@ -67,6 +67,14 @@ function checkStage(stage, { key, decoys, where }) {
       assert.ok(Math.abs(e3 + e5) < 1e-6 && Math.abs(e3) < 25, `${where} 属七のずれ ${e3.toFixed(1)} ${e5.toFixed(1)}`);
     }
   } else assert.equal(stage.tuneCents, 0, where);
+  // 分数コードでベースが和音の3度のとき、ベースは三角形の3度とちょうどオクターブ違い（v0.19。発案者：A）。それ以外はベースを動かさない
+  const third = (stage.rootMidi + TRIAD_TONES[stage.chord.quality][1]) % 12;
+  const bassPcNow = stage.bassMidi % 12;
+  if (stage.chordName.includes('/') && bassPcNow === third) {
+    const bassHz = midiToHz(stage.bassMidi) * 2 ** (stage.bassCents / 1200);
+    assert.ok(target.some(l => { const o = Math.log2(frequency(l, K) / bassHz); return Math.abs(o - Math.round(o)) < 1e-9; }), `${where} 分数コードのベースと3度`);
+    assert.ok(Math.abs(stage.bassCents) < 20, where);
+  } else assert.equal(stage.bassCents, 0, where);
   // ベースが根音のとき、ベースと三角形の根音はちょうどオクターヴ（うならない）
   if (stage.bassDegree === stage.chord.degree && stage.bassShift === stage.chord.shift) {
     const octaves = Math.log2(fr / midiToHz(stage.bassMidi));

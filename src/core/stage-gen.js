@@ -141,6 +141,15 @@ export function buildRun({ progression, key, seed, decoys }) {
       tuneCents = t.cents - 100 * t.above;
       K *= 2 ** (tuneCents / 1200);
     }
+    // 分数コードでベースが和音の3度のとき（G/B・C/E など）は、ベースを三角形の3度にちょうど合わせる（v0.19。発案者：A）。
+    // 三角形の3度は根音から純正律で積むので平均律から約14セントずれ、平均律のベースとオクターブ違いでうなっていた。
+    // 三角形（和音の根音）は平均律のまま、その小節のベースだけを動かす。ベースが5度のとき（C/G）はずれが2セントなので動かさない
+    let bassCents = 0;
+    if (entry.label.includes('/') && bassPc === (rootMidi + TRIADS[chord.quality][1]) % 12) {
+      const thirdLength = voicing.target.find(l => (((Math.round(12 * Math.log2(lengthValue(rootLength) / lengthValue(l))) % 12) + 12) % 12) === TRIADS[chord.quality][1]);
+      const c = 1200 * Math.log2((K / lengthValue(thirdLength)) / midiToHz(bassMidi));
+      bassCents = c - 1200 * Math.round(c / 1200);
+    }
     const sticks = chooseSticks(voicing.target, decoys, rng);
     // 棒を見せる並び（短い順の番号を混ぜたもの）。隣り合う3本で正解が分からないように（2026-11-14 発案者）。
     // 偶然でも正解の3本が隣り合って見えると並びで分かると感じさせるので、そのときは混ぜ直す
@@ -150,7 +159,7 @@ export function buildRun({ progression, key, seed, decoys }) {
     for (let tries = 0; tries < 30 && together(shuffled); tries++) shuffled = shuffle(shuffled, rng);
     const order = Object.freeze(shuffled);
     // label は画面に出す度数（短調の進行は短調の度数）、chordName はキーのコードネーム
-    return Object.freeze({ bar, label: entry.display ?? entry.label, chordName: chordName(entry.label, key), chord, bassDegree, bassShift, target: voicing.target, inversion: voicing.inversion, lowMidi, rootMidi, rootLength, topMidi, K, tuneCents, bassMidi, sticks, order });
+    return Object.freeze({ bar, label: entry.display ?? entry.label, chordName: chordName(entry.label, key), chord, bassDegree, bassShift, target: voicing.target, inversion: voicing.inversion, lowMidi, rootMidi, rootLength, topMidi, K, tuneCents, bassMidi, bassCents, sticks, order });
   });
   return Object.freeze({ progression: Object.freeze({ id: prog.id, name: prog.name, mode: prog.mode ?? 'major' }), key, seed, decoys, stages: Object.freeze(stages) });
 }
