@@ -8,7 +8,7 @@ import { frequency } from '../src/core/pitch.js';
 import { chordOf } from '../src/core/chord.js';
 import { parseChord, degreePc, midiToHz } from '../src/core/harmony.js';
 import { pureTriangles } from '../src/core/voicing.js';
-import { buildRun, placeVoicing, soundAlikes } from '../src/core/stage-gen.js';
+import { buildRun, placeVoicing, soundAlikes, seventhKind } from '../src/core/stage-gen.js';
 import { PROGRESSIONS, SELECT_PLAY, BARS } from '../src/content/progressions.js';
 import { STAGE_RULES } from '../src/content/stage-rules.js';
 
@@ -47,11 +47,26 @@ function checkStage(stage, { key, decoys, where }) {
   // 最低音は平均律から20セント以内（譜面には一番近い平均律の音を書く）
   const rootPc = (degreePc(key, stage.chord.degree) + stage.chord.shift + 12) % 12;
   assert.equal(stage.rootMidi % 12, rootPc, `${where} 根音の音名`);
-  const fr = frequency(stage.rootLength, K), wantRoot = midiToHz(stage.rootMidi);
+  // 七の和音（v0.19）は、三角形を tuneCents だけずらして、ベースから見て純正にする
+  const fr = frequency(stage.rootLength, K), wantRoot = midiToHz(stage.rootMidi) * 2 ** (stage.tuneCents / 1200);
   assert.ok(Math.abs(fr - wantRoot) / wantRoot < 1e-12, `${where} K（根音）`);
   const longest = sortLengths(target)[2];
-  const lowCents = 1200 * Math.log2(frequency(longest, K) / midiToHz(stage.lowMidi));
+  const lowCents = 1200 * Math.log2(frequency(longest, K) / midiToHz(stage.lowMidi)) - stage.tuneCents;
   assert.ok(Math.abs(lowCents) <= STAGE_RULES.maxOffsetCents + 1e-9, `${where} 最低音のずれ ${lowCents.toFixed(1)}セント`);
+  const kind = seventhKind(stage.chordName); // キーのコードネーム（Dm7・G7・Fmaj7 など）から種類を判定
+  if (kind) {
+    // ベースから見た三角形の音（セント、オクターブを畳む）
+    const fromBass = target.map(l => ((1200 * Math.log2(frequency(l, K) / midiToHz(stage.bassMidi))) % 1200 + 1200) % 1200).sort((a, b) => a - b);
+    const near = (c, want) => fromBass.some(x => Math.abs(x - want) < 1e-6);
+    const c = r => 1200 * Math.log2(r);
+    if (kind === 'm7') assert.ok(near(0, c(6 / 5)) && near(0, c(3 / 2)) && near(0, c(9 / 5)), `${where} m7 が純正 ${fromBass}`);
+    if (kind === 'maj7') assert.ok(near(0, c(5 / 4)) && near(0, c(3 / 2)) && near(0, c(15 / 8)), `${where} maj7 が純正 ${fromBass}`);
+    if (kind === 'dom7') {
+      // 3度と5度の、純正からのずれが同じ大きさ（約24セント）で向きが逆
+      const e3 = fromBass[0] - c(5 / 4), e5 = fromBass[1] - c(3 / 2);
+      assert.ok(Math.abs(e3 + e5) < 1e-6 && Math.abs(e3) < 25, `${where} 属七のずれ ${e3.toFixed(1)} ${e5.toFixed(1)}`);
+    }
+  } else assert.equal(stage.tuneCents, 0, where);
   // ベースが根音のとき、ベースと三角形の根音はちょうどオクターヴ（うならない）
   if (stage.bassDegree === stage.chord.degree && stage.bassShift === stage.chord.shift) {
     const octaves = Math.log2(fr / midiToHz(stage.bassMidi));

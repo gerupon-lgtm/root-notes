@@ -30,6 +30,28 @@ export function placeVoicing({ key, chord, voicing }) {
   return { lowMidi, rootMidi, rootLength, topMidi, K: midiToHz(rootMidi) * lengthValue(rootLength) };
 }
 
+// 七の和音（三角形の三和音＋ベース）の置き方（v0.19。2026-11-14 発案者「F♯m7 が歪む」）。
+// 和音の根音はベースで、平均律に置く。三角形は、ベースから見て純正になる高さへずらす（セント）。
+//   m7  ：三角形の根音はベースの短3度上（6/5、316c）→ 5度 3/2・7度 9/5 も純正になる
+//   maj7：三角形の根音はベースの長3度上（5/4、386c）→ 5度 3/2・7度 15/8 も純正になる
+//   7   ：減三和音の三角形は音程の並び（7/6 の上に 6/5）が純正な属七（6/5 の上に 7/6）と逆で、純正にはできない
+//         （純正な属七には長さ 30·35·42 が要り、棒の範囲 2〜24 を超える）。3度と5度のずれが同じ大きさ（約±24c）になる高さに置く（発案者：ずれを3音に分ける）
+//   m7(♭5) と分数コードは、今までどおり三角形の根音を平均律に置く
+const cents = r => 1200 * Math.log2(r);
+export const SEVENTH_TUNING = Object.freeze({
+  m7: Object.freeze({ above: 3, cents: cents(6 / 5) }),
+  maj7: Object.freeze({ above: 4, cents: cents(5 / 4) }),
+  dom7: Object.freeze({ above: 4, cents: (cents(5 / 4) + cents(3 / 2) - cents(7 / 6)) / 2 })
+});
+// 表示名から七の和音の種類（m7(♭5) と分数コードは null）
+export function seventhKind(label) {
+  if (label.includes('/') || label.endsWith('m7(♭5)')) return null;
+  if (label.endsWith('maj7')) return 'maj7';
+  if (label.endsWith('m7')) return 'm7';
+  if (label.endsWith('7')) return 'dom7';
+  return null;
+}
+
 // 正解の最低音を基準にした、その長さの音名（0〜11）。平均律からのずれが上限を超える音は null
 function noteOf(base, l) {
   const cents = 1200 * Math.log2(lengthValue(base) / lengthValue(l));
@@ -103,10 +125,22 @@ export function buildRun({ progression, key, seed, decoys }) {
     const options = pureTriangles().filter(v => v.quality === chord.quality && placeVoicing({ key, chord, voicing: v }).topMidi <= STAGE_RULES.maxTopMidi);
     if (!options.length) throw new Error(`${entry.chord} に合う三角形がありません。`);
     const voicing = pickOne(options, rng);
-    const { lowMidi, rootMidi, rootLength, topMidi, K } = placeVoicing({ key, chord, voicing });
+    const placed = placeVoicing({ key, chord, voicing });
+    const { lowMidi, rootMidi, rootLength, topMidi } = placed;
     const bass = entry.bass ? parseChord(entry.bass) : chord;
     const bassDegree = bass.degree, bassShift = bass.shift ?? 0;
-    const bassMidi = midiInRange((degreePc(key, bassDegree) + bassShift + 12) % 12, STAGE_RULES.bassMidi);
+    const bassPc = (degreePc(key, bassDegree) + bassShift + 12) % 12;
+    const bassMidi = midiInRange(bassPc, STAGE_RULES.bassMidi);
+    // 七の和音は、三角形をベースから見て純正になる高さへずらす（上の SEVENTH_TUNING）
+    const kind = seventhKind(entry.label);
+    let K = placed.K, tuneCents = 0;
+    if (kind) {
+      const t = SEVENTH_TUNING[kind];
+      const above = (((rootMidi - bassPc) % 12) + 12) % 12;
+      if (above !== t.above) throw new Error(`${entry.label}：三角形の根音がベースの${t.above}半音上にありません（${above}半音）。`);
+      tuneCents = t.cents - 100 * t.above;
+      K *= 2 ** (tuneCents / 1200);
+    }
     const sticks = chooseSticks(voicing.target, decoys, rng);
     // 棒を見せる並び（短い順の番号を混ぜたもの）。隣り合う3本で正解が分からないように（2026-11-14 発案者）。
     // 偶然でも正解の3本が隣り合って見えると並びで分かると感じさせるので、そのときは混ぜ直す
@@ -116,7 +150,7 @@ export function buildRun({ progression, key, seed, decoys }) {
     for (let tries = 0; tries < 30 && together(shuffled); tries++) shuffled = shuffle(shuffled, rng);
     const order = Object.freeze(shuffled);
     // label は画面に出す度数（短調の進行は短調の度数）、chordName はキーのコードネーム
-    return Object.freeze({ bar, label: entry.display ?? entry.label, chordName: chordName(entry.label, key), chord, bassDegree, bassShift, target: voicing.target, inversion: voicing.inversion, lowMidi, rootMidi, rootLength, topMidi, K, bassMidi, sticks, order });
+    return Object.freeze({ bar, label: entry.display ?? entry.label, chordName: chordName(entry.label, key), chord, bassDegree, bassShift, target: voicing.target, inversion: voicing.inversion, lowMidi, rootMidi, rootLength, topMidi, K, tuneCents, bassMidi, sticks, order });
   });
   return Object.freeze({ progression: Object.freeze({ id: prog.id, name: prog.name, mode: prog.mode ?? 'major' }), key, seed, decoys, stages: Object.freeze(stages) });
 }
