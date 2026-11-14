@@ -444,9 +444,14 @@ export function createStageScreen({ audio, onTitle }) {
     const opensDouble = s.focus === i && !quick; // ダブルタップの1回目になれるタップ
     const act = s.tapMode === 'double' ? quick && s.lastTap.opensDouble : s.focus === i;
     s.lastTap = { i, t: now, opensDouble };
+    clearTimeout(s.pendingPluck);
     if (!act) {
       s.focus = i;
-      audio.pluck(hz(p.stage.sticks[i]), p.sustain, timbre());
+      const pluck = () => audio.pluck(hz(p.stage.sticks[i]), p.sustain, timbre());
+      // ダブルタップでは、選んでいる棒へのタップは音を0.35秒待たせる。その間に2回目が来たら、音を出さずに使う・外す
+      // （使う・外すのダブルタップで音が鳴ると紛らわしいため。2026-11-14 発案者）。2回目が来なければ、聞き直しとして鳴らす
+      if (s.tapMode === 'double' && opensDouble) s.pendingPluck = setTimeout(pluck, 350);
+      else pluck();
       const how = s.tapMode === 'double' ? 'ダブルタップ' : 'もう一度タップ';
       s.msg = full ? { text: '3本そろっています。先に外す棒を選んでください。', kind: 'warn' }
         : { text: `${formatLength(p.stage.sticks[i])} を選んでいます。${how}で${used ? '外します' : '使います'}。`, kind: '' };
@@ -456,6 +461,7 @@ export function createStageScreen({ audio, onTitle }) {
       return;
     }
     s.lastTap = null;
+    clearTimeout(s.pendingPluck);
     // 使う・外す。3本そろっているときは勝手に入れ替えない
     if (full) { guide(usedTiles()); return; }
     hideStaff();
