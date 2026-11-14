@@ -2,6 +2,7 @@
 import { APP_VERSION, COPYRIGHT, SERIES } from '../version.js';
 import { StringAudio } from '../audio/engine.js';
 import { createStageScreen } from './stage-screen.js';
+import { artPath } from '../content/assets.js';
 
 const put = (id, text) => {
   const element = document.getElementById(id);
@@ -11,6 +12,10 @@ const put = (id, text) => {
 put('app-series', SERIES);
 put('app-copyright', COPYRIGHT);
 put('app-version', `v${APP_VERSION}`);
+
+// 遊ぶ画面の布の背景（style.css の --play-felt）。絵の場所は assets.js の表から取る
+const felt = artPath('play-felt');
+if (felt) document.documentElement.style.setProperty('--play-felt', `url("${felt}")`);
 
 const titleScreen = document.getElementById('title-screen');
 const stageScreen = document.getElementById('stage-screen');
