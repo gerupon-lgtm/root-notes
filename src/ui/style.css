@@ -306,3 +306,9 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .stick.to-full { border-color: var(--mute); box-shadow: 0 0 0 2px var(--mute) inset; }
 .stick.to-full .act { background: var(--line); color: var(--ink); }
 .seg.seg3 { grid-template-columns: 1fr 1fr 1fr; }
+/* 選択が外れる前の1秒：枠と札を少しずつ薄くする（2026-11-14 発案者） */
+.stick.to-use, .stick.to-remove, .stick.to-full { transition: box-shadow 1s linear, border-color 1s linear; }
+.stick .act { transition: opacity 1s linear; }
+.stick.fading { box-shadow: 0 0 0 2px transparent inset; border-color: var(--line); }
+.stick.fading .act { opacity: 0; }
+.stick.sel.fading { border-color: var(--gold); }

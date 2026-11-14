@@ -180,7 +180,7 @@ export function createStageScreen({ audio, onTitle }) {
       // 選んでいる棒には、次に起きることを短い札で出す。使う＝金色、外す＝赤みのある色（2026-11-14 発案者）
       const intent = !focused ? '' : order >= 0 ? 'remove' : p.selected.length === 3 ? 'full' : 'use';
       const act = { remove: '外す', full: '先に外す', use: '使う' }[intent] ?? '';
-      const b = el('button', { type: 'button', class: ['stick', order >= 0 && 'sel', focused && 'focus', intent && `to-${intent}`].filter(Boolean).join(' '), 'aria-pressed': String(order >= 0), 'data-i': i, 'aria-label': `長さ ${formatLength(l)} の棒${order >= 0 ? '（使っている）' : ''}${act ? `。${act}` : ''}` },
+      const b = el('button', { type: 'button', class: ['stick', order >= 0 && 'sel', focused && 'focus', focused && s.fading && 'fading', intent && `to-${intent}`].filter(Boolean).join(' '), 'aria-pressed': String(order >= 0), 'data-i': i, 'aria-label': `長さ ${formatLength(l)} の棒${order >= 0 ? '（使っている）' : ''}${act ? `。${act}` : ''}` },
         el('span', { class: 'num' }, formatLength(l)),
         el('span', { class: 'bar', style: `width:${(lengthValue(l) / STAGE_RULES.maxLength) * 100}%;background:${lenColor(l)}` }),
         act ? el('span', { class: 'act' }, act) : '',
@@ -429,26 +429,51 @@ export function createStageScreen({ audio, onTitle }) {
     renderAll();
   }
 
+  // 選んでいる棒は、タップから3秒で外す（同じ棒をもう一度タップしたら数え直す）。残り1秒から色を薄くする
+  const DOUBLE_TAP_MS = 350, PREVIEW_MS = 1100, FOCUS_MS = 3000, FADE_MS = 1000;
+  let focusToken = 0;
+  function focusFor(i) {
+    s.focus = i;
+    s.fading = false;
+    const token = ++focusToken;
+    clearTimeout(s.fadeTimer);
+    clearTimeout(s.focusTimer);
+    s.fadeTimer = setTimeout(() => {
+      if (token !== focusToken || s.focus !== i) return;
+      s.fading = true;
+      document.querySelector(`.stick[data-i="${i}"]`)?.classList.add('fading');
+    }, FOCUS_MS - FADE_MS);
+    s.focusTimer = setTimeout(() => {
+      if (token !== focusToken || s.focus !== i) return;
+      s.focus = null;
+      s.fading = false;
+      s.msg = null;
+      renderSticks();
+      renderStatus();
+    }, FOCUS_MS);
+  }
+
   $('sticks').addEventListener('click', e => {
     const b = e.target.closest('.stick');
     if (!b || s.busy || play().finished || play().awaitingNext) return;
     const i = Number(b.dataset.i), p = play();
     const used = p.selected.includes(i), full = !used && p.selected.length === 3;
-    // 棒の操作は2通りを比べられる（2026-11-14 発案者）。
-    // second：1回目で選ぶ、2回目（間があいてもよい）で使う・外す。double：1回は選ぶ（音を聞く）だけ、素早い2回で使う・外す
-    // double：タップで選ぶ（試聴）。ダブルタップで使う・外す。選んで試聴したあとでも、選んでいなくても使える（2026-11-14 発案者）
+    // 棒の操作（2026-11-14 発案者と確かめた流れ。docs/design/段階3 の v0.8.8）
+    // - second（2回タップ）：1回目で選ぶ（試聴）、2回目（間があいてもよい）で使う・外す
+    // - double（ダブルタップ）：タップで選ぶ（試聴がすぐ始まる）。0.35秒以内の2回目で使う・外す（鳴っている試聴は止める）。
+    //   0.35秒より後のタップは、新しいダブルタップの1回目として受ける
+    // - 試聴中（試聴が始まってから1.1秒）は、同じ棒をタップしても音を新たに鳴らさない（ダブルタップのとき）
+    // - どちらも、タップから3秒で選択が外れる。同じ棒をもう一度タップしたら数え直す。残り1秒から少しずつ色を薄くする
     const now = performance.now();
-    const quick = s.lastTap && s.lastTap.i === i && now - s.lastTap.t < 350;
+    const quick = s.lastTap && s.lastTap.i === i && now - s.lastTap.t < DOUBLE_TAP_MS;
     const act = s.tapMode === 'double' ? quick : s.focus === i;
     s.lastTap = { i, t: now };
-    clearTimeout(s.pendingPluck);
     if (!act) {
-      s.focus = i;
-      const pluck = () => audio.pluck(hz(p.stage.sticks[i]), p.sustain, timbre());
-      // ダブルタップでは、試聴の音を0.35秒待たせる。その間に2回目が来たら、音を出さずに使う・外す
-      // （使う・外すのダブルタップで音が鳴ると紛らわしいため。2026-11-14 発案者）。2回目が来なければ、試聴として鳴らす
-      if (s.tapMode === 'double') s.pendingPluck = setTimeout(pluck, 350);
-      else pluck();
+      const previewing = s.preview && s.preview.i === i && now < s.preview.until;
+      if (!(s.tapMode === 'double' && previewing)) {
+        s.preview = { i, until: now + PREVIEW_MS, voice: audio.pluck(hz(p.stage.sticks[i]), p.sustain, timbre()) };
+      }
+      focusFor(i);
       const how = s.tapMode === 'double' ? 'ダブルタップ' : 'もう一度タップ';
       s.msg = full ? { text: '3本そろっています。先に外す棒を選んでください。', kind: 'warn' }
         : { text: `${formatLength(p.stage.sticks[i])} を選んでいます。${how}で${used ? '外します' : '使います'}。`, kind: '' };
@@ -458,7 +483,8 @@ export function createStageScreen({ audio, onTitle }) {
       return;
     }
     s.lastTap = null;
-    clearTimeout(s.pendingPluck);
+    // ダブルタップで使う・外すときは、鳴っている試聴を止める
+    if (s.tapMode === 'double' && s.preview?.i === i) { s.preview.voice?.stop(0.06); s.preview = null; }
     // 使う・外す。3本そろっているときは勝手に入れ替えない
     if (full) { guide(usedTiles()); return; }
     hideStaff();
