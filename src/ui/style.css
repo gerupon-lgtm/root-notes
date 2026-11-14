@@ -270,8 +270,6 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #staff .staff-line, #staff .bar-line, #staff .ledger { stroke: var(--mute); stroke-width: 1; }
 #staff .ledger { stroke-width: 1.4; }
 #staff .clef { fill: var(--ink); font-family: "Segoe UI Symbol", "Noto Music", "Noto Sans Symbols 2", serif; }
-#staff .clef.treble { font-size: 52px; }
-#staff .clef.bass { font-size: 40px; }
 #staff .keysig, #staff .acc { fill: var(--ink); font-size: 17px; }
 #staff .head { fill: var(--ink); }
 #staff .deg { fill: var(--mute); font-size: 13px; text-anchor: middle; font-weight: 700; }
@@ -283,3 +281,13 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #staff .col.now .deg, #staff .col.now .name { fill: var(--gold); }
 #staff .barno { fill: var(--mute); font-size: 9px; }
 #staff .col.now .barno { fill: var(--gold); }
+.staff-replay { position: absolute; top: 6px; right: 6px; z-index: 3; min-height: 36px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--gold); background: color-mix(in srgb, var(--gold) 14%, var(--panel)); font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+.staff-replay:disabled { opacity: 0.4; cursor: default; }
+
+/* 辺に触れると鳴る印（三角形ができて、その星でまだ辺に触れていないとき） */
+.tap-hint { pointer-events: none; }
+.tap-dot { fill: var(--gold); opacity: 0.85; }
+.tap-ring { fill: none; stroke: var(--gold); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: tap-ring 1.4s ease-out infinite; }
+.tap-text { fill: var(--gold); font-size: 13px; font-weight: 700; }
+@keyframes tap-ring { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(3.2); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tap-ring { animation: none; transform: scale(2); opacity: 0.6; } }

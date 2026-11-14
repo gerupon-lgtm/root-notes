@@ -17,6 +17,42 @@ const SHARP_STEPS = [38, 35, 39, 36, 33, 37, 34], FLAT_STEPS = [34, 37, 33, 36, 
 
 const shown = n => ({ ...n, step: n.step + 7 * DISPLAY_OCTAVE });
 
+// 音部記号（2026-11-14 発案者：ト音記号は G の線から、ヘ音記号は F の線から書き出す。ト音記号はヘ音記号に大きさを合わせる）
+// 記号の文字は書体で形と位置が変わるので、端末の書体で実際のインクの形を測ってから、大きさと位置を決める。
+// 比率は楽譜記号の標準（SMuFL）の値：ト音記号は G の線から上へ4.392間・全体7.024間、
+// ヘ音記号は F の線から上へ1.048間・全体3.588間（間＝五線の線の間隔）
+const CLEF = {
+  treble: { char: '𝄞', above: 4.392, height: 7.024 },
+  bass: { char: '𝄢', above: 1.048, height: 3.588 }
+};
+const CLEF_FONT = '"Segoe UI Symbol", "Noto Music", "Noto Sans Symbols 2", serif';
+const inkCache = new Map();
+function inkOf(char) {
+  if (inkCache.has(char)) return inkCache.get(char);
+  let ink = null;
+  try {
+    const ctx = document.createElement('canvas').getContext('2d');
+    ctx.font = `100px ${CLEF_FONT}`;
+    const m = ctx.measureText(char);
+    const h = (m.actualBoundingBoxAscent ?? 0) + (m.actualBoundingBoxDescent ?? 0);
+    if (h > 0) ink = { ascent: m.actualBoundingBoxAscent, height: h, left: m.actualBoundingBoxLeft ?? 0 };
+  } catch { /* 測れない端末では、決まった大きさで描く */ }
+  inkCache.set(char, ink);
+  return ink;
+}
+// lineY：書き出しの線（ト音記号は G の線、ヘ音記号は F の線）の y
+function drawClef(root, kind, lineY, x0) {
+  const c = CLEF[kind], ink = inkOf(c.char);
+  if (!ink) {
+    const size = kind === 'treble' ? 46 : 40;
+    root.append(svg('text', { x: x0, y: kind === 'treble' ? lineY + 18 : lineY + 21, class: `clef ${kind}`, style: `font-size:${size}px` }, c.char));
+    return;
+  }
+  const scale = (c.height * GAP) / ink.height; // 100px の書体に対する倍率
+  const baseline = lineY - c.above * GAP + ink.ascent * scale;
+  root.append(svg('text', { x: x0 + ink.left * scale, y: baseline, class: `clef ${kind}`, style: `font-size:${(100 * scale).toFixed(2)}px` }, c.char));
+}
+
 function ledgerSteps(step, staff) {
   const out = [];
   if (staff === 'treble') {
@@ -32,7 +68,7 @@ function ledgerSteps(step, staff) {
 // 1段（最大4小節）を描く。y0 はこの段の上端。戻り値はこの段の下端
 function drawSystem(root, cols, firstIndex, key, sig, y0, width) {
   const count = Math.abs(sig.fifths);
-  const left = 50 + count * 9 + 10;
+  const left = 54 + count * 9 + 10;
   const notes = cols.map(c => ({ chord: c.chord.map(shown), bass: shown(c.bass) }));
   // その段でいちばん高い音符に合わせて、ト音記号の段の位置を決める（上に度数とコードネームの2行）
   const highest = Math.max(38, ...notes.flatMap(n => n.chord.map(x => x.step)));
@@ -49,14 +85,14 @@ function drawSystem(root, cols, firstIndex, key, sig, y0, width) {
     root.append(svg('line', { x1: 6, x2: right, y1: B0 - i * GAP, y2: B0 - i * GAP, class: 'staff-line' }));
   }
   root.append(svg('line', { x1: 6, x2: 6, y1: T0 - 4 * GAP, y2: B0, class: 'bar-line' }));
-  root.append(svg('text', { x: 9, y: T0 - 6, class: 'clef treble' }, '𝄞'));
-  root.append(svg('text', { x: 10, y: B0 - 2 * GAP + 9, class: 'clef bass' }, '𝄢'));
+  drawClef(root, 'treble', T0 - GAP, 10); // G の線（下から2本目）
+  drawClef(root, 'bass', B0 - 3 * GAP, 10); // F の線（上から2本目）
   // オクターブの印（実音は1オクターブ下）
-  root.append(svg('text', { x: 24, y: T0 + 22, class: 'octave' }, '8'));
+  root.append(svg('text', { x: 23, y: T0 + 32, class: 'octave' }, '8'));
   root.append(svg('text', { x: 22, y: B0 + 14, class: 'octave' }, '8'));
   const steps = sig.fifths < 0 ? FLAT_STEPS : SHARP_STEPS;
   for (let i = 0; i < count; i++) {
-    const x = 48 + i * 9, mark = sig.fifths < 0 ? '♭' : '♯';
+    const x = 52 + i * 9, mark = sig.fifths < 0 ? '♭' : '♯';
     root.append(svg('text', { x, y: yOf(steps[i], 'treble') + 5, class: 'keysig' }, mark));
     root.append(svg('text', { x, y: yOf(steps[i] - 14, 'bass') + 5, class: 'keysig' }, mark));
   }
@@ -96,7 +132,7 @@ function drawSystem(root, cols, firstIndex, key, sig, y0, width) {
 export function drawStaff(root, columns, key, current = -1) {
   while (root.firstChild) root.firstChild.remove();
   const sig = keySignature(key);
-  const width = 50 + Math.abs(sig.fifths) * 9 + 10 + PER_ROW * COL_W + 6;
+  const width = 54 + Math.abs(sig.fifths) * 9 + 10 + PER_ROW * COL_W + 6;
   let y = 0;
   for (let start = 0; start < columns.length; start += PER_ROW) {
     y = drawSystem(root, columns.slice(start, start + PER_ROW), start, key, sig, y, width) + 6;

@@ -33,7 +33,7 @@ function el(tag, attrs = {}, ...children) {
 }
 
 export function createStageScreen({ audio, onTitle }) {
-  const s = { play: null, busy: false, carryOver: false, msg: null, playingBar: -1, heard: false, result: null, check: new URLSearchParams(location.search).has('check') };
+  const s = { lastMusic: null, play: null, busy: false, carryOver: false, msg: null, playingBar: -1, heard: false, result: null, check: new URLSearchParams(location.search).has('check') };
   const svgRoot = $('tri');
 
   const play = () => s.play;
@@ -128,7 +128,7 @@ export function createStageScreen({ audio, onTitle }) {
       return;
     }
     if (!p.closed) drawOpen(svgRoot, sidesOf(p));
-    else drawClosed(svgRoot, sidesOf(p));
+    else drawClosed(svgRoot, sidesOf(p), { hint: !s.edgeTried });
   }
 
   function defaultMessage() {
@@ -198,6 +198,7 @@ export function createStageScreen({ audio, onTitle }) {
   // ステージの始まりの合図：「お題を聞く」を2回光らせる（前作 AQUA の開始の合図と同じ時間割り）
   function startCue() {
     s.heard = false;
+    s.edgeTried = false; // この星で辺に触れたか（触れるまで、辺に触れると鳴る印を出す）
     const b = $('b-target');
     b.classList.remove('cue');
     void b.offsetWidth;
@@ -263,7 +264,14 @@ export function createStageScreen({ audio, onTitle }) {
     $('staff-panel').hidden = false;
   }
   const hideStaff = () => { $('staff-panel').hidden = true; };
-  $('staff-panel').addEventListener('click', hideStaff);
+  $('staff-panel').addEventListener('click', e => { if (!e.target.closest('#staff-replay')) hideStaff(); });
+  // コード進行を聞き直す（2026-11-14 発案者）。最後に流したフレーズ・1曲をもう一度流す
+  function replay() {
+    if (s.busy || !s.lastMusic) return;
+    const { from, to, title } = s.lastMusic;
+    playMusic(from, to, title);
+  }
+  $('staff-replay').addEventListener('click', replay);
 
   // ---------- 曲 ----------
   function playMusic(from, to, title, done = () => {}) {
@@ -272,7 +280,9 @@ export function createStageScreen({ audio, onTitle }) {
     audio.stopAll();
     renderAll();
     const labels = p.run.stages.slice(from, to + 1).map(x => x.label);
+    s.lastMusic = { from, to, title };
     showStaff(from, to);
+    $('staff-replay').disabled = true;
     audio.playScore(buildScore(p.run.stages, from, to, { carryOver: s.carryOver }), {
       chordTimbre: TIMBRES[SONG_TIMBRE],
       bassTimbre: TIMBRES[BASS_TIMBRE],
@@ -284,7 +294,7 @@ export function createStageScreen({ audio, onTitle }) {
         msg.className = '';
         msg.replaceChildren(`♪ ${title}　`, ...labels.flatMap((l, j) => [j ? ' → ' : '', from + j === bar ? el('span', { class: 'now' }, chordText(l)) : l]));
       },
-      onEnd: () => { s.playingBar = -1; s.busy = false; markStaff($('staff'), -1); done(); renderAll(); }
+      onEnd: () => { s.playingBar = -1; s.busy = false; $('staff-replay').disabled = false; markStaff($('staff'), -1); done(); renderAll(); }
     });
   }
 
@@ -305,6 +315,8 @@ export function createStageScreen({ audio, onTitle }) {
            ...(phrase ? [`フレーズ${r.music.from / PHRASE + 1}がそろいました`, ...progressionLines(r.music.from, r.music.to)] : [])];
       if (p.mode.continuous) buttons = bar === BARS ? [['restart', '新しい曲で遊ぶ', true], ['title', 'タイトルへ']] : [['next', '次の星へ ▶', true]];
       else buttons = p.nextBar() === null ? [['close', '閉じる', true]] : [['next', '次の星へ ▶', true], ['close', 'この星に残る']];
+      // フレーズや1曲がそろったときは、聞き直せるようにする
+      if (song || phrase) buttons = [['replay', 'もう一度聴く'], ...buttons];
     } else if (r.gameOver) {
       head = 'ゲームオーバー';
       body = ['失敗の上限に達しました。新しい曲でもう一度挑戦できます。'];
@@ -363,6 +375,7 @@ export function createStageScreen({ audio, onTitle }) {
     const act = e.target.closest('button')?.dataset.act;
     if (!act) return;
     if (act === 'next') goNext();
+    else if (act === 'replay') { closeResult(); replay(); return; }
     else if (act === 'restart') { closeResult(); start(play().mode.id); }
     else if (act === 'title') { closeResult(); audio.stopAll(); onTitle(); }
     else closeResult({ guideNext: true });
@@ -420,6 +433,7 @@ export function createStageScreen({ audio, onTitle }) {
     if (!l) return;
     audio.pluck(hz(l), play().sustain, timbre());
     ringSide(k);
+    if (!s.edgeTried) { s.edgeTried = true; for (const h of svgRoot.querySelectorAll('.tap-hint')) h.remove(); }
   }
   svgRoot.addEventListener('pointerdown', e => { if (s.busy || !play().ready) return; tracing = true; lastK = null; touchSide(sideAt(e.clientX, e.clientY)); });
   svgRoot.addEventListener('pointermove', e => { if (tracing) touchSide(sideAt(e.clientX, e.clientY)); });

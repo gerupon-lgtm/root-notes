@@ -26,7 +26,8 @@ export function drawOpen(root, sides) {
 }
 
 // 閉じる三角形。最長辺を底辺にして、画面に収まる大きさで描く
-export function drawClosed(root, sides) {
+// hint：辺に触れると鳴ることを知らせる印（各辺の真ん中の波紋と、添え書き）を出す
+export function drawClosed(root, sides, { hint = false } = {}) {
   clear(root);
   const order = sides.map((s, k) => ({ ...s, k, v: lengthValue(s.length) })).sort((a, b) => a.v - b.v);
   const [a, b, c] = order; // c が最長（底辺）
@@ -46,5 +47,15 @@ export function drawClosed(root, sides) {
     root.append(g, svg('text', { x: mx + (dx / d) * 15, y: my + (dy / d) * 15 + 5, 'text-anchor': 'middle', fill: side.color, class: 'tri-label' }, formatLength(side.length)));
   }
   for (const p of [A, B, C]) root.append(svg('circle', { cx: p[0], cy: p[1], r: 3, class: 'tri-vertex' }));
+  if (hint) {
+    const g = svg('g', { class: 'tap-hint', 'aria-hidden': 'true' });
+    segs.forEach(([p, q], i) => {
+      const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
+      g.append(svg('circle', { cx: mx, cy: my, r: 6, class: 'tap-dot' }));
+      g.append(svg('circle', { cx: mx, cy: my, r: 6, class: 'tap-ring', style: `animation-delay:${i * 0.25}s` }));
+    });
+    g.append(svg('text', { x: W / 2, y: 14, 'text-anchor': 'middle', class: 'tap-text' }, '辺に触れると音が鳴ります'));
+    root.append(g);
+  }
   for (const [p, q, side] of segs) root.append(svg('line', { class: 'hit', 'data-k': side.k, x1: p[0], y1: p[1], x2: q[0], y2: q[1], stroke: 'transparent', 'stroke-width': 34, 'stroke-linecap': 'round' }));
 }
