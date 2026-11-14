@@ -1,19 +1,31 @@
 // 章の流れの画面（段階4。docs/design/段階4_第1章_一弦の琴.md 3章）。流れの順番は src/game/flow.js。
-// - 連続プレイ：序 → 第1章 → 謎（仮）→ 第2章 → …… → 最終章（仮）→ タイトル
+// - 連続プレイ：タイトルの「連続プレイ」→ 序 → 遊び方を選ぶ（フリー／ノーマル／エキスパート）→ 第1章 → 謎（仮）→ 第2章 → …… → 最終章（仮）→ タイトル。
+//   フロート・ノーツと同じ導線（FLOAT src/ui/app.js：序章の flow() の最後に levels() で遊び方を選ぶ。2026-11-14 発案者）
 // - 選択プレイ：章を選ぶ（第1章／第2章）→ その章の面を選ぶ
 // 中身がまだない場面は、仮の1画面（見出しと「次へ」）で通り抜ける。序は、絵とセリフ（段階6）ができるまで見出しだけを並べる
 import { FLOW, firstStep, nextStep, stepById, playableChapters, PROLOGUE_SCENES } from '../game/flow.js';
+import { MODES } from '../content/modes.js';
+import { TutorialBook } from '../game/tutorial-book.js';
+
+// 連続プレイの遊び方（FLOAT の levels() と同じく、名前と一言）。一言は MODES の値から作る
+const LEVEL_IDS = ['free', 'normal', 'expert'];
+const levelNote = m => (m.lives === Infinity ? '制限なし。和音もメーターも自由' : `失敗${m.lives}回まで・メーター${m.meterCount}回`);
+function localStore() { try { return globalThis.localStorage ?? null; } catch { return null; } }
 
 export function createFlow({ audio, screens, mono, stage, onTitle }) {
   const card = document.getElementById('interlude-card');
   let mode = 'free';
+  // 序を見たかの記録（2回目からは飛ばせる。要件6.10）。案内の記録と同じ場所に 'prologue' として残す
+  const book = new TutorialBook(localStore());
+  // 連続プレイで、序のあとに遊び方を選ぶか（タイトルの「連続プレイ」から入ったとき）
+  let chooseAfterPrologue = false;
 
   const show = name => {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
   };
   const toTitle = () => { audio.stopAll(); mono.stop(); show('title'); onTitle(); };
 
-  // 仮の画面を組み立てる。buttons：[文言, 動き, 主ボタンか]
+  // 仮の画面を組み立てる。buttons：[文言, 動き, 主ボタンか, 一言（小さく添える）]
   function interlude({ eyebrow = '', title, lines = [], list = null, buttons }) {
     const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text) x.textContent = text; return x; };
     const parts = [];
@@ -26,9 +38,10 @@ export function createFlow({ audio, screens, mono, stage, onTitle }) {
       parts.push(ol);
     }
     const row = el('div', 'interlude-buttons');
-    for (const [text, act, primary] of buttons) {
+    for (const [text, act, primary, note] of buttons) {
       const b = el('button', primary ? 'btn primary' : 'btn', text);
       b.type = 'button';
+      if (note) b.append(el('small', '', note));
       b.addEventListener('click', act);
       row.append(b);
     }
@@ -47,7 +60,13 @@ export function createFlow({ audio, screens, mono, stage, onTitle }) {
     }
     const next = () => go(nextStep(step.id));
     if (step.kind === 'story') {
-      interlude({ eyebrow: step.place, title: step.title, lines: ['（絵と語りは、のちの段階で入ります。いまは場面の見出しだけです）'], list: PROLOGUE_SCENES, buttons: [['タイトルへ', toTitle], ['はじめる ▶', next, true]] });
+      // 序のあとは、連続プレイなら遊び方を選ぶ（FLOAT と同じ）。見たことがあれば「飛ばす」も出す
+      const seen = !book.shouldAuto('prologue');
+      const after = () => { book.complete('prologue'); if (chooseAfterPrologue) chooseLevel(next); else next(); };
+      interlude({
+        eyebrow: step.place, title: step.title, lines: ['（絵と語りは、のちの段階で入ります。いまは場面の見出しだけです）'], list: PROLOGUE_SCENES,
+        buttons: [['タイトルへ', toTitle], ...(seen ? [['飛ばす', after]] : []), ['はじめる ▶', after, true]]
+      });
     } else if (step.kind === 'monochord') {
       show('mono');
       mono.start(mode, { onDone: next, onTitle: toTitle });
@@ -57,6 +76,16 @@ export function createFlow({ audio, screens, mono, stage, onTitle }) {
     } else {
       interlude({ eyebrow: '準備中', title: step.title, lines: [step.note ?? ''], buttons: [['タイトルへ', toTitle], ['次へ ▶', next, true]] });
     }
+  }
+
+  // 連続プレイ：遊び方を選ぶ（FLOAT の levels() と同じ形：説明文と、名前に一言を添えた3つのボタン）
+  function chooseLevel(then) {
+    audio.stopAll();
+    interlude({
+      eyebrow: '連続プレイ', title: '遊び方を選ぶ',
+      lines: ['第1章から順に進みます。ノーマルとエキスパートでは、回答するまで自分の和音は鳴らせず、失敗とメーターの回数に上限があります。'],
+      buttons: [...LEVEL_IDS.map(id => [MODES[id].name, () => { mode = id; then(); }, id === 'free', levelNote(MODES[id])]), ['タイトルへ', toTitle]]
+    });
   }
 
   // 選択プレイ：章を選ぶ
@@ -83,7 +112,10 @@ export function createFlow({ audio, screens, mono, stage, onTitle }) {
       mono.start('free', { tutorial: true, onDone: toTitle, onTitle: toTitle, endLabel: 'タイトルへ' });
       return;
     }
-    mode = modeId;
+    // 'continuous'：タイトルの「連続プレイ」。序のあとに遊び方を選ぶ（Codex がタイトルのボタンを減らしたあとの入口）。
+    // 'free'・'normal'・'expert' は、遊び方を決めて序から始める（今までの入口。タイトルから外れても動く）
+    chooseAfterPrologue = modeId === 'continuous';
+    mode = modeId === 'continuous' ? 'free' : modeId;
     if (modeId === 'select') chooseChapter();
     else go(firstStep());
   }

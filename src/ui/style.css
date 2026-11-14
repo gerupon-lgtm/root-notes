@@ -438,3 +438,4 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 .interlude-list { margin: 4px 0; padding-left: 1.4em; display: grid; gap: 6px; font-size: 0.9rem; line-height: 1.5; color: var(--ink); }
 .interlude-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 6px; }
 .interlude-buttons .btn { min-height: 54px; }
+.interlude-buttons .btn small { display: block; margin-top: 2px; font-size: 0.74rem; font-weight: 400; opacity: 0.85; }
