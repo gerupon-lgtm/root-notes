@@ -6,7 +6,7 @@
 export const CH1_STEPS = Object.freeze([
   { id: 'target', heading: '星の音を聞こう', text: '「お題を聞く」を押そう。', note: '星が鳴らす音が、弦で合わせる目当ての音です。', targets: ['mono-target'], demo: null },
   { id: 'pluck', heading: '自分の弦は？', text: '「弦をはじく」で、星の音と高さを比べよう。', note: '駒より左の弦をタップしても、はじけます。', targets: ['mono-pluck'], demo: null },
-  { id: 'move', heading: '駒で高さを変えよう', text: '駒（金色の三角）を、指で左右に動かそう。', note: '弦が短いほど、高い音になります。', targets: ['bridge', 'mono-left', 'mono-right', 'knob'], demo: 'bridge' },
+  { id: 'move', heading: '駒で高さを変えよう', text: '駒の下の持ち手を、指で左右に動かそう。', note: '駒そのものをつかんでも動かせます。弦が短いほど、高い音になります。', targets: ['bridge', 'mono-left', 'mono-right', 'knob'], demo: 'bridge' },
   { id: 'drone', heading: '重ねて聴こう', text: '「重ねて鳴らす」で、星の音と弦を一緒に鳴らそう。', note: '高さが少しずれていると、音がワウワウと揺れます（うなり）。', targets: ['mono-drone'], demo: null },
   { id: 'tune', heading: '揺れを消そう', text: '揺れがゆっくりになる方へ、微調整つまみを回そう。', note: '揺れが消えて1秒保てば合格。◀▶でも少しずつ動かせます。', targets: ['knob'], demo: 'knob' }
 ].map(s => Object.freeze({ ...s, targets: Object.freeze(s.targets) })));

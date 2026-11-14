@@ -23,6 +23,9 @@ function localStore() { try { return globalThis.localStorage ?? null; } catch { 
 // 重ねて鳴らすときの音色：音量が落ちず、揺れを聞き取りやすいオルガン（仮。2026-11-14 発案者 OK。A区分）
 const TIMBRE = TIMBRES.organ;
 const X0 = 30, X1 = 290, Y = 92; // 弦の左端・右端・高さ（SVG の単位。viewBox 320×210）
+// 駒の持ち手：駒から軸を下へ伸ばし、胴と目盛りより下に丸い持ち手を付ける（2026-11-14 発案者「指でコマを動かすと位置が隠れて見づらい。
+// 少し下にもつかめるものを付けて、位置を見ながら操作できるように。コマ自体でも動かせるように」）。弦の高さからの距離
+const GRIP_DY = 86, GRIP_SIZE = 24;
 const NEXT_AFTER_PASS_MS = 2600; // 合格のあと、次の面へ移るまで（試作と同じ）
 
 export function createMonochordScreen({ audio }) {
@@ -34,7 +37,7 @@ export function createMonochordScreen({ audio }) {
     hold: 0, passed: false, pluckAt: -1e9, knob: 0, dragging: false, raf: 0, last: 0,
     onDone: () => {}, onTitle: () => {}, nextTimer: 0, ended: false,
     // 導線：step は今の手順（CH1_STEPS の番号）。tutorial は案内つきのとき 'auto'（初めて）・'replay'（「案内」）・'title'（タイトルから）
-    step: 0, tutorial: null, touching: false, endLabel: null
+    step: 0, tutorial: null, touching: false, endLabel: null, pendingMove: false, grabDx: 0, guideMin: 0
   };
   const book = new TutorialBook(localStore());
   const stage = () => MONOCHORD_STAGES[S.i];
@@ -84,9 +87,9 @@ export function createMonochordScreen({ audio }) {
       const x = X0 + ((X1 - X0) * k) / 12;
       root.append(svg('line', { x1: x, y1: Y + 40, x2: x, y2: Y + (k % 3 === 0 ? 52 : 47), class: 'lyre-tick' }));
     }
-    // 合格した比を残す。ただし、いま遊んでいる面の印は合格するまで出さない（見直しのとき答えが見えてしまうため）
+    // 合格した比を残す。ただし、いま遊んでいる面の印は出さない（合格前は見直しで答えが見えてしまうため。合格後は駒の上の比の表示と重なるため）
     for (const s of MONOCHORD_STAGES) {
-      if (!S.lit.has(s.id) || (s.id === stage().id && !S.passed)) continue;
+      if (!S.lit.has(s.id) || s.id === stage().id) continue;
       const x = X0 + ((X1 - X0) * s.num) / s.den;
       root.append(svg('line', { x1: x, y1: Y - 34, x2: x, y2: Y + 22, class: 'lyre-mark' }));
       root.append(svg('text', { x, y: Y - 40, 'text-anchor': 'middle', class: 'lyre-mark-text' }, `${s.num}/${s.den}`));
@@ -95,8 +98,13 @@ export function createMonochordScreen({ audio }) {
     const string = svg('polyline', { points: '', class: 'lyre-string' });
     const bridge = svg('g', { class: 'lyre-bridge', id: 'mono-bridge' });
     bridge.append(svg('circle', { cx: 0, cy: 10, r: 20, class: 'lyre-bridge-halo' }));
+    bridge.append(svg('circle', { cx: 0, cy: GRIP_DY, r: 18, class: 'lyre-bridge-halo' }));
+    // 持ち手の軸（駒の下から持ち手まで）と、持ち手（既存の真鍮の金具の絵。新しい絵は作らない）
+    bridge.append(svg('line', { x1: 0, y1: 24, x2: 0, y2: GRIP_DY - GRIP_SIZE / 2 + 2, stroke: '#b19a73', 'stroke-width': 2.2, 'stroke-linecap': 'round' }));
     bridge.append(svg('polygon', { points: '-11,24 11,24 0,-2', class: 'lyre-bridge-body' }));
+    bridge.append(part('corner-brass', [0, GRIP_DY], GRIP_SIZE, '#c9a456'));
     bridge.append(svg('rect', { x: -24, y: -34, width: 48, height: 82, fill: 'transparent' }));
+    bridge.append(svg('rect', { x: -28, y: GRIP_DY - 26, width: 56, height: 52, fill: 'transparent' }));
     const ratio = svg('text', { x: 0, y: 64, 'text-anchor': 'middle', class: 'lyre-ratio' }, '');
     root.append(part('corner-brass', [X0, Y], 18, '#c9a456'), part('corner-brass', [X1, Y], 18, '#c9a456'));
     root.append(muted, string, part('string-pin', [X0, Y], 9, '#caa25a'), part('string-pin', [X1, Y], 9, '#caa25a'), bridge, ratio);
@@ -197,6 +205,13 @@ export function createMonochordScreen({ audio }) {
     $('mono-guide-heading').textContent = copy.heading;
     $('mono-guide-text').textContent = copy.text;
     $('mono-guide-note').textContent = copy.note;
+    // 手順が変わっても帯の高さが変わらないよう、文と補足の高さを先に確保し、一度広がった高さは縮めない
+    // （PRISM の案内の帯と同じ考え方。高さが変わると盤面ごと駒が動いて見える）
+    $('mono-guide-text').style.minHeight = '3em';
+    $('mono-guide-note').style.minHeight = '2.9em';
+    bar.style.minHeight = '';
+    S.guideMin = Math.max(S.guideMin || 0, bar.offsetHeight);
+    bar.style.minHeight = `${S.guideMin}px`;
     [...$('mono-guide-progress').children].forEach((seg, k) => {
       seg.className = clear || k < S.step ? 'done' : k === S.step ? 'current' : '';
     });
@@ -237,8 +252,8 @@ export function createMonochordScreen({ audio }) {
       host.append(g);
     };
     if (demo === 'bridge' && parts) {
-      // 駒の上で、指が左右へ動かすお手本（答えの向きは示さない）
-      const xb = bx(), y = Y + 8;
+      // 持ち手の上で、指が左右へ動かすお手本（答えの向きは示さない）
+      const xb = bx(), y = Y + GRIP_DY;
       finger(root, `M${xb} ${y} L${Math.min(X1, xb + 45)} ${y} L${Math.max(X0, xb - 45)} ${y} L${xb} ${y}`, [xb, y]);
     } else if (demo === 'knob') {
       // つまみの縁に沿って回すお手本
@@ -248,6 +263,9 @@ export function createMonochordScreen({ audio }) {
   // 操作をしたら次の手順へ。案内つきなら帯と縁を更新し、そうでなければ次にする所を2回光らせる
   function reach(action) {
     if (S.passed) return;
+    // 駒やつまみを触っている間は、次の手順へ切り替えない（案内が変わって画面が動くと、指の下の駒がずれるため。2026-11-14 発案者）。
+    // 指を離したときに進める
+    if (action === 'move' && S.touching) { S.pendingMove = true; return; }
     const before = S.step;
     S.step = advanceStep(S.step, action);
     if (S.step === before) return;
@@ -338,27 +356,39 @@ export function createMonochordScreen({ audio }) {
     renderStars(); renderButtons(); renderGuide(); drawStatic(); drawKnob();
     if (S.tutorial) say('');
     else say(meterAllowed()
-      ? '駒（金色の三角）を指で動かし、「重ねて鳴らす」で揺れが消える所を、微調整つまみで探します。'
-      : '駒（金色の三角）を指で動かし、「重ねて鳴らす」で揺れが消える所を、耳で探します。');
+      ? '駒（金色の三角）か下の持ち手を指で動かし、「重ねて鳴らす」で揺れが消える所を、微調整つまみで探します。'
+      : '駒（金色の三角）か下の持ち手を指で動かし、「重ねて鳴らす」で揺れが消える所を、耳で探します。');
     startCue();
   }
 
   // ---------- 操作 ----------
-  const svgX = e => {
+  const svgPoint = e => {
     const m = root.getScreenCTM();
-    if (!m) return 0;
-    return new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse()).x;
+    if (!m) return { x: 0, y: 0 };
+    return new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
   };
-  const touch = on => { S.touching = on; renderDemo(); };
+  const touch = on => {
+    S.touching = on;
+    if (!on && S.pendingMove) { S.pendingMove = false; reach('move'); }
+    renderDemo();
+  };
+  addEventListener('resize', () => { S.guideMin = 0; $('mono-guide').style.minHeight = ''; if (S.tutorial) renderGuide(); });
   root.addEventListener('pointerdown', e => {
     audio.unlock();
-    const x = svgX(e);
-    if (Math.abs(x - bx()) < 30) { S.dragging = true; root.setPointerCapture(e.pointerId); touch(true); }
-    else if (x < bx()) pluck(); // 鳴る側をタップ＝弦をはじく
+    const { x, y } = svgPoint(e);
+    const dx = x - bx();
+    const onBridge = Math.abs(dx) < 30 && y > Y - 34 && y < Y + 48;
+    const onGrip = Math.abs(dx) < 30 && Math.abs(y - (Y + GRIP_DY)) < 28;
+    if (onBridge || onGrip) {
+      // つかんだ所と駒の差を保って動かす（つかんだ瞬間に駒が指の位置へ飛ばないように）
+      S.dragging = true; S.grabDx = dx;
+      root.setPointerCapture(e.pointerId);
+      touch(true);
+    } else if (x < bx() && y < Y + 40) pluck(); // 駒より左の弦の近くをタップ＝弦をはじく
   });
   root.addEventListener('pointermove', e => {
     if (!S.dragging) return;
-    setR((svgX(e) - X0) / (X1 - X0));
+    setR((svgPoint(e).x - S.grabDx - X0) / (X1 - X0));
     moved();
   });
   for (const n of ['pointerup', 'pointercancel']) root.addEventListener(n, () => { if (S.dragging) { S.dragging = false; touch(false); } });
