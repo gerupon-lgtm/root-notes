@@ -35,7 +35,7 @@ function el(tag, attrs = {}, ...children) {
 }
 
 export function createStageScreen({ audio, onTitle }) {
-  const s = { songTimbre: SONG_TIMBRE, tapMode: 'second', lastTap: null, focus: null, lastMusic: null, play: null, busy: false, carryOver: false, msg: null, playingBar: -1, heard: false, result: null, check: new URLSearchParams(location.search).has('check') };
+  const s = { songTimbre: SONG_TIMBRE, tapMode: 'double', lastTap: null, focus: null, lastMusic: null, play: null, busy: false, carryOver: false, msg: null, playingBar: -1, heard: false, result: null, check: new URLSearchParams(location.search).has('check') };
   const svgRoot = $('tri');
 
   const play = () => s.play;
@@ -484,7 +484,7 @@ export function createStageScreen({ audio, onTitle }) {
     }
     s.lastTap = null;
     // ダブルタップで使う・外すときは、鳴っている試聴を止める
-    if (s.tapMode === 'double' && s.preview?.i === i) { s.preview.voice?.stop(0.06); s.preview = null; }
+    if (s.tapMode === 'double' && s.preview?.i === i) { s.preview.voice?.stop(); s.preview = null; }
     // 使う・外す。3本そろっているときは勝手に入れ替えない
     if (full) { guide(usedTiles()); return; }
     hideStaff();

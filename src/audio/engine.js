@@ -4,7 +4,8 @@
 // - 準備：スマホは最初の操作まで音を出せないので、unlock() を最初のタップで呼ぶ。遅れの指定は前作と同じ30ミリ秒
 // - 止め方：ごく短く小さくしてから止め、プツッという音を防ぐ（PRISM の ownedVoice の考え方）
 export const LATENCY_SECONDS = 0.03;
-const STOP_FADE = 0.015;
+// 音を止めるときのフェードアウトの長さ（秒）。短すぎるとブツっと鳴る（0.015秒で鳴っていた。2026-11-14 発案者）
+const STOP_FADE = 0.05;
 const SAW = Object.freeze({ carrier: 'saw', attack: 0.015, decay: 0.4, sustain: 0.6, release: 0.08, gain: 0.1 });
 
 function defaultContext() {
@@ -143,7 +144,7 @@ export class StringAudio {
   }
 
   stopAll() {
-    for (const v of [...this.plucks, ...this.others]) v.stop(0.04);
+    for (const v of [...this.plucks, ...this.others]) v.stop();
     this.timers.forEach(clearTimeout);
     this.timers = [];
   }
