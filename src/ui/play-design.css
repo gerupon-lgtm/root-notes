@@ -1,0 +1,75 @@
+/* 採用されたプレイ画面案01（2026-11-14）。第2章に限定し、第1章の案内帯と配置を保持する。 */
+#stage-screen {
+  gap: 8px;
+  grid-template-rows: 58px 48px auto minmax(0, 1fr) 128px 58px 18px;
+  grid-template-areas: "head" "stars" "sub" "board" "sticks" "actions" "foot";
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+#stage-screen .head { gap: 12px; border-bottom: 1px solid #b39a5644; padding-bottom: 8px; }
+.play-logo { width: 80px; flex: none; color: var(--gold); }
+.play-logo svg { display: block; width: 100%; fill: currentColor; font-family: 'Root Montserrat', sans-serif; text-anchor: middle; }
+.play-logo .root { font-size: 240px; font-weight: 600; letter-spacing: 30px; }
+.play-logo .notes { font-size: 90px; font-weight: 500; letter-spacing: 50px; }
+.play-heading { flex: 1; min-width: 0; text-align: center; }
+#stage-screen .brand { font-size: 16px; font-weight: 650; letter-spacing: 0; color: var(--ink); white-space: normal; }
+#stage-screen #mode-chip { display: block; margin: 3px auto 0; min-height: 0; border: 0; background: none; padding: 0; font-size: 11px; color: var(--mute); line-height: 1.5; }
+#stage-screen #menu-button { width: 44px; height: 44px; flex: none; border-radius: 8px; font-size: 22px; border-color: #8b9274; background: #092d28; }
+#stage-screen .stars { gap: 5px; align-self: stretch; }
+#stage-screen .star { min-height: 0; font-size: 11px; line-height: 1.2; border-color: #53736a88; border-radius: 8px; }
+#stage-screen .star .glyph { font-size: 23px; line-height: 1.1; }
+#stage-screen .star.gap { margin-left: 0; }
+#stage-screen .star.on { border-color: var(--gold); }
+#stage-screen .sub { min-height: 24px; font-size: 11px; align-items: center; }
+#stage-screen #where { min-width: 0; }
+#stage-screen #lives { flex: none; }
+#stage-screen .gem { font-size: 10px; }
+#stage-screen .board { min-height: 0; border: 0; border-top: 1px solid #728b7533; border-bottom: 1px solid #728b7555; border-radius: 0; background: transparent; }
+#stage-screen .status { padding: 6px 0 8px; gap: 5px; text-align: center; }
+#stage-screen #msg { font-size: 12px; line-height: 1.5; }
+#stage-screen #info { font-size: 10.5px; line-height: 1.4; }
+#stage-screen .meter { justify-content: center; flex-wrap: wrap; gap: 10px; font-size: 11px; }
+#stage-screen .dot { width: 8px; height: 8px; flex: none; }
+#stage-screen .sticks { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 8px; }
+/* ノーマル7本・エキスパート8本でも3段にせず、盤面の高さを保つ。 */
+#stage-screen .sticks:has(> :nth-child(7)) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#stage-screen .stick { min-height: 0; padding: 7px 12px; gap: 6px; border-radius: 8px; border-color: #617b6cbb; background: #062522ce; }
+#stage-screen .stick .num { font-size: 26px; line-height: 1; }
+#stage-screen .stick.sel { border-color: var(--gold); background: #d2b56916; }
+#stage-screen .stick.focus.to-use { border-color: #f0cd78; background: #5a4b2599; }
+#stage-screen .stick.focus.to-remove { border-color: var(--warn); background: #5a2d2699; }
+#stage-screen .stick .ord { top: 6px; right: 8px; font-size: 11px; }
+#stage-screen .stick .act { right: 4px; bottom: 4px; padding: 3px 5px; font-size: 11px; }
+#stage-screen .actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.16fr); gap: 5px; }
+#stage-screen .actions .btn { min-width: 0; min-height: 0; border-radius: 8px; padding: 4px 2px; font-size: 12px; line-height: 1.4; }
+#stage-screen .actions .primary:not(:disabled) { background: #d9bb6b; }
+.play-foot { grid-area: foot; align-self: end; display: flex; justify-content: center; gap: 12px; color: var(--mute); font-size: 10px; line-height: 1.5; }
+@media (orientation: landscape) {
+  #stage-screen { column-gap: 20px; row-gap: 6px; grid-template-rows: 52px 44px auto minmax(0, 1fr) 54px 16px; grid-template-areas: "head head" "board stars" "board sub" "board sticks" "board actions" "foot foot"; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+  #stage-screen .head { padding-bottom: 5px; }
+  .play-logo { width: 76px; }
+  .play-heading { text-align: left; }
+  #stage-screen #mode-chip { display: inline-block; margin: 1px 0 0; }
+  #stage-screen #menu-button { height: 40px; }
+  #stage-screen .board { border: 0; }
+  #stage-screen .sub { align-self: center; min-height: 20px; }
+  #stage-screen .status { padding-bottom: 2px; gap: 3px; }
+  #stage-screen #msg { font-size: 11px; }
+  #stage-screen #info { font-size: 10px; }
+  #stage-screen .sticks { align-content: stretch; gap: 7px; }
+  #stage-screen .stick .num { font-size: 25px; }
+}
+@media (orientation: landscape) and (max-height: 360px) {
+  #stage-screen { grid-template-rows: 44px 40px auto minmax(0, 1fr) 48px 16px; gap: 5px 18px; }
+  #stage-screen .head { padding-bottom: 3px; }
+  #stage-screen .brand { font-size: 15px; }
+  .play-logo { width: 68px; }
+  #stage-screen #menu-button { height: 36px; }
+  #stage-screen .stick { padding: 4px 9px; gap: 5px; }
+  #stage-screen .stick .num { font-size: 23px; }
+  #stage-screen .actions .btn { font-size: 11px; }
+}
+@media (orientation: portrait) and (max-height: 740px) {
+  #stage-screen { grid-template-rows: 52px 44px auto minmax(0, 1fr) 112px 54px 16px; gap: 6px; padding-top: max(6px, env(safe-area-inset-top)); }
+  #stage-screen .head { padding-bottom: 5px; }
+  #stage-screen .stick .num { font-size: 24px; }
+}

@@ -5,7 +5,8 @@ import { artPath } from '../content/assets.js';
 
 export const FRAME = 12; // 木枠の太さ（SVG の単位）
 const WOOD_TILE = 192; // 木目1枚を並べる長さ（Codex の見本と同じ 192×12）
-export const CORNER = 22, PIN = 8; // 金具とピンの大きさ
+// 短い弦が両端の留め具に隠れない大きさ。枠と角金具の縮小は既存の描画処理で行う。
+export const CORNER = 22, PIN = 4; // 金具とピンの大きさ
 
 // 木目の模様。描くたびに中身を消すので、そのたびに作る。名前は図ごとに分ける
 // （同じ名前が2つあると、隠れている画面の模様を参照して描けないことがある）

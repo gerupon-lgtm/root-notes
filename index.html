@@ -6,6 +6,7 @@
 <title>ROOT NOTES</title>
 <meta name="theme-color" content="#062522">
 <link rel="stylesheet" href="./src/ui/style.css">
+<link rel="stylesheet" href="./src/ui/play-design.css">
 </head>
 <body>
 <!-- タイトル。B案「響きの工房」（発案者が採用済み。Codex 作。2026-11-14） -->
@@ -49,7 +50,7 @@
     </nav>
   </div>
   <script type="module">
-    import { SERIES } from './src/version.js';
+    import { SERIES, APP_VERSION } from './src/version.js';
     import { artPath } from './src/content/assets.js';
 
     document.getElementById('title-short-landscape-art').srcset = artPath('title-workshop-landscape-short');
@@ -68,6 +69,7 @@
       mark.textContent = number;
       series.setAttribute('aria-label', SERIES);
       series.replaceChildren(...labels, mark);
+      document.getElementById('play-version').textContent = `検証 v${APP_VERSION}`;
     }, { once: true });
   </script>
 </main>
@@ -75,8 +77,8 @@
 <!-- 遊ぶ画面（段階3）。縦向きは1列、横向きは左に三角形・右に操作の2列（style.css） -->
 <div class="app" id="stage-screen" hidden>
   <header class="head">
-    <h1 class="brand">ROOT NOTES</h1>
-    <button type="button" class="chip" id="mode-chip" aria-label="遊び方を変える"></button>
+    <div class="play-logo" aria-label="ROOT NOTES"><svg viewBox="0 0 1000 440" aria-hidden="true"><text class="root" x="500" y="260">ROOT</text><text class="notes" x="500" y="420">NOTES</text></svg></div>
+    <div class="play-heading"><h1 class="brand">第2章 三角形で和音</h1><button type="button" class="chip" id="mode-chip" aria-label="遊び方を変える"></button></div>
     <button type="button" class="icon" id="menu-button" aria-label="メニュー（遊び方・曲・発見の巻物）">☰</button>
   </header>
   <nav class="stars" id="stars" aria-label="8小節の星"></nav>
@@ -99,6 +101,7 @@
     <button type="button" class="btn" id="b-meter">メーター</button>
     <button type="button" class="btn primary" id="b-answer">回答する</button>
   </div>
+  <footer class="play-foot"><span>© SIKUMI LAB</span><span id="play-version"></span></footer>
 </div>
 
 <!-- 第1章「一弦の琴」（段階4）。並びは遊ぶ画面と同じ（縦は1列、横は左に琴・右に操作の2列） -->
