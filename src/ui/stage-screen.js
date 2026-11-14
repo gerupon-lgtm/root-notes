@@ -301,15 +301,16 @@ export function createStageScreen({ audio, onTitle }) {
   function showResult(kind, r) {
     const p = play();
     const bar = p.index + 1, label = p.stage.label;
-    let head, body, buttons;
+    let head, body, buttons, showKey = false;
     if (kind === 'correct') {
+      showKey = true; // キーは大事なので、見出しの横に札で出す（2026-11-14 発案者）
       const song = r.music?.kind === 'song', phrase = r.music?.kind === 'phrase';
       // 「澄んだ！」から変更（2026-11-14 発案者）。星を灯す遊びなので「星が灯った」
       head = song ? '1曲できあがり' : '星が灯った';
       // 度数とコードネームを並べる（相対の度数から、進行の気づきにつなげる。2026-11-14 発案者）
       body = song
-        ? [songTitle(), ...progressionLines(0, BARS - 1)]
-        : [`${bar}小節目は ${label} ＝ ${chordName(label, p.run.key)}（キー ${keyName(p.run.key)}）`,
+        ? [p.run.progression.name, ...progressionLines(0, BARS - 1)]
+        : [`${bar}小節目は ${label} ＝ ${chordName(label, p.run.key)}`,
            ...(phrase ? [`フレーズ${r.music.from / PHRASE + 1}がそろいました`, ...progressionLines(r.music.from, r.music.to)] : [])];
       if (p.mode.continuous) buttons = bar === BARS ? [['restart', '新しい曲で遊ぶ', true], ['title', 'タイトルへ']] : [['next', '次の星へ ▶', true]];
       else buttons = p.nextBar() === null ? [['close', '閉じる', true]] : [['next', '次の星へ ▶', true], ['close', 'この星に残る']];
@@ -328,7 +329,7 @@ export function createStageScreen({ audio, onTitle }) {
     t.replaceChildren(
       // 見出し（「1曲できあがり」とキーの行）の右に「もう一度聴く」（フレーズや1曲がそろったとき。2026-11-14 発案者）
       el('div', { class: 'result-head' },
-        el('div', { class: 'result-title' }, el('h3', {}, head), el('p', {}, body[0])),
+        el('div', { class: 'result-title' }, el('h3', {}, head, showKey ? el('span', { class: 'key-badge' }, `キー ${keyName(p.run.key)}`) : ''), el('p', { class: 'first-line' }, body[0])),
         r?.music ? el('button', { type: 'button', class: 'replay', 'data-act': 'replay' }, '▶ もう一度聴く') : '',
         el('button', { type: 'button', class: 'close', 'data-act': 'close', 'aria-label': '閉じる' }, '×')),
       ...body.slice(1).map(line => el('p', { class: 'sub-line' }, line)),
