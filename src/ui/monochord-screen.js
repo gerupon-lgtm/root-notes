@@ -26,7 +26,9 @@ const X0 = 30, X1 = 290, Y = 92; // 弦の左端・右端・高さ（SVG の単�
 // 駒の持ち手：駒から軸を下へ伸ばし、胴と目盛りより下に丸い持ち手を付ける（2026-11-14 発案者「指でコマを動かすと位置が隠れて見づらい。
 // 少し下にもつかめるものを付けて、位置を見ながら操作できるように。コマ自体でも動かせるように」）。弦の高さからの距離
 const GRIP_DY = 86, GRIP_SIZE = 24;
-const NEXT_AFTER_PASS_MS = 2600; // 合格のあと、次の面へ移るまで（試作と同じ）
+// 合格したら、揺れの消えた星の音と弦の音を一度だけ鳴らし、結果のトーストを出す。次の面へは「次の星へ」を押したときだけ進む
+// （2026-11-14 発案者：第2章と同じ「トースト表示して、次へ進む形」。旧：2.6秒で自動で次の面へ）
+const PASS_CHORD_SECONDS = 1.8;
 
 export function createMonochordScreen({ audio }) {
   const $ = id => document.getElementById(id);
@@ -165,26 +167,63 @@ export function createMonochordScreen({ audio }) {
     S.passed = true;
     S.lit.add(s.id);
     S.onLit?.([...S.lit]); // 保存（段階7）
+    // 重ねた音を止め、合った2音を一度だけ鳴らす
+    const both = [target(), current()];
+    stopDrone();
+    audio.chord(both, { timbre: TIMBRE, duration: PASS_CHORD_SECONDS, strum: 0, level: 0.7 });
     renderStars(); drawStatic(); twinkle();
-    say(`合った！ 弦の ${s.num}/${s.den}。${s.word}。`, 'ok');
+    say(`合った！ 弦の ${s.num}/${s.den}。`, 'ok');
     clearTimeout(S.nextTimer);
-    // 案内つきの練習は、クリアの知らせを出し、「次へ」を押すまで待つ（PRISM のチュートリアルクリアと同じ）
-    if (S.tutorial) { book.complete('ch1'); renderGuide(); renderCoach(); return; }
-    S.nextTimer = setTimeout(() => {
-      stopDrone();
-      const rest = MONOCHORD_STAGES.findIndex((x, k) => k > S.i && !S.lit.has(x.id));
-      const any = MONOCHORD_STAGES.findIndex(x => !S.lit.has(x.id));
-      if (S.lit.size === MONOCHORD_STAGES.length) chapterEnd();
-      else goStage(rest >= 0 ? rest : any);
-    }, NEXT_AFTER_PASS_MS);
+    // 案内つきの練習：帯は「チュートリアルクリア！」の表示だけにし、「次へ」はトーストにそろえる（2026-11-14 発案者）
+    if (S.tutorial) { book.complete('ch1'); renderGuide(); renderCoach(); }
+    showToast();
   }
+  // 結果のトースト。buttons は [動き, 文言, 主ボタンか]
+  function showToast() {
+    const s = stage(), all = S.lit.size === MONOCHORD_STAGES.length;
+    const toEnd = S.endLabel ?? (S.mode.continuous ? '次へ ▶' : '章を選ぶ');
+    let head = '星が灯った', lines = [`${s.id} は ${s.name} ＝ 弦の ${s.num}/${s.den}`, `${s.word}。`], buttons;
+    if (S.tutorial === 'title' && !all) buttons = [['next', '第1章を続ける ▶', true], ['title', 'タイトルへ']];
+    else if (all) {
+      head = '第1章の星がすべて灯った';
+      lines = [...lines, '弦の長さの比 1/2・2/3・3/4・4/5・5/6 が、澄んだ響きを生みます。'];
+      buttons = toEnd === 'タイトルへ' ? [['done', 'タイトルへ', true]] : [['done', toEnd, true], ['title', 'タイトルへ']];
+    } else if (S.mode.continuous) buttons = [['next', '次の星へ ▶', true]];
+    else buttons = [['next', '次の星へ ▶', true], ['close', 'この星に残る']];
+    if (S.tutorial) lines = [...lines, CH1_CLEAR.note];
+    const el = (tag, attrs = {}, ...kids) => {
+      const x = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs)) x.setAttribute(k, v);
+      x.append(...kids);
+      return x;
+    };
+    const t = $('mono-toast');
+    t.replaceChildren(
+      el('div', { class: 'result-head' },
+        el('div', { class: 'result-title' }, el('h3', {}, head)),
+        el('button', { type: 'button', class: 'close', 'data-act': 'close', 'aria-label': '閉じる' }, '×')),
+      el('p', { class: 'first-line' }, lines[0]),
+      ...lines.slice(1).map(line => el('p', { class: 'sub-line' }, line)),
+      el('div', { class: 'result-actions' }, ...buttons.map(([act, text, primary]) => el('button', { type: 'button', class: primary ? 'btn primary' : 'btn', 'data-act': act }, text))));
+    t.hidden = false;
+    placeToast();
+  }
+  // 操作欄（微調整と下のボタン）に重ねて出す（第2章の結果のトーストと同じ置き方）
+  function placeToast() {
+    const t = $('mono-toast');
+    if (t.hidden) return;
+    const top = document.querySelector('#mono-screen .tune').getBoundingClientRect(), bottom = $('mono-actions').getBoundingClientRect();
+    t.style.left = `${top.left}px`;
+    t.style.width = `${top.width}px`;
+    t.style.bottom = `${Math.max(0, innerHeight - bottom.bottom)}px`;
+    t.style.maxHeight = `${bottom.bottom - top.top + 40}px`;
+  }
+  const hideToast = () => { $('mono-toast').hidden = true; };
+  // 章の終わり（保存から、全部灯った第1章に戻ったとき）
   function chapterEnd() {
     S.ended = true;
-    say('第1章の星がすべて灯りました。弦の長さの比 1/2・2/3・3/4・4/5・5/6 が、澄んだ響きを生みます。', 'ok');
-    $('mono-actions').hidden = true;
-    $('mono-end').hidden = false;
-    $('mono-next').textContent = S.endLabel ?? (S.mode.continuous ? '次へ ▶' : '章を選ぶ');
-    $('mono-end-title').hidden = S.endLabel === 'タイトルへ';
+    S.passed = true;
+    showToast();
   }
   // 次の面（今より後ろで灯っていない面。なければ前から）
   function nextUnlit() {
@@ -217,9 +256,9 @@ export function createMonochordScreen({ audio }) {
       seg.className = clear || k < S.step ? 'done' : k === S.step ? 'current' : '';
     });
     $('mono-guide-skip').hidden = clear;
-    $('mono-guide-next').hidden = !clear;
-    $('mono-guide-next').textContent = S.tutorial === 'title' ? '第1章を続ける ▶' : '次へ ▶';
-    $('mono-guide-title').hidden = !(clear && S.tutorial === 'title');
+    // クリアの「次へ」はトーストにそろえた（帯には出さない）
+    $('mono-guide-next').hidden = true;
+    $('mono-guide-title').hidden = true;
     // 精霊（Codex の絵が届くまでは出さない）
     const id = STEP_IDS[S.step];
     const spirit = artPath(clear ? 'guide-spirit-smiling' : id === 'drone' || id === 'tune' ? 'guide-spirit-listening' : 'guide-spirit-normal');
@@ -347,6 +386,7 @@ export function createMonochordScreen({ audio }) {
 
   // tutorial：この面を案内つきにするか（1-1 だけ）。渡さなければ案内なし
   function goStage(i, { tutorial = null } = {}) {
+    hideToast();
     clearTimeout(S.nextTimer);
     stopDrone();
     S.i = i; S.passed = false; S.hold = 0; S.knob = 0; S.ended = false; S.step = 0;
@@ -457,10 +497,25 @@ export function createMonochordScreen({ audio }) {
     if (next < 0) chapterEnd(); else goStage(next);
   });
   $('mono-guide-title').addEventListener('click', () => { stop(); S.onTitle(); });
+  $('mono-toast').addEventListener('click', e => {
+    const act = e.target.closest('button')?.dataset.act;
+    if (!act) return;
+    if (act === 'close') { hideToast(); return; }
+    if (act === 'title') { hideToast(); stop(); S.onTitle(); return; }
+    if (act === 'done') { hideToast(); stop(); S.onDone(); return; }
+    if (act === 'next') {
+      hideToast();
+      S.tutorial = null;
+      const next = nextUnlit();
+      if (next < 0) chapterEnd(); else goStage(next);
+    }
+  });
+  addEventListener('resize', placeToast);
   $('mono-end-title').addEventListener('click', () => { stop(); S.onTitle(); });
   $('mono-next').addEventListener('click', () => { stop(); S.onDone(); });
 
   function stop() {
+    hideToast();
     clearTimeout(S.nextTimer);
     stopDrone();
     cancelAnimationFrame(S.raf);
