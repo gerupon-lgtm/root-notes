@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<base href="/">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ROOT NOTES</title>
+<meta name="theme-color" content="#062522">
+<!-- OFFLINE_METADATA -->
+<link rel="stylesheet" href="./src/ui/style.css">
+<link rel="stylesheet" href="./src/ui/play-design.css">
+</head>
+<body>
+<!-- タイトル。B案「響きの工房」（発案者が採用済み。Codex 作。2026-11-14） -->
+<main class="title" id="title-screen" aria-label="ルート・ノーツのタイトル">
+  <picture class="title-background" aria-hidden="true">
+    <source id="title-short-landscape-art" media="(min-aspect-ratio: 1/1) and (max-height: 360px)">
+    <source id="title-landscape-art" media="(min-aspect-ratio: 1/1)">
+    <img id="title-portrait-art" alt="" fetchpriority="high" decoding="async">
+  </picture>
+  <div class="title-inner">
+    <div class="title-hero">
+      <p class="series" id="app-series"></p>
+      <h1 class="logo" aria-label="ROOT NOTES（ルート・ノーツ）">
+        <svg viewBox="0 0 1000 440" aria-hidden="true" focusable="false">
+          <text class="logo-root" x="500" y="260">ROOT</text>
+          <text class="logo-notes" x="500" y="420">NOTES</text>
+        </svg>
+      </h1>
+      <p class="lead">響きを聴いて、かたちにする。</p>
+      <div class="title-symbol-space" aria-hidden="true"></div>
+    </div>
+    <nav class="title-menu" aria-label="はじめのメニュー">
+      <div class="title-buttons">
+        <button type="button" data-start="tutorial">チュートリアル</button>
+        <button type="button" class="big" data-start="continuous">連続プレイ</button>
+        <div class="title-links">
+          <button type="button" data-start="select">選択プレイ</button>
+          <details class="title-help">
+            <summary>遊び方と概要</summary>
+            <div class="title-help-body">
+              <h2>響きを聴いて、かたちにする。</h2>
+              <p>お題の和音を聴き、その響きになる3本の棒を選んで三角形を作ります。辺は弦になっていて、短い辺ほど高い音が鳴ります。</p>
+              <p>連続プレイは序から始まります。序のあとでフリー・ノーマル・エキスパートを選び、第1章から順に進みます。フリーは何度でも音を比べられます。</p>
+              <p>選択プレイでは章を選んで遊べます。チュートリアルでは、第1章の一弦の琴を案内つきで体験できます。</p>
+              <p class="title-help-close">「遊び方と概要」をもう一度押すと閉じます。</p>
+            </div>
+          </details>
+        </div>
+      </div>
+      <footer class="foot"><span id="app-copyright"></span><span id="app-version"></span></footer>
+    </nav>
+  </div>
+  <script type="module">
+    import { SERIES, APP_VERSION, COPYRIGHT } from './src/version.js';
+    import { artPath } from './src/content/assets.js';
+
+    document.getElementById('title-short-landscape-art').srcset = artPath('title-workshop-landscape-short');
+    document.getElementById('title-landscape-art').srcset = artPath('title-workshop-landscape');
+    document.getElementById('title-portrait-art').src = artPath('title-workshop-portrait');
+    // main.js の差し込み後に、正典の文字列を前作と同じ組み方へ整える。
+    document.addEventListener('DOMContentLoaded', () => {
+      const series = document.getElementById('app-series');
+      const [name, number] = SERIES.split('|').map(part => part.trim());
+      const labels = name.split(/\s+/).map(word => {
+        const span = document.createElement('span');
+        span.textContent = word;
+        return span;
+      });
+      const mark = document.createElement('b');
+      mark.textContent = number;
+      series.setAttribute('aria-label', SERIES);
+      series.replaceChildren(...labels, mark);
+      document.getElementById('play-version').textContent = `検証 v${APP_VERSION}`;
+      document.getElementById('play-copyright').textContent = COPYRIGHT;
+    }, { once: true });
+  </script>
+</main>
+
+<!-- 遊ぶ画面（段階3）。縦向きは1列、横向きは左に三角形・右に操作の2列（style.css） -->
+<div class="app" id="stage-screen" hidden>
+  <header class="head">
+    <div class="play-logo" aria-label="ROOT NOTES"><svg viewBox="0 0 1000 440" aria-hidden="true"><text class="root" x="500" y="260">ROOT</text><text class="notes" x="500" y="420">NOTES</text></svg></div>
+    <div class="play-heading"><h1 class="brand">第2章 三角形で和音</h1><button type="button" class="chip" id="mode-chip" aria-label="遊び方を変える"></button></div>
+    <button type="button" class="icon" id="menu-button" aria-label="メニュー（遊び方・曲・発見の巻物）">☰</button>
+  </header>
+  <nav class="stars" id="stars" aria-label="8小節の星"></nav>
+  <div class="sub"><span id="where"></span><span id="lives" aria-label="失敗の残り"></span></div>
+  <section class="board" aria-label="三角形">
+    <svg id="tri" viewBox="0 0 320 210" preserveAspectRatio="xMidYMid meet" role="img" aria-label="選んだ棒でできる三角形。辺をタップするかなぞると、その辺の音が鳴る"></svg>
+    <!-- 五線譜：コード進行を鳴らすとき、鳴っている小節の音符を光らせる。触れると閉じる -->
+    <div class="staff-panel" id="staff-panel" hidden><svg id="staff" role="img" aria-label="鳴っている和音の五線譜（1オクターブ上に書いている）" preserveAspectRatio="xMidYMid meet"></svg></div>
+    <div class="status">
+      <aside class="stage-guide" id="stage-guide" aria-label="2-1の遊び方" hidden><span id="stage-guide-copy" aria-live="polite"></span><button type="button" id="stage-guide-close" aria-label="2-1の案内を閉じる">×</button></aside>
+      <div class="meter" id="meter" hidden></div>
+      <p id="msg" role="status" aria-live="polite"></p>
+      <p id="info"></p>
+    </div>
+  </section>
+  <div class="sticks" id="sticks" aria-label="棒"></div>
+  <div class="actions" id="actions-row">
+    <button type="button" class="btn" id="b-target">お題を<br>聞く</button>
+    <button type="button" class="btn" id="b-chord">和音で<br>鳴らす</button>
+    <button type="button" class="btn" id="b-compare">比べる</button>
+    <button type="button" class="btn" id="b-meter">メーター</button>
+    <button type="button" class="btn primary" id="b-answer">回答する</button>
+  </div>
+  <footer class="play-foot"><span id="play-copyright"></span><span id="play-version"></span></footer>
+</div>
+
+<!-- 第1章「一弦の琴」（段階4）。並びは遊ぶ画面と同じ（縦は1列、横は左に琴・右に操作の2列） -->
+<div class="app mono" id="mono-screen" hidden>
+  <header class="head">
+    <div class="mono-heading"><h1 class="brand">第1章 一弦の琴</h1><span class="chip" id="mono-mode"></span></div>
+    <button type="button" class="chip" id="mono-guide-open" aria-label="案内（チュートリアル）をもう一度見る">案内</button>
+    <button type="button" class="chip" id="mono-title">タイトルへ</button>
+  </header>
+  <nav class="stars five" id="mono-stars" aria-label="第1章の5つの星"></nav>
+  <div class="sub"><span id="mono-where"></span><span id="mono-count"></span></div>
+  <!-- 案内の帯（チュートリアル。前作 PRISM・AQUA と同じ形）：精霊・手順の数・見出し・今する操作・補足・進み具合。盤面には重ねない -->
+  <section class="mono-guide" id="mono-guide" aria-label="案内" hidden>
+    <div class="guide-top">
+      <span class="guide-count" id="mono-guide-count"></span>
+      <div class="guide-actions">
+        <button type="button" class="btn" id="mono-guide-skip">スキップ</button>
+        <button type="button" class="btn" id="mono-guide-title" hidden>タイトルへ</button>
+        <button type="button" class="btn primary" id="mono-guide-next" hidden>次へ ▶</button>
+      </div>
+    </div>
+    <img class="guide-spirit" id="mono-guide-spirit" alt="弦の精霊" hidden>
+    <div class="guide-copy">
+      <strong class="guide-heading" id="mono-guide-heading"></strong>
+      <div class="guide-description" tabindex="0" aria-label="案内の本文">
+        <span class="guide-text" id="mono-guide-text" aria-live="polite"></span>
+        <span class="guide-note" id="mono-guide-note"></span>
+      </div>
+    </div>
+    <span class="guide-progress" id="mono-guide-progress" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+  </section>
+  <section class="board" aria-label="一弦の琴">
+    <svg id="lyre" viewBox="0 0 320 210" preserveAspectRatio="xMidYMid meet" role="img" aria-label="一弦の琴。金色の駒を左右に動かすと、駒の左側の弦の長さが変わる。駒の左側をタップすると弦をはじく"></svg>
+    <div class="status">
+      <div class="meter mono-meter" id="mono-meter"><span class="dot" id="mono-dot"></span><span id="mono-beat"></span><span class="holdbar" aria-hidden="true"><i id="mono-hold"></i></span></div>
+      <p id="mono-msg" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+  <div class="sticks tune" aria-label="微調整">
+    <button type="button" class="btn nudge" id="mono-left" aria-label="駒を少し左へ（弦を少し短く）">◀<br>少し短く</button>
+    <div class="knobwrap"><svg id="knob" viewBox="0 0 100 100" role="slider" aria-label="微調整つまみ。回すと駒がゆっくり動く" tabindex="0"></svg><span>微調整つまみ</span></div>
+    <button type="button" class="btn nudge" id="mono-right" aria-label="駒を少し右へ（弦を少し長く）">▶<br>少し長く</button>
+  </div>
+  <div class="actions" id="mono-actions">
+    <button type="button" class="btn" id="mono-target">お題を<br>聞く</button>
+    <button type="button" class="btn" id="mono-pluck">弦を<br>はじく</button>
+    <button type="button" class="btn" id="mono-meter-toggle" aria-pressed="true">メーター</button>
+    <button type="button" class="btn primary" id="mono-drone">重ねて<br>鳴らす</button>
+  </div>
+  <!-- 合格の結果のトースト（第2章の結果のトーストと同じ形。2026-11-14 発案者「トースト表示して、次へ進む形は守って」） -->
+  <div class="result-toast ok" id="mono-toast" role="status" aria-live="polite" hidden></div>
+  <div class="actions" id="mono-end" hidden>
+    <button type="button" class="btn" id="mono-end-title">タイトルへ</button>
+    <button type="button" class="btn primary" id="mono-next">次へ ▶</button>
+  </div>
+</div>
+
+<!-- 章の間の画面（序・章選び・まだ中身のない場面）。中身は src/ui/flow-screen.js が差し込む -->
+<main class="interlude" id="interlude-screen" hidden>
+  <div class="interlude-card" id="interlude-card"></div>
+</main>
+
+<!-- 引き出し（遊び方・曲・発見の巻物・設定） -->
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-back" id="sheet-back"></div>
+  <div class="sheet-body" role="dialog" aria-label="メニュー">
+    <h2>遊び方を選ぶ</h2>
+    <div class="modes" id="modes"></div>
+    <p id="mode-desc"></p>
+    <h2>今回の曲</h2>
+    <p id="song-info"></p>
+    <button type="button" class="btn" id="b-song">灯った和音で曲を聴く</button>
+    <h2>曲の音色（聞き比べ）</h2>
+    <div class="seg seg3" id="song-timbres"><button type="button" data-song-timbre="epiano">エレピ</button><button type="button" data-song-timbre="strings">ストリングス</button><button type="button" data-song-timbre="organ">オルガン</button></div>
+    <h2>棒の操作（比べる）</h2>
+    <div class="seg" id="tap-modes"><button type="button" data-tap-mode="second">2回タップ</button><button type="button" data-tap-mode="double">ダブルタップ</button></div>
+    <h2>曲の余韻（聞き比べ）</h2>
+    <div class="seg"><button type="button" id="carry-off">小節の中で切る</button><button type="button" id="carry-on">次の小節へ残す</button></div>
+    <h2>発見の巻物</h2>
+    <ul class="found" id="found"></ul>
+    <div id="meter-setting">
+      <h2>メーター（フリー）</h2>
+      <div class="seg"><button type="button" id="meter-on">表示</button><button type="button" id="meter-off">隠す</button></div>
+    </div>
+    <h2>遊び方</h2>
+    <p>8つの星が、1曲の8小節です。星ごとにお題の和音を聞き、同じ響きの三角形を棒から作ってください。辺をタップ（なぞる）すると1音ずつ鳴ります。</p>
+    <p>4つの星を灯すたびに、そこまでの和音がベースライン付きのフレーズとして流れます。8つ全部で1曲になります。</p>
+    <p>色は音の高さで決まり、1オクターブ違う音は同じ色です。</p>
+    <button type="button" class="btn" id="b-reveal" hidden>確認用：答えを見る</button>
+    <div class="sheet-foot"><span id="sheet-version"></span><span id="sheet-copyright"></span></div>
+    <div class="sheet-buttons">
+      <button type="button" class="btn" id="b-title">タイトルへ</button>
+      <button type="button" class="btn primary" id="b-close">閉じる</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<!-- 結果のトースト（正解・不正解）。操作欄に重ねて出し、次にすることのボタンを置く -->
+<div class="result-toast" id="result-toast" role="status" aria-live="polite" hidden></div>
+<!-- 新しい版の知らせ（段階7。src/ui/offline.js）。押したときだけ切り替える -->
+<div class="update-notice" id="update-notice" role="status" aria-live="polite" hidden>
+  <span>新しい版を使えます。</span>
+  <button type="button" class="btn" id="update-later">あとで</button>
+  <button type="button" class="btn primary" id="update-apply">更新する</button>
+</div>
+<script type="module" src="./docs/reviews/2026-11-15-tutorial-usability/silent-main.js"></script>
+</body>
+</html>

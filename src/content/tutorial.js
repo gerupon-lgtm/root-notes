@@ -10,18 +10,31 @@ export const plain = text => text.replaceAll('|', '');
 export const CH1_STEPS = Object.freeze([
   { id: 'target', kind: 'action', heading: 'お手本の音を聞こう', text: '「お題を聞く」を|押そう。', note: '星が鳴らすのが|お手本の音。|自分の弦を、|この高さに|合わせます。', targets: ['mono-target'], demo: null },
   { id: 'pluck', kind: 'action', heading: '自分の弦を鳴らそう', text: '「弦をはじく」を|押そう。', note: 'これが|今の弦の音。|お手本より|高い？ 低い？|分からなくても|大丈夫。', targets: ['mono-pluck'], demo: null },
-  { id: 'about-tuning', kind: 'read', heading: 'チューニングって？', text: '楽器の音合わせ|（チューニング）は、|お手本の音に、|自分の弦の高さを|そろえること。', note: '高い・低いが|耳で分からなくても|大丈夫。|次のやり方で|合わせられます。', targets: [], demo: null },
-  { id: 'drone', kind: 'action', heading: '2つを重ねて聞こう', text: '「重ねて鳴らす」を|押そう。', note: 'お手本と|自分の弦を、|同時に|鳴らし続けます。', targets: ['mono-drone'], demo: null },
+  { id: 'about-tuning', kind: 'read', heading: 'チューニングって？', text: 'お手本と|自分の弦の|音の高さを|そろえること。', note: '高い・低いが|分からなくても|大丈夫。|重ねて聞いて|探せます。', targets: [], demo: null },
+  { id: 'drone', kind: 'action', heading: '2つを重ねて聞こう', text: '「重ねて鳴らす」を|押そう。', note: '使えるモードでは、|メーターも|任意で表示できます。', targets: ['mono-drone'], demo: null },
   { id: 'about-beat', kind: 'read', heading: '音が揺れている', text: 'ワウワウと|揺れるのが|「うなり」。|ずれが大きいほど|速く、|近づくほど|ゆっくりになります。', note: 'ぴったり合うと|揺れが消え、|2つの音が|一つにまとまって|聞こえます。', targets: [], demo: null },
   {
-    id: 'move', kind: 'action', heading: '揺れを消そう', text: '駒の下の|持ち手を|動かそう。|揺れが|ゆっくりになる方が、|正解の向き。', note: '弦を短くすると|高く、|長くすると|低くなります。', targets: ['bridge', 'mono-left', 'mono-right'], demo: 'bridge',
+    id: 'move', kind: 'action', heading: '揺れを消そう', text: '持ち手を動かそう。|揺れが|ゆっくりになる方へ。', note: '揺れを|合格の範囲に合わせ、|指定の時間|保つとクリア。', targets: ['bridge', 'mono-left', 'mono-right'], demo: 'bridge',
     // 揺れが遅くなってきたら（FINE_BEAT より遅い）、つまみで仕上げる案内に切り替える
-    fine: { text: '揺れが|ゆっくりに|なってきた。|つまみで|仕上げよう。', note: '揺れが消えて、|2つの音が|一つにまとまったら|合格（1秒保つ）。', targets: ['knob', 'mono-left', 'mono-right'], demo: 'knob' }
+    fine: { text: '揺れが|ゆっくりに|なってきたら、|つまみで|仕上げよう。', note: '揺れを|合格の範囲に合わせ、|指定の時間|保つとクリア。', targets: ['knob', 'mono-left', 'mono-right'], demo: 'knob' }
   }
 ].map(s => Object.freeze({ ...s, targets: Object.freeze(s.targets), ...(s.fine ? { fine: Object.freeze({ ...s.fine, targets: Object.freeze(s.fine.targets) }) } : {}) })));
 
 // 手順「揺れを消そう」で、つまみの仕上げに切り替える揺れの速さ（回/秒）
 export const FINE_BEAT = 4;
+
+// 第2章2-1だけの短い案内。出題・判定・保存には触れず、現在の操作に合わせる。
+export function triangleHint({ bar, lit = false, heard, count, closed, edgeTried, tapMode = 'double' }) {
+  if (bar !== 0 || lit) return null;
+  if (!heard) return '① まず「お題を聞く」で、響きを覚えよう。';
+  const use = tapMode === 'double' ? 'ダブルタップ' : 'もう一度タップ';
+  if (count < 3) return tapMode === 'double'
+    ? 'タップで試聴、ダブルタップで使用。\n直接ダブルタップもOK。\n使った棒はダブルタップで解除。'
+    : `タップで試聴、${use}で使用・解除（あと${3 - count}本）。`;
+  if (!closed) return 'この3本は閉じません。1本外して入れ替えよう。';
+  if (!edgeTried) return '③ 辺を触ると1音ずつ鳴ります。響きを確かめよう。';
+  return '④ 納得したら「回答する」。棒は選び直せます。';
+}
 
 export const CH1_CLEAR = Object.freeze({
   heading: 'チュートリアルクリア！',

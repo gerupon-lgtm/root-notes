@@ -18,6 +18,8 @@ import { drawEmpty, drawOpen, drawClosed } from './triangle-view.js';
 import { drawStaff, markStaff } from './staff-view.js';
 import { staffColumn } from '../game/notation.js';
 import { APP_VERSION, COPYRIGHT } from '../version.js';
+import { triangleHint } from '../content/tutorial.js';
+import { placeResultToast } from './result-layout.js';
 
 const $ = id => document.getElementById(id);
 const ROWS = ['低', '中', '高'];
@@ -154,6 +156,11 @@ export function createStageScreen({ audio, onTitle }) {
     const msg = $('msg');
     msg.textContent = m.text;
     msg.className = m.kind;
+    const copy = !s.hintDismissed && !s.busy && !s.result && $('sheet').hidden && !m.kind
+      ? triangleHint({ bar: p.index, lit: p.lit.has(0), heard: s.heard, count: p.selected.length, closed: p.closed, edgeTried: s.edgeTried, tapMode: s.tapMode }) : null;
+    $('stage-guide').hidden = !copy;
+    $('stage-guide-copy').textContent = copy ?? '';
+    msg.hidden = !!copy;
     const info = $('info');
     if (p.closed) {
       const sorted = sortLengths(p.selectedLengths);
@@ -350,20 +357,15 @@ export function createStageScreen({ audio, onTitle }) {
         r?.music ? el('button', { type: 'button', class: 'replay', 'data-act': 'replay' }, '▶ もう一度聴く') : '',
         el('button', { type: 'button', class: 'close', 'data-act': 'close', 'aria-label': '閉じる' }, '×')),
       // 2行目は横幅いっぱいに使う（ジャズの度数は長いので、1行に収めるため）
-      el('p', { class: 'first-line' }, body[0]),
-      ...body.slice(1).map(line => el('p', { class: 'sub-line' }, line)),
+      el('div', { class: 'result-body', tabindex: '0', 'aria-label': '結果の説明' },
+        el('p', { class: 'first-line' }, body[0]),
+        ...body.slice(1).map(line => el('p', { class: 'sub-line' }, line))),
       el('div', { class: 'result-actions' }, ...buttons.map(([act, text, primary]) => el('button', { type: 'button', class: primary ? 'btn primary' : 'btn', 'data-act': act }, text))));
     t.hidden = false;
     placeResult();
   }
   function placeResult() {
-    const t = $('result-toast');
-    if (t.hidden) return;
-    const top = $('sticks').getBoundingClientRect(), bottom = $('actions-row').getBoundingClientRect();
-    t.style.left = `${top.left}px`;
-    t.style.width = `${top.width}px`;
-    t.style.bottom = `${Math.max(0, innerHeight - bottom.bottom)}px`;
-    t.style.maxHeight = `${bottom.bottom - top.top + 40}px`;
+    placeResultToast($('result-toast'), $('sticks'), $('actions-row'));
   }
   // 閉じたあと、次にすることを光らせる（goNext・start から閉じるときは光らせない）
   function closeResult({ guideNext = false } = {}) {
@@ -449,7 +451,7 @@ export function createStageScreen({ audio, onTitle }) {
     if (!restored && options?.lit) for (const b of options.lit) s.play.lit.add(b);
     // 今までに見つけた発見は、巻物に載ったまま（新しく見つけたものだけ知らせる）
     s.play.found = new Set(s.known);
-    s.busy = false; s.msg = null; s.playingBar = -1; s.focus = null;
+    s.busy = false; s.msg = null; s.playingBar = -1; s.focus = null; s.hintDismissed = false;
     closeResult();
     hideStaff();
     renderMeterRows();
@@ -539,7 +541,7 @@ export function createStageScreen({ audio, onTitle }) {
     if (!l) return;
     audio.pluck(hz(l), play().sustain, timbre());
     ringSide(k);
-    if (!s.edgeTried) { s.edgeTried = true; for (const h of svgRoot.querySelectorAll('.tap-hint')) h.remove(); }
+    if (!s.edgeTried) { s.edgeTried = true; for (const h of svgRoot.querySelectorAll('.tap-hint')) h.remove(); renderStatus(); }
   }
   svgRoot.addEventListener('pointerdown', e => { if (s.busy || !play().ready) return; tracing = true; lastK = null; touchSide(sideAt(e.clientX, e.clientY)); });
   svgRoot.addEventListener('pointermove', e => { if (tracing) touchSide(sideAt(e.clientX, e.clientY)); });
@@ -562,7 +564,7 @@ export function createStageScreen({ audio, onTitle }) {
     if (s.busy) return;
     audio.stopAll();
     audio.chord(frequencies(play().stage.target, K()), { timbre: timbre() });
-    if (!s.heard) { s.heard = true; renderActions(); if (!play().ready) setTimeout(() => guide('sticks'), 400); }
+    if (!s.heard) { s.heard = true; renderActions(); renderStatus(); if (!play().ready) setTimeout(() => guide('sticks'), 400); }
     const star = $('stars').querySelector('.star.on');
     if (star && !reduceMotion()) { star.classList.add('twinkle'); setTimeout(() => star.classList.remove('twinkle'), 1200); }
   });
@@ -635,8 +637,9 @@ export function createStageScreen({ audio, onTitle }) {
   });
 
   // ---------- 引き出し ----------
-  const openSheet = () => { renderSheet(); $('sheet').hidden = false; };
-  const closeSheet = () => { $('sheet').hidden = true; };
+  const openSheet = () => { renderSheet(); $('sheet').hidden = false; renderStatus(); };
+  const closeSheet = () => { $('sheet').hidden = true; renderStatus(); };
+  $('stage-guide-close').addEventListener('click', () => { s.hintDismissed = true; renderStatus(); });
   $('mode-chip').addEventListener('click', openSheet);
   $('menu-button').addEventListener('click', openSheet);
   $('sheet-back').addEventListener('click', closeSheet);

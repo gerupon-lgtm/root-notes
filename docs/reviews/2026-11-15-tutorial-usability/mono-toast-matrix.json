@@ -1,0 +1,218 @@
+[
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "第1章を続ける ▶"
+      },
+      {
+        "inside": true,
+        "text": "タイトルへ"
+      }
+    ],
+    "size": [
+      412,
+      844
+    ],
+    "toast": {
+      "h": 248.71875,
+      "w": 388,
+      "x": 12,
+      "y": 585.28125
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "第1章を続ける ▶"
+      },
+      {
+        "inside": true,
+        "text": "タイトルへ"
+      }
+    ],
+    "size": [
+      412,
+      915
+    ],
+    "toast": {
+      "h": 251,
+      "w": 388,
+      "x": 12,
+      "y": 654
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "第1章を続ける ▶"
+      },
+      {
+        "inside": true,
+        "text": "タイトルへ"
+      }
+    ],
+    "size": [
+      390,
+      844
+    ],
+    "toast": {
+      "h": 248.71875,
+      "w": 366,
+      "x": 12,
+      "y": 585.28125
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "第1章を続ける ▶"
+      },
+      {
+        "inside": true,
+        "text": "タイトルへ"
+      }
+    ],
+    "size": [
+      360,
+      640
+    ],
+    "toast": {
+      "h": 202,
+      "w": 336,
+      "x": 12,
+      "y": 432
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "第1章を続ける ▶"
+      },
+      {
+        "inside": true,
+        "text": "タイトルへ"
+      }
+    ],
+    "size": [
+      320,
+      568
+    ],
+    "toast": {
+      "h": 202,
+      "w": 296,
+      "x": 12,
+      "y": 360
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "第1章を続ける ▶"
+      },
+      {
+        "inside": true,
+        "text": "タイトルへ"
+      }
+    ],
+    "size": [
+      915,
+      412
+    ],
+    "toast": {
+      "h": 241,
+      "w": 407.90625,
+      "x": 495.078125,
+      "y": 165
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "第1章を続ける ▶"
+      },
+      {
+        "inside": true,
+        "text": "タイトルへ"
+      }
+    ],
+    "size": [
+      915,
+      340
+    ],
+    "toast": {
+      "h": 192,
+      "w": 407.90625,
+      "x": 495.078125,
+      "y": 142
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "第1章を続ける ▶"
+      },
+      {
+        "inside": true,
+        "text": "タイトルへ"
+      }
+    ],
+    "size": [
+      1366,
+      768
+    ],
+    "toast": {
+      "h": 256.078125,
+      "w": 493.953125,
+      "x": 727.03125,
+      "y": 501.921875
+    }
+  }
+]

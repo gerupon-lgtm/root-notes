@@ -1,0 +1,18 @@
+[
+  {
+    "action": "直接ダブルタップ",
+    "selected": 1
+  },
+  {
+    "action": "使用中をダブルタップ",
+    "selected": 0
+  },
+  {
+    "action": "タップ試聴",
+    "selected": 0
+  },
+  {
+    "action": "試聴後にダブルタップ",
+    "selected": 1
+  }
+]

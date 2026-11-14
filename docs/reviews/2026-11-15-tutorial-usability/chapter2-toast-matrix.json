@@ -1,0 +1,218 @@
+[
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "▶ もう一度聴く"
+      },
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "閉じる"
+      }
+    ],
+    "size": [
+      412,
+      844
+    ],
+    "toast": {
+      "h": 234,
+      "w": 388,
+      "x": 12,
+      "y": 576
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "▶ もう一度聴く"
+      },
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "閉じる"
+      }
+    ],
+    "size": [
+      412,
+      915
+    ],
+    "toast": {
+      "h": 234,
+      "w": 388,
+      "x": 12,
+      "y": 647
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "▶ もう一度聴く"
+      },
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "閉じる"
+      }
+    ],
+    "size": [
+      390,
+      844
+    ],
+    "toast": {
+      "h": 234,
+      "w": 366,
+      "x": 12,
+      "y": 576
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "▶ もう一度聴く"
+      },
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "閉じる"
+      }
+    ],
+    "size": [
+      360,
+      640
+    ],
+    "toast": {
+      "h": 217,
+      "w": 336,
+      "x": 12,
+      "y": 393
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "▶ もう一度聴く"
+      },
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "閉じる"
+      }
+    ],
+    "size": [
+      320,
+      568
+    ],
+    "toast": {
+      "h": 242,
+      "w": 296,
+      "x": 12,
+      "y": 296
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "▶ もう一度聴く"
+      },
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "閉じる"
+      }
+    ],
+    "size": [
+      915,
+      412
+    ],
+    "toast": {
+      "h": 227.921875,
+      "w": 405.109375,
+      "x": 497.875,
+      "y": 156.078125
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "▶ もう一度聴く"
+      },
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "閉じる"
+      }
+    ],
+    "size": [
+      915,
+      340
+    ],
+    "toast": {
+      "h": 226,
+      "w": 406.03125,
+      "x": 496.953125,
+      "y": 87
+    }
+  },
+  {
+    "bottomGap": 17,
+    "buttons": [
+      {
+        "inside": true,
+        "text": "▶ もう一度聴く"
+      },
+      {
+        "inside": true,
+        "text": "×"
+      },
+      {
+        "inside": true,
+        "text": "閉じる"
+      }
+    ],
+    "size": [
+      1366,
+      768
+    ],
+    "toast": {
+      "h": 237.921875,
+      "w": 491.15625,
+      "x": 729.828125,
+      "y": 502.078125
+    }
+  }
+]

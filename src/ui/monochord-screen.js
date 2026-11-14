@@ -16,6 +16,7 @@ import { BEAT_FAR_ABOVE } from '../core/pitch.js';
 import { CH1_STEPS, CH1_CLEAR, CH1_FLASH, STEP_IDS, ACTIONS, FINE_BEAT, advanceStep, readNext, nextAction, plain } from '../content/tutorial.js';
 import { TutorialBook } from '../game/tutorial-book.js';
 import { artPath } from '../content/assets.js';
+import { placeResultToast } from './result-layout.js';
 
 // 端末の保存場所（使えない端末では null。案内の記録は保存できなくても遊べる）
 function localStore() { try { return globalThis.localStorage ?? null; } catch { return null; } }
@@ -210,21 +211,16 @@ export function createMonochordScreen({ audio }) {
       el('div', { class: 'result-head' },
         el('div', { class: 'result-title' }, el('h3', {}, head)),
         el('button', { type: 'button', class: 'close', 'data-act': 'close', 'aria-label': '閉じる' }, '×')),
-      el('p', { class: 'first-line' }, lines[0]),
-      ...lines.slice(1).map(line => el('p', { class: 'sub-line' }, line)),
+      el('div', { class: 'result-body', tabindex: '0', 'aria-label': '結果の説明' },
+        el('p', { class: 'first-line' }, lines[0]),
+        ...lines.slice(1).map(line => el('p', { class: 'sub-line' }, line))),
       el('div', { class: 'result-actions' }, ...buttons.map(([act, text, primary]) => el('button', { type: 'button', class: primary ? 'btn primary' : 'btn', 'data-act': act }, text))));
     t.hidden = false;
     placeToast();
   }
   // 操作欄（微調整と下のボタン）に重ねて出す（第2章の結果のトーストと同じ置き方）
   function placeToast() {
-    const t = $('mono-toast');
-    if (t.hidden) return;
-    const top = document.querySelector('#mono-screen .tune').getBoundingClientRect(), bottom = $('mono-actions').getBoundingClientRect();
-    t.style.left = `${top.left}px`;
-    t.style.width = `${top.width}px`;
-    t.style.bottom = `${Math.max(0, innerHeight - bottom.bottom)}px`;
-    t.style.maxHeight = `${bottom.bottom - top.top + 40}px`;
+    placeResultToast($('mono-toast'), document.querySelector('#mono-screen .tune'), $('mono-actions'));
   }
   const hideToast = () => { $('mono-toast').hidden = true; };
   // 章の終わり（保存から、全部灯った第1章に戻ったとき）
@@ -301,6 +297,9 @@ export function createMonochordScreen({ audio }) {
   function renderCoach() {
     for (const el of document.querySelectorAll('#mono-screen .coach-target')) el.classList.remove('coach-target');
     if (guiding()) for (const id of stepCopy().targets) targetEl(id)?.classList.add('coach-target');
+    const meterCue = guiding() && meterAllowed() && ['drone', 'about-beat', 'move'].includes(STEP_IDS[S.step]);
+    $('mono-meter').classList.toggle('meter-cue', meterCue);
+    $('mono-meter-toggle').classList.toggle('coach-target', meterCue && !showMeter());
     renderDemo();
   }
   // 指先の輪のお手本（PRISM の tutorial-guide.js と同じ考え方）。触っている間は止め、離したら戻す。動きを減らす設定では止まった印
@@ -401,8 +400,10 @@ export function createMonochordScreen({ audio }) {
     b.classList.toggle('on', !!S.drone);
     b.innerHTML = S.drone ? '止める' : '重ねて<br>鳴らす';
     $('mono-meter-toggle').hidden = !meterAllowed();
-    $('mono-meter-toggle').innerHTML = S.meterOn ? 'メーター<br>表示' : 'メーター<br>隠す';
+    $('mono-meter-toggle').innerHTML = S.meterOn ? 'メーター<br>表示中' : 'メーター<br>非表示';
+    $('mono-meter-toggle').setAttribute('aria-label', '揺れメーター（補助表示）');
     $('mono-meter-toggle').setAttribute('aria-pressed', String(S.meterOn));
+    renderCoach();
   }
   function drawKnob() {
     const k = $('knob');

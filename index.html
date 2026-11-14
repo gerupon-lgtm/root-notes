@@ -90,6 +90,7 @@
     <!-- 五線譜：コード進行を鳴らすとき、鳴っている小節の音符を光らせる。触れると閉じる -->
     <div class="staff-panel" id="staff-panel" hidden><svg id="staff" role="img" aria-label="鳴っている和音の五線譜（1オクターブ上に書いている）" preserveAspectRatio="xMidYMid meet"></svg></div>
     <div class="status">
+      <aside class="stage-guide" id="stage-guide" aria-label="2-1の遊び方" hidden><span id="stage-guide-copy" aria-live="polite"></span><button type="button" id="stage-guide-close" aria-label="2-1の案内を閉じる">×</button></aside>
       <div class="meter" id="meter" hidden></div>
       <p id="msg" role="status" aria-live="polite"></p>
       <p id="info"></p>
@@ -109,8 +110,7 @@
 <!-- 第1章「一弦の琴」（段階4）。並びは遊ぶ画面と同じ（縦は1列、横は左に琴・右に操作の2列） -->
 <div class="app mono" id="mono-screen" hidden>
   <header class="head">
-    <h1 class="brand">第1章 一弦の琴</h1>
-    <span class="chip" id="mono-mode"></span>
+    <div class="mono-heading"><h1 class="brand">第1章 一弦の琴</h1><span class="chip" id="mono-mode"></span></div>
     <button type="button" class="chip" id="mono-guide-open" aria-label="案内（チュートリアル）をもう一度見る">案内</button>
     <button type="button" class="chip" id="mono-title">タイトルへ</button>
   </header>
@@ -118,19 +118,23 @@
   <div class="sub"><span id="mono-where"></span><span id="mono-count"></span></div>
   <!-- 案内の帯（チュートリアル。前作 PRISM・AQUA と同じ形）：精霊・手順の数・見出し・今する操作・補足・進み具合。盤面には重ねない -->
   <section class="mono-guide" id="mono-guide" aria-label="案内" hidden>
+    <div class="guide-top">
+      <span class="guide-count" id="mono-guide-count"></span>
+      <div class="guide-actions">
+        <button type="button" class="btn" id="mono-guide-skip">スキップ</button>
+        <button type="button" class="btn" id="mono-guide-title" hidden>タイトルへ</button>
+        <button type="button" class="btn primary" id="mono-guide-next" hidden>次へ ▶</button>
+      </div>
+    </div>
     <img class="guide-spirit" id="mono-guide-spirit" alt="弦の精霊" hidden>
     <div class="guide-copy">
-      <span class="guide-count" id="mono-guide-count"></span>
       <strong class="guide-heading" id="mono-guide-heading"></strong>
-      <span class="guide-text" id="mono-guide-text" aria-live="polite"></span>
-      <span class="guide-note" id="mono-guide-note"></span>
-      <span class="guide-progress" id="mono-guide-progress" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <div class="guide-description" tabindex="0" aria-label="案内の本文">
+        <span class="guide-text" id="mono-guide-text" aria-live="polite"></span>
+        <span class="guide-note" id="mono-guide-note"></span>
+      </div>
     </div>
-    <div class="guide-actions">
-      <button type="button" class="btn" id="mono-guide-skip">スキップ</button>
-      <button type="button" class="btn" id="mono-guide-title" hidden>タイトルへ</button>
-      <button type="button" class="btn primary" id="mono-guide-next" hidden>次へ ▶</button>
-    </div>
+    <span class="guide-progress" id="mono-guide-progress" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
   </section>
   <section class="board" aria-label="一弦の琴">
     <svg id="lyre" viewBox="0 0 320 210" preserveAspectRatio="xMidYMid meet" role="img" aria-label="一弦の琴。金色の駒を左右に動かすと、駒の左側の弦の長さが変わる。駒の左側をタップすると弦をはじく"></svg>
