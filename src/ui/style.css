@@ -262,3 +262,21 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   .flash { box-shadow: 0 0 0 3px var(--gold); }
   #tri-fill, .toast { transition: none; }
 }
+
+/* ---------- 五線譜（曲を流すとき。三角形の場所の上部に重ねる） ---------- */
+.staff-panel { position: absolute; left: 6px; right: 6px; top: 6px; z-index: 2; background: color-mix(in srgb, var(--panel) 94%, transparent); border: 1px solid var(--line); border-radius: 12px; padding: 4px 4px 2px; }
+#staff { display: block; width: 100%; height: auto; max-height: 62vh; }
+#staff .staff-line, #staff .bar-line, #staff .ledger { stroke: var(--mute); stroke-width: 1; }
+#staff .ledger { stroke-width: 1.4; }
+#staff .clef { fill: var(--ink); font-family: "Segoe UI Symbol", "Noto Music", "Noto Sans Symbols 2", serif; }
+#staff .clef.treble { font-size: 52px; }
+#staff .clef.bass { font-size: 40px; }
+#staff .keysig, #staff .acc { fill: var(--ink); font-size: 17px; }
+#staff .head { fill: var(--ink); }
+#staff .deg { fill: var(--mute); font-size: 12px; text-anchor: middle; font-weight: 700; }
+#staff .name { fill: var(--mute); font-size: 12px; text-anchor: middle; }
+#staff .halo { fill: transparent; }
+#staff .col.now .halo { fill: color-mix(in srgb, var(--gold) 22%, transparent); }
+#staff .col.now .head, #staff .col.now .acc { fill: var(--gold); }
+#staff .col.now .ledger { stroke: var(--gold); }
+#staff .col.now .deg, #staff .col.now .name { fill: var(--gold); }

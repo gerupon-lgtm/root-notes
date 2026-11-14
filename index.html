@@ -35,6 +35,8 @@
   <div class="sub"><span id="where"></span><span id="lives" aria-label="失敗の残り"></span></div>
   <section class="board" aria-label="三角形">
     <svg id="tri" viewBox="0 0 320 210" preserveAspectRatio="xMidYMid meet" role="img" aria-label="選んだ棒でできる三角形。辺をタップするかなぞると、その辺の音が鳴る"></svg>
+    <!-- 五線譜：コード進行を鳴らすとき、鳴っている小節の音符を光らせる。触れると閉じる -->
+    <div class="staff-panel" id="staff-panel" hidden><svg id="staff" role="img" aria-label="鳴っている和音の五線譜"></svg></div>
     <div class="status">
       <div class="meter" id="meter" hidden></div>
       <p id="msg" role="status" aria-live="polite"></p>

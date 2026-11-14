@@ -37,3 +37,24 @@ export function chordName(label, key) {
   if (!m) throw new Error(`和音の書き方が読めません：${label}`);
   return spellDegree(key, ROMAN.indexOf(m[1])) + m[2];
 }
+
+// キーの調号：♯・♭の数（♯が正、♭が負）と、文字ごとの変化（C D E F G A B の順に −1・0・1）
+const KEY_FIFTHS = [0, -5, 2, -3, 4, -1, 6, 1, -4, 3, -2, 5];
+const SHARP_ORDER = [3, 0, 4, 1, 5, 2, 6], FLAT_ORDER = [6, 2, 5, 1, 4, 0, 3];
+export function keySignature(key) {
+  const fifths = KEY_FIFTHS[key];
+  const alterations = new Array(7).fill(0);
+  for (const letter of (fifths < 0 ? FLAT_ORDER : SHARP_ORDER).slice(0, Math.abs(fifths))) alterations[letter] = Math.sign(fifths);
+  return { fifths, alterations };
+}
+
+// 音名の文字（0＝C … 6＝B）と、ずれ（♯が正）を、根音の文字から数えて決める
+export function spellFromRoot(rootLetter, rootPc, semitones) {
+  const letter = (rootLetter + (semitones === 0 ? 0 : semitones <= 4 ? 2 : 4)) % 7;
+  const pc = (rootPc + semitones) % 12;
+  return { letter, shift: ((pc - NATURAL[letter] + 18) % 12) - 6 };
+}
+
+// キーの音階の度数の、文字の番号（0＝C … 6＝B）
+export const degreeLetter = (key, degree) => (LETTERS.indexOf(KEY_SPELL[key][0]) + degree) % 7;
+export const LETTER_NAMES = LETTERS;

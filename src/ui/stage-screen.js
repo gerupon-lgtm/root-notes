@@ -13,6 +13,8 @@ import { gcd } from '../core/integer.js';
 import { colorOf, blendOf } from '../core/color.js';
 import { keyName, chordName } from '../core/harmony.js';
 import { drawEmpty, drawOpen, drawClosed } from './triangle-view.js';
+import { drawStaff, markStaff } from './staff-view.js';
+import { staffColumn } from '../game/notation.js';
 import { APP_VERSION, COPYRIGHT } from '../version.js';
 
 const $ = id => document.getElementById(id);
@@ -254,6 +256,15 @@ export function createStageScreen({ audio, onTitle }) {
     requestAnimationFrame(meterLoop);
   }
 
+  // ---------- 五線譜（曲を流すとき） ----------
+  function showStaff(from, to) {
+    const p = play();
+    drawStaff($('staff'), p.run.stages.slice(from, to + 1).map(st => staffColumn(st, p.run.key)), p.run.key, -1);
+    $('staff-panel').hidden = false;
+  }
+  const hideStaff = () => { $('staff-panel').hidden = true; };
+  $('staff-panel').addEventListener('click', hideStaff);
+
   // ---------- 曲 ----------
   function playMusic(from, to, title, done = () => {}) {
     const p = play();
@@ -261,17 +272,19 @@ export function createStageScreen({ audio, onTitle }) {
     audio.stopAll();
     renderAll();
     const labels = p.run.stages.slice(from, to + 1).map(x => x.label);
+    showStaff(from, to);
     audio.playScore(buildScore(p.run.stages, from, to, { carryOver: s.carryOver }), {
       chordTimbre: TIMBRES[SONG_TIMBRE],
       bassTimbre: TIMBRES[BASS_TIMBRE],
       onBar: bar => {
         s.playingBar = bar;
         renderStars();
+        markStaff($('staff'), bar - from);
         const msg = $('msg');
         msg.className = '';
         msg.replaceChildren(`♪ ${title}　`, ...labels.flatMap((l, j) => [j ? ' → ' : '', from + j === bar ? el('span', { class: 'now' }, chordText(l)) : l]));
       },
-      onEnd: () => { s.playingBar = -1; s.busy = false; done(); renderAll(); }
+      onEnd: () => { s.playingBar = -1; s.busy = false; markStaff($('staff'), -1); done(); renderAll(); }
     });
   }
 
@@ -342,6 +355,7 @@ export function createStageScreen({ audio, onTitle }) {
       if (bar !== null) p.goTo(bar);
     }
     s.msg = null;
+    hideStaff();
     startCue();
     renderAll();
   }
@@ -374,6 +388,7 @@ export function createStageScreen({ audio, onTitle }) {
     s.play = Play.start(modeId);
     s.busy = false; s.msg = null; s.playingBar = -1;
     closeResult();
+    hideStaff();
     renderMeterRows();
     startCue();
     renderAll();
@@ -383,6 +398,7 @@ export function createStageScreen({ audio, onTitle }) {
     const b = e.target.closest('.stick');
     if (!b || s.busy || play().finished || play().awaitingNext) return;
     const i = Number(b.dataset.i);
+    hideStaff();
     play().pick(i);
     s.msg = null;
     audio.pluck(hz(play().stage.sticks[i]), play().sustain, timbre());
@@ -414,6 +430,7 @@ export function createStageScreen({ audio, onTitle }) {
     if (!b || s.busy || play().mode.continuous) return;
     audio.stopAll();
     closeResult();
+    hideStaff();
     play().goTo(Number(b.dataset.bar));
     s.msg = null;
     startCue();
