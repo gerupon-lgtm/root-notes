@@ -88,16 +88,36 @@ export class Play {
     return { ok: true };
   }
 
-  // 棒を選ぶ・外す。4本目を選ぶと、いちばん先に選んだ棒が外れる（試作と同じ）
-  pick(i) {
-    if (this.finished || this.awaitingNext) return;
-    if (!Number.isInteger(i) || i < 0 || i >= this.stage.sticks.length) throw new Error(`棒の番号が正しくありません：${i}`);
+  // 棒を使う（三角形に入れる）。3本そろっているときは入れない（後出し優先で勝手に入れ替えない。2026-11-14 発案者）
+  use(i) {
+    if (this.finished || this.awaitingNext) return false;
+    this.#checkIndex(i);
+    if (this.selected.includes(i) || this.selected.length === 3) return false;
+    this.selected.push(i);
+    this.#changed();
+    return true;
+  }
+
+  // 棒を外す（三角形から出す）
+  remove(i) {
+    if (this.finished || this.awaitingNext) return false;
+    this.#checkIndex(i);
     const at = this.selected.indexOf(i);
-    if (at >= 0) this.selected.splice(at, 1);
-    else {
-      if (this.selected.length === 3) this.selected.shift();
-      this.selected.push(i);
-    }
+    if (at < 0) return false;
+    this.selected.splice(at, 1);
+    this.#changed();
+    return true;
+  }
+
+  // 使っていれば外し、使っていなければ使う
+  pick(i) { return this.selected.includes(i) ? this.remove(i) : this.use(i); }
+
+  #checkIndex(i) {
+    if (!Number.isInteger(i) || i < 0 || i >= this.stage.sticks.length) throw new Error(`棒の番号が正しくありません：${i}`);
+  }
+
+  // 棒が変わったら回答前に戻し、3本そろったら発見を調べる
+  #changed() {
     this.answered = false;
     this.meterShown = false;
     this.lastFound = [];

@@ -184,3 +184,18 @@ test('確認用：答えの棒を選ぶ', () => {
   play.revealTarget();
   assert.ok(sameLengths(play.selectedLengths, play.stage.target));
 });
+
+test('棒の使う・外す：3本そろっていたら、新しい棒は勝手に入れ替えない（後出し優先をやめる。2026-11-14 発案者）', () => {
+  const play = fixed('select');
+  assert.equal(play.use(0), true);
+  assert.equal(play.use(1), true);
+  assert.equal(play.use(1), false); // 同じ棒は2度使えない
+  assert.equal(play.use(2), true);
+  assert.deepEqual(play.selected, [0, 1, 2]);
+  assert.equal(play.use(3), false); // そろっているので入らない
+  assert.deepEqual(play.selected, [0, 1, 2]);
+  assert.equal(play.remove(1), true); // 外す棒を先に選んでから
+  assert.equal(play.use(3), true); // 新しい棒を使う
+  assert.deepEqual(play.selected, [0, 2, 3]);
+  assert.equal(play.remove(5), false); // 使っていない棒は外せない
+});

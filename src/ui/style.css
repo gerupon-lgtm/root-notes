@@ -294,3 +294,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .result-head h3 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .key-badge { font-size: 0.78rem; font-weight: 700; color: var(--ink); border: 1px solid var(--gold); border-radius: 999px; padding: 1px 9px; background: color-mix(in srgb, var(--gold) 14%, transparent); }
 .result-toast p.first-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 選んでいる棒（選ぶ → もう一度タップで使う／外す。2026-11-14 発案者） */
+.stick.focus { border-color: var(--ink); box-shadow: 0 0 0 2px var(--gold) inset; }
+.stick .act { font-size: 0.66rem; font-weight: 700; color: var(--gold); line-height: 1.15; white-space: nowrap; }

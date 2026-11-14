@@ -35,7 +35,7 @@ function el(tag, attrs = {}, ...children) {
 }
 
 export function createStageScreen({ audio, onTitle }) {
-  const s = { lastMusic: null, play: null, busy: false, carryOver: false, msg: null, playingBar: -1, heard: false, result: null, check: new URLSearchParams(location.search).has('check') };
+  const s = { focus: null, lastMusic: null, play: null, busy: false, carryOver: false, msg: null, playingBar: -1, heard: false, result: null, check: new URLSearchParams(location.search).has('check') };
   const svgRoot = $('tri');
 
   const play = () => s.play;
@@ -80,12 +80,11 @@ export function createStageScreen({ audio, onTitle }) {
   function guide(target) {
     for (const node of document.querySelectorAll('.flash')) node.classList.remove('flash');
     clearTimeout(flashTimer);
-    const node = typeof target === 'string' ? $(target) : target;
-    if (!node) return;
-    void node.offsetWidth;
-    node.classList.add('flash');
-    flashTimer = setTimeout(() => node.classList.remove('flash'), 2000);
+    const nodes = (Array.isArray(target) ? target : [target]).map(t => (typeof t === 'string' ? $(t) : t)).filter(Boolean);
+    for (const node of nodes) { void node.offsetWidth; node.classList.add('flash'); }
+    flashTimer = setTimeout(() => { for (const node of nodes) node.classList.remove('flash'); }, 2000);
   }
+  const usedTiles = () => [...document.querySelectorAll('.stick.sel')];
 
   // 度数とコードネームを並べる（例「IVmaj7（Fmaj7）」）。相対の度数から、進行の気づきにつなげる
   // 画面に出すキー（短調の進行は平行調の短調。例 Gm）
@@ -173,10 +172,13 @@ export function createStageScreen({ audio, onTitle }) {
   function renderSticks() {
     const p = play();
     $('sticks').replaceChildren(...p.stage.sticks.map((l, i) => {
-      const order = p.selected.indexOf(i);
-      const b = el('button', { type: 'button', class: order >= 0 ? 'stick sel' : 'stick', 'aria-pressed': String(order >= 0), 'data-i': i, 'aria-label': `長さ ${formatLength(l)} の棒` },
+      const order = p.selected.indexOf(i), focused = s.focus === i;
+      // 選んでいる棒には、もう一度タップしたら何が起きるかを書く（選ぶ → 使う／外す の2段階。2026-11-14 発案者）
+      const act = !focused ? '' : order >= 0 ? 'もう一度で外す' : p.selected.length === 3 ? '先に1本外す' : 'もう一度で使う';
+      const b = el('button', { type: 'button', class: ['stick', order >= 0 && 'sel', focused && 'focus'].filter(Boolean).join(' '), 'aria-pressed': String(order >= 0), 'data-i': i, 'aria-label': `長さ ${formatLength(l)} の棒${order >= 0 ? '（使っている）' : ''}${act ? `。${act}` : ''}` },
         el('span', { class: 'num' }, formatLength(l)),
         el('span', { class: 'bar', style: `width:${(lengthValue(l) / STAGE_RULES.maxLength) * 100}%;background:${lenColor(l)}` }),
+        act ? el('span', { class: 'act' }, act) : '',
         order >= 0 ? el('span', { class: 'ord' }, String(order + 1)) : '');
       b.disabled = p.finished || s.busy;
       return b;
@@ -375,6 +377,7 @@ export function createStageScreen({ audio, onTitle }) {
       if (bar !== null) p.goTo(bar);
     }
     s.msg = null;
+    s.focus = null;
     hideStaff();
     startCue();
     renderAll();
@@ -411,7 +414,7 @@ export function createStageScreen({ audio, onTitle }) {
     s.play = forced && MODES[modeId].continuous && PROGRESSIONS.some(x => x.id === forced)
       ? new Play(modeId, buildRun({ ...runSpecFor(modeId, Math.random), progression: forced }))
       : Play.start(modeId);
-    s.busy = false; s.msg = null; s.playingBar = -1;
+    s.busy = false; s.msg = null; s.playingBar = -1; s.focus = null;
     closeResult();
     hideStaff();
     renderMeterRows();
@@ -422,15 +425,27 @@ export function createStageScreen({ audio, onTitle }) {
   $('sticks').addEventListener('click', e => {
     const b = e.target.closest('.stick');
     if (!b || s.busy || play().finished || play().awaitingNext) return;
-    const i = Number(b.dataset.i);
+    const i = Number(b.dataset.i), p = play();
+    const used = p.selected.includes(i);
+    // 1回目のタップ：選ぶ（音を鳴らし、もう一度タップで何が起きるかを書く）
+    if (s.focus !== i) {
+      s.focus = i;
+      s.msg = null;
+      audio.pluck(hz(p.stage.sticks[i]), p.sustain, timbre());
+      renderSticks();
+      if (!used && p.selected.length === 3) guide(usedTiles()); // そろっているときは、先に外す棒へ導く
+      return;
+    }
+    // 2回目のタップ：使う・外す。3本そろっているときは勝手に入れ替えない
+    if (!used && p.selected.length === 3) { guide(usedTiles()); return; }
     hideStaff();
-    play().pick(i);
+    if (used) p.remove(i); else p.use(i);
+    s.focus = null;
     s.msg = null;
-    audio.pluck(hz(play().stage.sticks[i]), play().sustain, timbre());
-    for (const d of play().lastFound) toast(`発見：${DISCOVERY_TEXT[d].title}`);
+    for (const d of p.lastFound) toast(`発見：${DISCOVERY_TEXT[d].title}`);
     renderAll();
-    // 3本で閉じたら三角形（辺をなぞって確かめる）、閉じなかったら棒（選び直す）を光らせる
-    if (play().ready) guide(play().closed ? document.querySelector('.board') : 'sticks');
+    // 3本で閉じたら三角形（辺をなぞって確かめる）、閉じなかったら使っている棒（外して選び直す）を光らせる
+    if (p.ready) guide(p.closed ? document.querySelector('.board') : usedTiles());
   });
 
   // 辺をタップ・なぞる（試作と同じく、指の下の当たりを探す）
@@ -457,6 +472,7 @@ export function createStageScreen({ audio, onTitle }) {
     audio.stopAll();
     closeResult();
     hideStaff();
+    s.focus = null;
     play().goTo(Number(b.dataset.bar));
     s.msg = null;
     startCue();
@@ -562,7 +578,7 @@ export function createStageScreen({ audio, onTitle }) {
   $('carry-on').addEventListener('click', () => { s.carryOver = true; renderSheet(); });
   $('meter-on').addEventListener('click', () => { play().setMeterToggle(true); renderAll(); renderSheet(); });
   $('meter-off').addEventListener('click', () => { play().setMeterToggle(false); renderAll(); renderSheet(); });
-  $('b-reveal').addEventListener('click', () => { play().revealTarget(); s.msg = { text: '確認用：答えの棒を選びました。', kind: '' }; closeSheet(); renderAll(); });
+  $('b-reveal').addEventListener('click', () => { s.focus = null; play().revealTarget(); s.msg = { text: '確認用：答えの棒を選びました。', kind: '' }; closeSheet(); renderAll(); });
   $('b-title').addEventListener('click', () => { audio.stopAll(); s.busy = false; closeSheet(); onTitle(); });
 
   requestAnimationFrame(meterLoop);
