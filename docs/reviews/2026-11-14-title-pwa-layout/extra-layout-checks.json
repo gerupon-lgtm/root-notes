@@ -1,0 +1,143 @@
+[
+  {
+    "size": [
+      500,
+      500
+    ],
+    "actual": [
+      500,
+      500
+    ],
+    "page": [
+      500,
+      500
+    ],
+    "series": {
+      "font": "10px",
+      "height": 23,
+      "line": "11.5px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "600",
+      "width": 85.6875,
+      "x": 97.640625,
+      "y": 173.25
+    },
+    "menu": {
+      "font": "14px",
+      "height": 147,
+      "line": "19.6px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 213.015625,
+      "x": 268.96875,
+      "y": 177.5
+    },
+    "footer": {
+      "font": "10px",
+      "height": 14,
+      "line": "14px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 213.015625,
+      "x": 268.96875,
+      "y": 310.5
+    }
+  },
+  {
+    "size": [
+      768,
+      1024
+    ],
+    "actual": [
+      768,
+      1024
+    ],
+    "page": [
+      768,
+      1024
+    ],
+    "series": {
+      "font": "10px",
+      "height": 23,
+      "line": "11.5px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "600",
+      "width": 85.6875,
+      "x": 341.15625,
+      "y": 182.8125
+    },
+    "menu": {
+      "font": "14px",
+      "height": 174,
+      "line": "19.6px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 430,
+      "x": 169,
+      "y": 836
+    },
+    "footer": {
+      "font": "10px",
+      "height": 14,
+      "line": "14px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 430,
+      "x": 169,
+      "y": 996
+    }
+  },
+  {
+    "size": [
+      1366,
+      768
+    ],
+    "actual": [
+      1366,
+      768
+    ],
+    "page": [
+      1366,
+      768
+    ],
+    "series": {
+      "font": "10px",
+      "height": 23,
+      "line": "11.5px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "600",
+      "width": 85.6875,
+      "x": 401.171875,
+      "y": 224.046875
+    },
+    "menu": {
+      "font": "14px",
+      "height": 174,
+      "line": "19.6px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 430,
+      "x": 741,
+      "y": 300
+    },
+    "footer": {
+      "font": "10px",
+      "height": 14,
+      "line": "14px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 430,
+      "x": 741,
+      "y": 460
+    }
+  }
+]

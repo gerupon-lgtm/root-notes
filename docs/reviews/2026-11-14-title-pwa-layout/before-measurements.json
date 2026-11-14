@@ -1,0 +1,264 @@
+{
+  "root": {
+    "about": {
+      "font": "15px",
+      "height": 44,
+      "line": "21.75px",
+      "padding": "1px 6px",
+      "radius": "9px",
+      "weight": "500",
+      "width": 184,
+      "x": 210,
+      "y": 754.0625
+    },
+    "continuous": {
+      "font": "15px",
+      "height": 44,
+      "line": "21.75px",
+      "padding": "1px 6px",
+      "radius": "9px",
+      "weight": "500",
+      "width": 376,
+      "x": 18,
+      "y": 702.0625
+    },
+    "footer": {
+      "font": "11px",
+      "height": 23.9375,
+      "line": "15.95px",
+      "padding": "4px 8px",
+      "radius": "7px",
+      "weight": "400",
+      "width": 135.03125,
+      "x": 138.484375,
+      "y": 806.0625
+    },
+    "hero": {
+      "font": "15px",
+      "height": 613.1875,
+      "line": "21.75px",
+      "padding": "0px 0px 33.76px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 376,
+      "x": 18,
+      "y": 20
+    },
+    "lead": {
+      "font": "10px",
+      "height": 23,
+      "line": "11.5px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "600",
+      "width": 85.6875,
+      "x": 163.15625,
+      "y": 144.484375
+    },
+    "logo": {
+      "font": "30px",
+      "height": 148.890625,
+      "line": "30px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "700",
+      "width": 338.390625,
+      "x": 36.796875,
+      "y": 173.484375
+    },
+    "menu": {
+      "font": "15px",
+      "height": 179.9375,
+      "line": "21.75px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 376,
+      "x": 18,
+      "y": 650.0625
+    },
+    "page": [
+      412,
+      844
+    ],
+    "select": {
+      "font": "15px",
+      "height": 44,
+      "line": "21.75px",
+      "padding": "1px 6px",
+      "radius": "9px",
+      "weight": "500",
+      "width": 184,
+      "x": 18,
+      "y": 754.0625
+    },
+    "series": {
+      "font": "10px",
+      "height": 23,
+      "line": "11.5px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "600",
+      "width": 85.6875,
+      "x": 163.15625,
+      "y": 144.484375
+    },
+    "symbols": {
+      "font": "15px",
+      "height": 109.71875,
+      "line": "21.75px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 376,
+      "x": 18,
+      "y": 365.21875
+    },
+    "tutorial": {
+      "font": "15px",
+      "height": 44,
+      "line": "21.75px",
+      "padding": "1px 6px",
+      "radius": "9px",
+      "weight": "500",
+      "width": 376,
+      "x": 18,
+      "y": 650.0625
+    },
+    "viewport": [
+      412,
+      844
+    ]
+  },
+  "prism": {
+    "about": {
+      "font": "14px",
+      "height": 44,
+      "line": "19.6px",
+      "padding": "6px 10px",
+      "radius": "9px",
+      "weight": "400",
+      "width": 184,
+      "x": 210,
+      "y": 712
+    },
+    "continuous": {
+      "font": "14px",
+      "height": 44,
+      "line": "19.6px",
+      "padding": "6px 10px",
+      "radius": "9px",
+      "weight": "400",
+      "width": 376,
+      "x": 18,
+      "y": 604
+    },
+    "footer": {
+      "font": "10px",
+      "height": 14,
+      "line": "14px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 376,
+      "x": 18,
+      "y": 816
+    },
+    "hero": {
+      "font": "14px",
+      "height": 515.125,
+      "line": "19.6px",
+      "padding": "0px 0px 33.76px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 376,
+      "x": 18,
+      "y": 20
+    },
+    "lead": {
+      "font": "13px",
+      "height": 19.5,
+      "line": "19.5px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 207.203125,
+      "x": 102.390625,
+      "y": 292.375
+    },
+    "logo": {
+      "font": "28px",
+      "height": 148.890625,
+      "line": "39.2px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "700",
+      "width": 338.390625,
+      "x": 36.796875,
+      "y": 131.484375
+    },
+    "menu": {
+      "font": "14px",
+      "height": 278,
+      "line": "19.6px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 376,
+      "x": 18,
+      "y": 552
+    },
+    "page": [
+      412,
+      844
+    ],
+    "select": {
+      "font": "14px",
+      "height": 48,
+      "line": "19.6px",
+      "padding": "6px 10px",
+      "radius": "9px",
+      "weight": "400",
+      "width": 184,
+      "x": 18,
+      "y": 656
+    },
+    "series": {
+      "font": "10px",
+      "height": 23,
+      "line": "11.5px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "600",
+      "width": 80.609375,
+      "x": 165.6875,
+      "y": 102.484375
+    },
+    "symbols": {
+      "font": "14px",
+      "height": 95,
+      "line": "19.6px",
+      "padding": "0px",
+      "radius": "0px",
+      "weight": "400",
+      "width": 319.59375,
+      "x": 46.203125,
+      "y": 323.875
+    },
+    "tutorial": {
+      "font": "14px",
+      "height": 44,
+      "line": "19.6px",
+      "padding": "6px 10px",
+      "radius": "9px",
+      "weight": "400",
+      "width": 376,
+      "x": 18,
+      "y": 552
+    },
+    "viewport": [
+      412,
+      844
+    ]
+  }
+}
