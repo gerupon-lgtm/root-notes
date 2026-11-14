@@ -1,7 +1,7 @@
 // 第1章の案内（チュートリアル）の手順と記録（2026-11-14 発案者。前作 AQUA・PRISM の形にそろえる）
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CH1_STEPS, CH1_CLEAR, CH1_FLASH, STEP_IDS, ACTIONS, FINE_BEAT, advanceStep, readNext, nextAction } from '../src/content/tutorial.js';
+import { CH1_STEPS, CH1_CLEAR, CH1_FLASH, STEP_IDS, ACTIONS, FINE_BEAT, advanceStep, readNext, nextAction, plain } from '../src/content/tutorial.js';
 import { TutorialBook, TUTORIAL_KEY } from '../src/game/tutorial-book.js';
 
 test('案内：チューニングの順番（お手本を聞く → はじく → 解説 → 重ねて聞く → 解説 → 揺れを消す）。2026-11-14 発案者', () => {
@@ -12,9 +12,9 @@ test('案内：チューニングの順番（お手本を聞く → はじく �
     if (s.kind === 'action') assert.ok(s.targets.length >= 1, s.id);
   }
   // 「一つにまとまって聞こえる」という手がかり（きれいな和音では揺れが分かりにくいため）
-  assert.ok(CH1_STEPS.find(s => s.id === 'about-beat').note.includes('一つにまとまって'));
-  assert.ok(CH1_STEPS.find(s => s.id === 'move').fine.note.includes('一つにまとまった'));
-  assert.ok(CH1_CLEAR.text.includes('一つにまとまり'));
+  assert.ok(plain(CH1_STEPS.find(s => s.id === 'about-beat').note).includes('一つにまとまって'));
+  assert.ok(plain(CH1_STEPS.find(s => s.id === 'move').fine.note).includes('一つにまとまった'));
+  assert.ok(plain(CH1_CLEAR.text).includes('一つにまとまり'));
   // 揺れを消す手順は、持ち手のお手本から、揺れが遅くなったらつまみの仕上げへ
   const move = CH1_STEPS.find(s => s.id === 'move');
   assert.equal(move.demo, 'bridge');

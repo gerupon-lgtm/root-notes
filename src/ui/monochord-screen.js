@@ -13,7 +13,7 @@ import { stringHz, targetHz, beatHz, holdStep, startPosition, clampBridge } from
 import { MODES } from '../content/modes.js';
 import { TIMBRES } from '../content/timbres.js';
 import { BEAT_FAR_ABOVE } from '../core/pitch.js';
-import { CH1_STEPS, CH1_CLEAR, CH1_FLASH, STEP_IDS, ACTIONS, FINE_BEAT, advanceStep, readNext, nextAction } from '../content/tutorial.js';
+import { CH1_STEPS, CH1_CLEAR, CH1_FLASH, STEP_IDS, ACTIONS, FINE_BEAT, advanceStep, readNext, nextAction, plain } from '../content/tutorial.js';
 import { TutorialBook } from '../game/tutorial-book.js';
 import { artPath } from '../content/assets.js';
 
@@ -198,6 +198,7 @@ export function createMonochordScreen({ audio }) {
     else buttons = [['next', '次の星へ ▶', true], ['close', 'この星に残る']];
     // チュートリアル：何をやっていたかのまとめ（チューニング・一つにまとまる）と、1-2からの手がかり
     if (S.tutorial) lines = [lines[0], CH1_CLEAR.text, CH1_CLEAR.note];
+    lines = lines.map(plain);
     const el = (tag, attrs = {}, ...kids) => {
       const x = document.createElement(tag);
       for (const [k, v] of Object.entries(attrs)) x.setAttribute(k, v);
@@ -241,14 +242,18 @@ export function createMonochordScreen({ audio }) {
   // ---------- 導線（案内の帯・光の縁・お手本・光らせる） ----------
   const targetEl = id => (id === 'bridge' ? parts?.bridge : $(id));
   const guiding = () => !!S.tutorial && !S.passed;
+  // 文節で区切った文（「|」）を、まとまりごとの箱にして入れる（まとまりの途中では改行しない）
+  function phrased(el, text) {
+    el.replaceChildren(...text.split('|').map(part => { const span = document.createElement('span'); span.className = 'phrase'; span.textContent = part; return span; }));
+  }
   // 今の手順の文と光らせる所（「揺れを消そう」は、仕上げに切り替えたら fine の文に）
   const stepCopy = () => { const st = CH1_STEPS[S.step]; return S.fine && st.fine ? { ...st, ...st.fine } : st; };
   // 帯に文を入れる。clear はクリアの文
   function fillGuide(copy, { count, clear = false, read = false }) {
     $('mono-guide-count').textContent = count;
     $('mono-guide-heading').textContent = copy.heading;
-    $('mono-guide-text').textContent = copy.text;
-    $('mono-guide-note').textContent = copy.note;
+    phrased($('mono-guide-text'), copy.text);
+    phrased($('mono-guide-note'), copy.note);
     $('mono-guide-skip').hidden = clear;
     $('mono-guide-next').hidden = !read; // 解説の手順だけ「次へ」（クリアの「次へ」はトースト）
     $('mono-guide-next').textContent = '次へ ▶';

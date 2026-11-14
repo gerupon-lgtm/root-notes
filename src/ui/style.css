@@ -353,6 +353,10 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .result-head h3 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .key-badge { font-size: 0.78rem; font-weight: 700; color: var(--ink); border: 1px solid var(--gold); border-radius: 999px; padding: 1px 9px; background: color-mix(in srgb, var(--gold) 14%, transparent); }
 .result-toast p.first-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* トーストの中身は押しつぶさず、あふれたらトーストの中で巻き取る（1行目が高さ0に縮んで読めなかった。2026-11-14 発案者） */
+.result-toast > * { flex-shrink: 0; }
+/* 文節で折り返す（前作 AQUA の guide-copy と同じ考え方）。まとまりの途中では改行しない */
+.phrase { display: inline-block; }
 
 /* 選んでいる棒（選ぶ → もう一度タップで使う／外す。2026-11-14 発案者） */
 .sticks { touch-action: manipulation; } /* ダブルタップで画面が拡大されないように */
