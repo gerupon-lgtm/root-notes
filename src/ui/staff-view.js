@@ -66,6 +66,8 @@ function drawSystem(root, cols, firstIndex, key, sig, y0, width) {
   cols.forEach((col, i) => {
     const x = left + i * COL_W + COL_W / 2, n = notes[i];
     const g = svg('g', { class: 'col', 'data-col': firstIndex + i });
+    // 小節番号：小節の頭の、ト音記号の段のすぐ上に小さく（2026-11-14 発案者）
+    g.append(svg('text', { x: left + i * COL_W + 3, y: T0 - 4 * GAP - 4, class: 'barno' }, String(col.bar ?? firstIndex + i + 1)));
     g.append(svg('rect', { x: x - COL_W / 2 + 4, y: colTop - labelH, width: COL_W - 8, height: bottom - colTop + labelH - 6, rx: 12, class: 'halo' }));
     g.append(svg('text', { x, y: colTop - 16, class: 'deg' }, col.label));
     g.append(svg('text', { x, y: colTop - 2, class: 'name' }, col.name));

@@ -281,3 +281,5 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #staff .col.now .head, #staff .col.now .acc { fill: var(--gold); }
 #staff .col.now .ledger { stroke: var(--gold); }
 #staff .col.now .deg, #staff .col.now .name { fill: var(--gold); }
+#staff .barno { fill: var(--mute); font-size: 9px; }
+#staff .col.now .barno { fill: var(--gold); }

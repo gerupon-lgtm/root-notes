@@ -259,7 +259,7 @@ export function createStageScreen({ audio, onTitle }) {
   // ---------- 五線譜（曲を流すとき） ----------
   function showStaff(from, to) {
     const p = play();
-    drawStaff($('staff'), p.run.stages.slice(from, to + 1).map(st => staffColumn(st, p.run.key)), p.run.key, -1);
+    drawStaff($('staff'), p.run.stages.slice(from, to + 1).map(st => ({ ...staffColumn(st, p.run.key), bar: st.bar + 1 })), p.run.key, -1);
     $('staff-panel').hidden = false;
   }
   const hideStaff = () => { $('staff-panel').hidden = true; };
