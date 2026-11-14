@@ -462,7 +462,7 @@ export function createStageScreen({ audio, onTitle }) {
     // - second（2回タップ）：1回目で選ぶ（試聴）、2回目（間があいてもよい）で使う・外す
     // - double（ダブルタップ）：タップで選ぶ（試聴がすぐ始まる）。0.35秒以内の2回目で使う・外す（鳴っている試聴は止める）。
     //   0.35秒より後のタップは、新しいダブルタップの1回目として受ける
-    // - 試聴中（試聴が始まってから1.1秒）は、同じ棒をタップしても音を新たに鳴らさない（ダブルタップのとき）
+    // - 試聴中（試聴が始まってから1.1秒）は、同じ棒をタップしても音を新たに鳴らさない（どちらの操作でも）
     // - どちらも、タップから3秒で選択が外れる。同じ棒をもう一度タップしたら数え直す。残り1秒から少しずつ色を薄くする
     const now = performance.now();
     const quick = s.lastTap && s.lastTap.i === i && now - s.lastTap.t < DOUBLE_TAP_MS;
@@ -470,7 +470,7 @@ export function createStageScreen({ audio, onTitle }) {
     s.lastTap = { i, t: now };
     if (!act) {
       const previewing = s.preview && s.preview.i === i && now < s.preview.until;
-      if (!(s.tapMode === 'double' && previewing)) {
+      if (!previewing) { // 試聴中（1.1秒）は同じ棒を鳴らし直さない。2回タップでも同じ（2026-11-14 発案者：案A）
         s.preview = { i, until: now + PREVIEW_MS, voice: audio.pluck(hz(p.stage.sticks[i]), p.sustain, timbre()) };
       }
       focusFor(i);
