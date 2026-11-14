@@ -1,38 +1,61 @@
-// 第1章の案内（チュートリアル）の文と手順（2026-11-14 発案者「導線がわからないことが大問題」）。
-// 前作にそろえた形（PRISM src/ui/tutorial-content.js・AQUA src/content/tutorial.js）：
-// 見出し（目的）・今する1操作・補足・進み具合。実際の操作をすると次へ進む。音を聞く楽しさを先に置く（PRISM 2026-11-06 の改訂の考え方）。
-// targets は光らせる場所（要素の id。'bridge' は駒）。demo は指先の輪のお手本（'bridge'：駒を左右に動かす、'knob'：つまみを回す）。
+// 第1章の案内（チュートリアル）の文と手順。楽器のチューニングと同じ順番：お手本を聞く → 自分の弦を鳴らす → 重ねて聞く → 駒を動かす
+// （2026-11-14 発案者「完全にギターのチューニング。ギターを知らない人にも伝わるように。間に『なにをやっているか』に触れて理解を深める」）。
+// 前作にそろえた形（PRISM src/ui/tutorial-content.js・AQUA src/content/tutorial.js の練習面）：
+// 見出し（目的）・今すること・補足（何をやっているか）・進み具合。操作の手順（kind: 'action'）は実際に操作すると進み、
+// 解説の手順（kind: 'read'）は読んで「次へ」で進む（AQUA の練習面と同じ）。
+// targets は光らせる場所（要素の id。'bridge' は駒と持ち手）。demo は指先の輪のお手本（'bridge'：持ち手を左右に、'knob'：つまみを回す）。
+// きれいな和音では揺れが分かりにくいので、「ぴったり合うと2つの音が一つにまとまって聞こえる」も手がかりにする（2026-11-14 発案者）。
 // 文は A区分（発案者の指示ですぐ変えてよい）。
 export const CH1_STEPS = Object.freeze([
-  { id: 'target', heading: '星の音を聞こう', text: '「お題を聞く」を押そう。', note: '星が鳴らす音が、弦で合わせる目当ての音です。', targets: ['mono-target'], demo: null },
-  { id: 'pluck', heading: '自分の弦は？', text: '「弦をはじく」で、星の音と高さを比べよう。', note: '駒より左の弦をタップしても、はじけます。', targets: ['mono-pluck'], demo: null },
-  { id: 'move', heading: '駒で高さを変えよう', text: '駒の下の持ち手を、指で左右に動かそう。', note: '駒そのものをつかんでも動かせます。弦が短いほど、高い音になります。', targets: ['bridge', 'mono-left', 'mono-right', 'knob'], demo: 'bridge' },
-  { id: 'drone', heading: '重ねて聴こう', text: '「重ねて鳴らす」で、星の音と弦を一緒に鳴らそう。', note: '高さが少しずれていると、音がワウワウと揺れます（うなり）。', targets: ['mono-drone'], demo: null },
-  { id: 'tune', heading: '揺れを消そう', text: '揺れがゆっくりになる方へ、微調整つまみを回そう。', note: '揺れが消えて1秒保てば合格。◀▶でも少しずつ動かせます。', targets: ['knob'], demo: 'knob' }
-].map(s => Object.freeze({ ...s, targets: Object.freeze(s.targets) })));
+  { id: 'target', kind: 'action', heading: 'お手本の音を聞こう', text: '「お題を聞く」を押そう。', note: '星が鳴らすのがお手本の音。自分の弦を、この高さに合わせます。', targets: ['mono-target'], demo: null },
+  { id: 'pluck', kind: 'action', heading: '自分の弦を鳴らそう', text: '「弦をはじく」を押そう。', note: 'これが今の弦の音。お手本より高い？ 低い？ 分からなくても大丈夫。', targets: ['mono-pluck'], demo: null },
+  { id: 'about-tuning', kind: 'read', heading: 'チューニングって？', text: '楽器の音合わせ（チューニング）は、お手本の音に、自分の弦の高さをそろえること。', note: '高い・低いが耳で分からなくても大丈夫。次のやり方で合わせられます。', targets: [], demo: null },
+  { id: 'drone', kind: 'action', heading: '2つを重ねて聞こう', text: '「重ねて鳴らす」を押そう。', note: 'お手本と自分の弦を、同時に鳴らし続けます。', targets: ['mono-drone'], demo: null },
+  { id: 'about-beat', kind: 'read', heading: '音が揺れている', text: 'ワウワウと揺れるのが「うなり」。ずれが大きいほど速く、近づくほどゆっくりになります。', note: 'ぴったり合うと揺れが消え、2つの音が一つにまとまって聞こえます。', targets: [], demo: null },
+  {
+    id: 'move', kind: 'action', heading: '揺れを消そう', text: '駒の下の持ち手を動かそう。揺れがゆっくりになる方が、正解の向き。', note: '弦を短くすると高く、長くすると低くなります。', targets: ['bridge', 'mono-left', 'mono-right'], demo: 'bridge',
+    // 揺れが遅くなってきたら（FINE_BEAT より遅い）、つまみで仕上げる案内に切り替える
+    fine: { text: '揺れがゆっくりになってきた。つまみで仕上げよう。', note: '揺れが消えて、2つの音が一つにまとまったら合格（1秒保つ）。', targets: ['knob', 'mono-left', 'mono-right'], demo: 'knob' }
+  }
+].map(s => Object.freeze({ ...s, targets: Object.freeze(s.targets), ...(s.fine ? { fine: Object.freeze({ ...s.fine, targets: Object.freeze(s.fine.targets) }) } : {}) })));
+
+// 手順「揺れを消そう」で、つまみの仕上げに切り替える揺れの速さ（回/秒）
+export const FINE_BEAT = 4;
 
 export const CH1_CLEAR = Object.freeze({
   heading: 'チュートリアルクリア！',
-  text: '弦を半分の長さにすると、1オクターブ上の音になりました。',
-  note: '1-2からは、自分で合わせよう。揺れが消えて1秒保てば合格です。'
+  text: '今やったのがチューニング。うなりが消えて、2つの音が一つにまとまりました。',
+  note: '1-2からは5度や4度。揺れが分かりにくいときは、2つの音が一つにまとまって聞こえる所を探そう。'
 });
 
-// 1-2〜1-5 の光の導線（案内の文は出さない）。面の始まり → お題を聞いた → 弦をはじいた → 駒を動かした の順に、
-// 次にする所を2回光らせる（2026-11-14 発案者。「駒を動かしたあと、重ねて鳴らす」も足す）
+// 操作の順番（1-2〜1-5 の光の導線もこの順）：お題 → はじく → 重ねて鳴らす → 駒
+export const ACTIONS = Object.freeze(['target', 'pluck', 'drone', 'move']);
+
+// 1-2〜1-5 の光の導線（案内の文は出さない）。次にする操作の場所を2回光らせる（2026-11-14 発案者）
 export const CH1_FLASH = Object.freeze({
   target: Object.freeze(['mono-target']),
   pluck: Object.freeze(['mono-pluck']),
-  move: Object.freeze(['bridge', 'mono-left', 'mono-right', 'knob']),
   drone: Object.freeze(['mono-drone']),
-  tune: Object.freeze([])
+  move: Object.freeze(['bridge', 'mono-left', 'mono-right', 'knob'])
 });
 
 export const STEP_IDS = Object.freeze(CH1_STEPS.map(s => s.id));
 
-// 操作 action（'target'・'pluck'・'move'・'drone'）をしたあとの手順の番号。
-// 今の手順か、それより先の手順の操作をしたら、その次へ進む（順番を飛ばして操作しても、戻らない）
+// 操作 action（ACTIONS のどれか）をしたあとの手順の番号。今の手順か、それより先の手順の操作をしたら、その次へ進む
+// （順番を飛ばして操作しても、戻らない）。最後の手順（揺れを消そう）は合格で終わるので、それより先へは進まない
 export function advanceStep(step, action) {
+  if (!ACTIONS.includes(action)) throw new Error(`案内の操作「${action}」はありません。`);
   const i = STEP_IDS.indexOf(action);
-  if (i < 0) throw new Error(`案内の操作「${action}」はありません。`);
   return i >= step ? Math.min(i + 1, STEP_IDS.length - 1) : step;
+}
+// 解説の手順で「次へ」を押したあとの手順の番号
+export function readNext(step) {
+  if (CH1_STEPS[step]?.kind !== 'read') return step;
+  return Math.min(step + 1, STEP_IDS.length - 1);
+}
+// 光の導線：操作 action をしたあと、次に光らせる操作（最後なら null）
+export function nextAction(action) {
+  const i = ACTIONS.indexOf(action);
+  if (i < 0) throw new Error(`案内の操作「${action}」はありません。`);
+  return ACTIONS[i + 1] ?? null;
 }

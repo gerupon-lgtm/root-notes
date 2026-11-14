@@ -13,7 +13,7 @@ import { stringHz, targetHz, beatHz, holdStep, startPosition, clampBridge } from
 import { MODES } from '../content/modes.js';
 import { TIMBRES } from '../content/timbres.js';
 import { BEAT_FAR_ABOVE } from '../core/pitch.js';
-import { CH1_STEPS, CH1_CLEAR, CH1_FLASH, STEP_IDS, advanceStep } from '../content/tutorial.js';
+import { CH1_STEPS, CH1_CLEAR, CH1_FLASH, STEP_IDS, ACTIONS, FINE_BEAT, advanceStep, readNext, nextAction } from '../content/tutorial.js';
 import { TutorialBook } from '../game/tutorial-book.js';
 import { artPath } from '../content/assets.js';
 
@@ -39,7 +39,9 @@ export function createMonochordScreen({ audio }) {
     hold: 0, passed: false, pluckAt: -1e9, knob: 0, dragging: false, raf: 0, last: 0,
     onDone: () => {}, onTitle: () => {}, nextTimer: 0, ended: false,
     // 導線：step は今の手順（CH1_STEPS の番号）。tutorial は案内つきのとき 'auto'（初めて）・'replay'（「案内」）・'title'（タイトルから）
-    step: 0, tutorial: null, touching: false, endLabel: null, pendingMove: false, grabDx: 0, guideMin: 0
+    step: 0, tutorial: null, touching: false, endLabel: null, pendingMove: false, grabDx: 0, guideMin: 0,
+    // fine：手順「揺れを消そう」で、揺れが遅くなってつまみの仕上げに切り替えたか。flashDone：光の導線で済んだ操作の数（ACTIONS の番号）
+    fine: false, flashDone: 0
   };
   const book = new TutorialBook(localStore());
   const stage = () => MONOCHORD_STAGES[S.i];
@@ -153,6 +155,10 @@ export function createMonochordScreen({ audio }) {
     // 1こまで数える時間は0.25秒まで（省電力で描画が減っても合格まで進む。裏に回ったあとの大きな飛びは数えない）
     const dt = Math.min(0.25, (now - (S.last || now)) / 1000);
     S.last = now;
+    // 案内：揺れが遅くなってきたら、つまみの仕上げの案内に切り替える（一度切り替えたら戻さない。文が行き来しないように）
+    if (S.tutorial && !S.passed && !S.fine && S.drone && STEP_IDS[S.step] === 'move' && beat() < FINE_BEAT) {
+      S.fine = true; renderGuide(); renderCoach();
+    }
     if (!S.passed) {
       const st = holdStep({ hold: S.hold, passed: S.passed }, { beat: beat(), dt, droning: !!S.drone });
       S.hold = st.hold;
@@ -190,7 +196,8 @@ export function createMonochordScreen({ audio }) {
       buttons = toEnd === 'タイトルへ' ? [['done', 'タイトルへ', true]] : [['done', toEnd, true], ['title', 'タイトルへ']];
     } else if (S.mode.continuous) buttons = [['next', '次の星へ ▶', true]];
     else buttons = [['next', '次の星へ ▶', true], ['close', 'この星に残る']];
-    if (S.tutorial) lines = [...lines, CH1_CLEAR.note];
+    // チュートリアル：何をやっていたかのまとめ（チューニング・一つにまとまる）と、1-2からの手がかり
+    if (S.tutorial) lines = [lines[0], CH1_CLEAR.text, CH1_CLEAR.note];
     const el = (tag, attrs = {}, ...kids) => {
       const x = document.createElement(tag);
       for (const [k, v] of Object.entries(attrs)) x.setAttribute(k, v);
@@ -234,48 +241,67 @@ export function createMonochordScreen({ audio }) {
   // ---------- 導線（案内の帯・光の縁・お手本・光らせる） ----------
   const targetEl = id => (id === 'bridge' ? parts?.bridge : $(id));
   const guiding = () => !!S.tutorial && !S.passed;
+  // 今の手順の文と光らせる所（「揺れを消そう」は、仕上げに切り替えたら fine の文に）
+  const stepCopy = () => { const st = CH1_STEPS[S.step]; return S.fine && st.fine ? { ...st, ...st.fine } : st; };
+  // 帯に文を入れる。clear はクリアの文
+  function fillGuide(copy, { count, clear = false, read = false }) {
+    $('mono-guide-count').textContent = count;
+    $('mono-guide-heading').textContent = copy.heading;
+    $('mono-guide-text').textContent = copy.text;
+    $('mono-guide-note').textContent = copy.note;
+    $('mono-guide-skip').hidden = clear;
+    $('mono-guide-next').hidden = !read; // 解説の手順だけ「次へ」（クリアの「次へ」はトースト）
+    $('mono-guide-next').textContent = '次へ ▶';
+    $('mono-guide-title').hidden = true;
+  }
+  // 帯の高さ：全部の手順（仕上げ・クリアを含む）の中でいちばん高い高さに固定する。手順が変わっても盤面が動かないように
+  // （PRISM の案内の帯と同じ考え方。2026-11-14 発案者「画面の位置が急に変わる」）。画面の大きさが変わったら測り直す
+  function lockGuideHeight() {
+    const bar = $('mono-guide');
+    bar.style.minHeight = '';
+    const copies = [...CH1_STEPS.map(st => [st, st.kind === 'read']), ...CH1_STEPS.filter(st => st.fine).map(st => [{ ...st, ...st.fine }, false]), [CH1_CLEAR, false]];
+    let max = 0;
+    for (const [copy, read] of copies) {
+      fillGuide(copy, { count: '0 / 0', read });
+      max = Math.max(max, bar.offsetHeight);
+    }
+    S.guideMin = max;
+    bar.style.minHeight = `${max}px`;
+  }
   // 案内の帯
   function renderGuide() {
     const bar = $('mono-guide');
     bar.hidden = !S.tutorial;
     if (!S.tutorial) return;
-    const clear = S.passed, copy = clear ? CH1_CLEAR : CH1_STEPS[S.step];
-    bar.classList.toggle('clear', clear);
-    $('mono-guide-count').textContent = clear ? 'CLEAR' : `${S.step + 1} / ${CH1_STEPS.length}`;
-    $('mono-guide-heading').textContent = copy.heading;
-    $('mono-guide-text').textContent = copy.text;
-    $('mono-guide-note').textContent = copy.note;
-    // 手順が変わっても帯の高さが変わらないよう、文と補足の高さを先に確保し、一度広がった高さは縮めない
-    // （PRISM の案内の帯と同じ考え方。高さが変わると盤面ごと駒が動いて見える）
-    $('mono-guide-text').style.minHeight = '3em';
-    $('mono-guide-note').style.minHeight = '2.9em';
-    bar.style.minHeight = '';
-    S.guideMin = Math.max(S.guideMin || 0, bar.offsetHeight);
-    bar.style.minHeight = `${S.guideMin}px`;
-    [...$('mono-guide-progress').children].forEach((seg, k) => {
-      seg.className = clear || k < S.step ? 'done' : k === S.step ? 'current' : '';
-    });
-    $('mono-guide-skip').hidden = clear;
-    // クリアの「次へ」はトーストにそろえた（帯には出さない）
-    $('mono-guide-next').hidden = true;
-    $('mono-guide-title').hidden = true;
-    // 精霊（Codex の絵が届くまでは出さない）
+    const progress = $('mono-guide-progress');
+    if (progress.children.length !== CH1_STEPS.length) progress.replaceChildren(...CH1_STEPS.map(() => document.createElement('i')));
+    $('mono-guide-text').style.minHeight = '';
+    $('mono-guide-note').style.minHeight = '';
+    // 精霊（重ねて聞く・うなりの解説・揺れを消す は「耳を澄ます」、クリアは「ほほえむ」）は、高さを測る前に出す（精霊の幅の分だけ文の行数が変わるため）
     const id = STEP_IDS[S.step];
-    const spirit = artPath(clear ? 'guide-spirit-smiling' : id === 'drone' || id === 'tune' ? 'guide-spirit-listening' : 'guide-spirit-normal');
+    const clear = S.passed;
+    const spirit = artPath(clear ? 'guide-spirit-smiling' : ['drone', 'about-beat', 'move'].includes(id) ? 'guide-spirit-listening' : 'guide-spirit-normal');
     const img = $('mono-guide-spirit');
     img.hidden = !spirit;
     if (spirit && img.getAttribute('src') !== spirit) img.src = spirit;
+    if (!S.guideMin) lockGuideHeight();
+    const copy = clear ? CH1_CLEAR : stepCopy();
+    bar.classList.toggle('clear', clear);
+    fillGuide(copy, { count: clear ? 'CLEAR' : `${S.step + 1} / ${CH1_STEPS.length}`, clear, read: !clear && copy.kind === 'read' });
+    [...progress.children].forEach((seg, k) => {
+      seg.className = clear || k < S.step ? 'done' : k === S.step ? 'current' : '';
+    });
   }
   // 案内で今触る所に、光の縁を出し続ける
   function renderCoach() {
     for (const el of document.querySelectorAll('#mono-screen .coach-target')) el.classList.remove('coach-target');
-    if (guiding()) for (const id of CH1_STEPS[S.step].targets) targetEl(id)?.classList.add('coach-target');
+    if (guiding()) for (const id of stepCopy().targets) targetEl(id)?.classList.add('coach-target');
     renderDemo();
   }
   // 指先の輪のお手本（PRISM の tutorial-guide.js と同じ考え方）。触っている間は止め、離したら戻す。動きを減らす設定では止まった印
   function renderDemo() {
     for (const el of document.querySelectorAll('#mono-screen .demo-finger')) el.remove();
-    const demo = guiding() && !S.touching ? CH1_STEPS[S.step].demo : null;
+    const demo = guiding() && !S.touching ? stepCopy().demo : null;
     if (!demo) return;
     const still = reduceMotion();
     const dur = demo === 'bridge' ? '3.2s' : '2.4s';
@@ -306,11 +332,14 @@ export function createMonochordScreen({ audio }) {
     // 駒やつまみを触っている間は、次の手順へ切り替えない（案内が変わって画面が動くと、指の下の駒がずれるため。2026-11-14 発案者）。
     // 指を離したときに進める
     if (action === 'move' && S.touching) { S.pendingMove = true; return; }
+    // 光の導線（案内なしの面）：今の操作か、それより先の操作をしたら、次の操作の場所を光らせる
+    const done = ACTIONS.indexOf(action);
+    const flashNext = done >= S.flashDone;
+    if (flashNext) S.flashDone = done + 1;
     const before = S.step;
     S.step = advanceStep(S.step, action);
-    if (S.step === before) return;
-    if (S.tutorial) { renderGuide(); renderCoach(); }
-    else flash(CH1_FLASH[STEP_IDS[S.step]]);
+    if (S.tutorial) { if (S.step !== before) { renderGuide(); renderCoach(); } }
+    else if (flashNext) { const next = nextAction(action); if (next) flash(CH1_FLASH[next]); }
   }
   let flashTimer = 0;
   function flash(ids) {
@@ -389,7 +418,7 @@ export function createMonochordScreen({ audio }) {
     hideToast();
     clearTimeout(S.nextTimer);
     stopDrone();
-    S.i = i; S.passed = false; S.hold = 0; S.knob = 0; S.ended = false; S.step = 0;
+    S.i = i; S.passed = false; S.hold = 0; S.knob = 0; S.ended = false; S.step = 0; S.fine = false; S.flashDone = 0;
     S.tutorial = i === 0 ? tutorial : null;
     S.r = startPosition(stage().num / stage().den, Math.random);
     $('mono-actions').hidden = false;
@@ -397,8 +426,8 @@ export function createMonochordScreen({ audio }) {
     renderStars(); renderButtons(); renderGuide(); drawStatic(); drawKnob();
     if (S.tutorial) say('');
     else say(meterAllowed()
-      ? '駒（金色の三角）か下の持ち手を指で動かし、「重ねて鳴らす」で揺れが消える所を、微調整つまみで探します。'
-      : '駒（金色の三角）か下の持ち手を指で動かし、「重ねて鳴らす」で揺れが消える所を、耳で探します。');
+      ? 'お題を聞き、弦をはじき、「重ねて鳴らす」。駒を動かして揺れが消え、2つの音が一つにまとまる所を探します（メーターも使えます）。'
+      : 'お題を聞き、弦をはじき、「重ねて鳴らす」。駒を動かして揺れが消え、2つの音が一つにまとまる所を、耳で探します。');
     startCue();
   }
 
@@ -413,7 +442,7 @@ export function createMonochordScreen({ audio }) {
     if (!on && S.pendingMove) { S.pendingMove = false; reach('move'); }
     renderDemo();
   };
-  addEventListener('resize', () => { S.guideMin = 0; $('mono-guide').style.minHeight = ''; if (S.tutorial) renderGuide(); });
+  addEventListener('resize', () => { S.guideMin = 0; if (S.tutorial) renderGuide(); });
   root.addEventListener('pointerdown', e => {
     audio.unlock();
     const { x, y } = svgPoint(e);
@@ -489,12 +518,14 @@ export function createMonochordScreen({ audio }) {
     S.tutorial = null;
     renderGuide(); renderCoach();
     say('案内をスキップしました。見出しの「案内」から、いつでも見直せます。');
-    flash(CH1_FLASH[STEP_IDS[S.step]]);
+    const next = ACTIONS[S.flashDone];
+    if (next && !S.passed) flash(CH1_FLASH[next]);
   });
+  // 解説の手順の「次へ」
   $('mono-guide-next').addEventListener('click', () => {
-    S.tutorial = null;
-    const next = nextUnlit();
-    if (next < 0) chapterEnd(); else goStage(next);
+    if (!S.tutorial || S.passed) return;
+    S.step = readNext(S.step);
+    renderGuide(); renderCoach();
   });
   $('mono-guide-title').addEventListener('click', () => { stop(); S.onTitle(); });
   $('mono-toast').addEventListener('click', e => {
