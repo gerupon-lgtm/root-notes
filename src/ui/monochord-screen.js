@@ -164,6 +164,7 @@ export function createMonochordScreen({ audio }) {
     const s = stage();
     S.passed = true;
     S.lit.add(s.id);
+    S.onLit?.([...S.lit]); // 保存（段階7）
     renderStars(); drawStatic(); twinkle();
     say(`合った！ 弦の ${s.num}/${s.den}。${s.word}。`, 'ok');
     clearTimeout(S.nextTimer);
@@ -468,13 +469,18 @@ export function createMonochordScreen({ audio }) {
 
   // 第1章を始める。mode：MODES の名前。onDone：章が終わって「次へ」を押したとき。onTitle：タイトルへ戻るとき。
   // tutorial：タイトルの「チュートリアル」から入ったとき true（1-1 を案内つきで始める）。endLabel：章の終わりのボタンの文言
-  function start(modeId, { onDone = () => {}, onTitle = () => {}, tutorial = false, endLabel = null } = {}) {
+  // lit：前に灯した面（保存から。段階7）。onLit：面が灯ったとき（保存へ）。灯っていない最初の面から始め、全部灯っていれば章の終わり
+  function start(modeId, { onDone = () => {}, onTitle = () => {}, tutorial = false, endLabel = null, lit = [], onLit = null } = {}) {
     stop();
     S.mode = MODES[modeId] ?? MODES.free;
-    S.onDone = onDone; S.onTitle = onTitle; S.endLabel = endLabel;
-    S.lit = new Set(); S.meterOn = true; S.last = 0; S.touching = false;
+    S.onDone = onDone; S.onTitle = onTitle; S.endLabel = endLabel; S.onLit = onLit;
+    S.lit = new Set(tutorial ? [] : lit.filter(id => MONOCHORD_STAGES.some(s => s.id === id)));
+    S.meterOn = true; S.last = 0; S.touching = false;
     $('mono-mode').textContent = tutorial ? 'チュートリアル' : S.mode.label;
-    goStage(0, { tutorial: tutorial ? 'title' : book.shouldAuto('ch1') ? 'auto' : null });
+    const first = MONOCHORD_STAGES.findIndex(s => !S.lit.has(s.id));
+    if (first > 0 || first < 0) goStage(Math.max(0, first));
+    else goStage(0, { tutorial: tutorial ? 'title' : book.shouldAuto('ch1') ? 'auto' : null });
+    if (first < 0) chapterEnd();
     S.raf = requestAnimationFrame(loop);
   }
 

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ROOT NOTES</title>
 <meta name="theme-color" content="#062522">
+<!-- OFFLINE_METADATA -->
 <link rel="stylesheet" href="./src/ui/style.css">
 <link rel="stylesheet" href="./src/ui/play-design.css">
 </head>
@@ -197,6 +198,12 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <!-- 結果のトースト（正解・不正解）。操作欄に重ねて出し、次にすることのボタンを置く -->
 <div class="result-toast" id="result-toast" role="status" aria-live="polite" hidden></div>
+<!-- 新しい版の知らせ（段階7。src/ui/offline.js）。押したときだけ切り替える -->
+<div class="update-notice" id="update-notice" role="status" aria-live="polite" hidden>
+  <span>新しい版を使えます。</span>
+  <button type="button" class="btn" id="update-later">あとで</button>
+  <button type="button" class="btn primary" id="update-apply">更新する</button>
+</div>
 <script type="module" src="./src/ui/main.js"></script>
 </body>
 </html>

@@ -50,6 +50,28 @@ export class Play {
     return new Play(modeId, buildRun(runSpecFor(modeId, random)));
   }
 
+  // 保存する形（段階7。src/game/progress.js）。曲は進行・キー・種・おとりの本数から作り直せるので、その4つだけを残す。
+  // 上限のない数（Infinity）は null にする
+  snapshot() {
+    const { progression, key, seed, decoys } = this.run;
+    const count = n => (Number.isFinite(n) ? n : null);
+    return { spec: { progression: progression.id, key, seed, decoys }, lit: [...this.lit].sort((a, b) => a - b), livesLeft: count(this.livesLeft), meterLeft: count(this.meterLeft) };
+  }
+
+  // 保存した形から作り直す。連続プレイは、灯っていない最初の星から（順に通すため）。全部灯っていれば通し終えた扱い
+  static restore(modeId, snap) {
+    const p = new Play(modeId, buildRun(snap.spec));
+    p.lit = new Set(snap.lit.filter(b => Number.isInteger(b) && b >= 0 && b < BARS));
+    if (Number.isFinite(p.mode.lives) && Number.isInteger(snap.livesLeft)) p.livesLeft = Math.min(p.mode.lives, snap.livesLeft);
+    if (Number.isFinite(p.mode.meterCount) && Number.isInteger(snap.meterLeft)) p.meterLeft = Math.min(p.mode.meterCount, snap.meterLeft);
+    if (p.mode.continuous) {
+      const next = Array.from({ length: BARS }, (_, b) => b).find(b => !p.lit.has(b));
+      if (next === undefined) { p.index = BARS - 1; p.complete = true; } else p.index = next;
+      if (Number.isFinite(p.livesLeft) && p.livesLeft <= 0) p.over = true;
+    }
+    return p;
+  }
+
   get stage() { return this.run.stages[this.index]; }
   get selectedLengths() { return this.selected.map(i => this.stage.sticks[i]); }
   get ready() { return this.selected.length === 3; }

@@ -1,8 +1,10 @@
-// 公開用のまとめを dist/ に作る。前作 AQUA の scripts/build.js を土台にした、段階7までの仮の形。
+// 公開用のまとめを dist/ に作る。前作 AQUA の scripts/build.js を土台にした。
 // 部品は版ごとのフォルダ（v0.1.1/ など）に置く。版が変わると読み込む場所も変わるので、
 // スマホのブラウザが前の版の部品を使い続けることがない。
-// 通信なしで遊ぶ仕組み（worker・マニフェスト・アイコン）と Cloudflare 用の設定は、段階7で足す。
+// 通信なしで遊ぶ仕組み（段階7。docs/design/段階7_PWA.md）：worker（sw.js）に版・資材の一覧・資材ごとの照合値（SHA-256）を書き込み、
+// マニフェストと、index.html の印（OFFLINE_METADATA）を置き換える。アイコンは public/ にあれば入れる（Codex に依頼中）
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, rmSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, posix, resolve, dirname, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -41,13 +43,37 @@ export function build({ root = repo, output = join(root, 'dist') } = {}) {
   copyTree('src');
   if (existsSync(join(root, 'public'))) copyTree('public');
 
-  const index = read('index.html').replaceAll('./src/', `./${prefix}/src/`).replaceAll('./public/', `./${prefix}/public/`);
+  // アイコンは版のフォルダの外の決まった場所にも置き、マニフェストと画面はこちらを指す（AQUA 2026-11-03：
+  // 古い版の画面のままホーム画面に追加すると、版つきのアイコンが見つからずインストールできないことがあった）
+  const icons = ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].filter(name => existsSync(join(root, 'public', name)));
+  for (const name of icons) copyFileSync(join(root, 'public', name), join(output, name));
+
+  let index = read('index.html');
+  if (!index.includes('<!-- OFFLINE_METADATA -->')) throw new Error('index.html に OFFLINE_METADATA の印がありません。');
+  const iconLinks = (icons.includes('icon-192.png') ? '<link rel="icon" href="./icon-192.png">' : '')
+    + (icons.includes('apple-touch-icon.png') ? '<link rel="apple-touch-icon" href="./apple-touch-icon.png">' : '');
+  index = index.replaceAll('./src/', `./${prefix}/src/`).replaceAll('./public/', `./${prefix}/public/`)
+    .replace('<!-- OFFLINE_METADATA -->', `<meta name="root-offline" content="enabled"><link rel="manifest" href="./manifest.webmanifest">${iconLinks}`);
   writeFileSync(join(output, 'index.html'), index);
   files.unshift('./index.html');
+
+  const manifest = {
+    id: './', name: 'ルート・ノーツ', short_name: 'ROOT NOTES', lang: 'ja', start_url: './', scope: './',
+    display: 'standalone', background_color: '#062522', theme_color: '#062522',
+    icons: [192, 512].filter(size => icons.includes(`icon-${size}.png`)).map(size => ({ src: `./icon-${size}.png`, sizes: `${size}x${size}`, type: 'image/png', purpose: 'any' }))
+  };
+  writeFileSync(join(output, 'manifest.webmanifest'), JSON.stringify(manifest, null, 2));
+
+  // 通信なしで使う資材：入口のページ・マニフェスト・アイコン・版のフォルダの部品
+  const assets = ['./index.html', './manifest.webmanifest', ...icons.map(name => `./${name}`), ...files.slice(1)];
+  const hashes = Object.fromEntries(assets.map(a => [a, createHash('sha256').update(readFileSync(join(output, a))).digest('hex')]));
+  const worker = read('src/pwa/worker.js').replace('__ROOT_VERSION__', version).replace('__ROOT_ASSETS__', JSON.stringify(assets)).replace('__ROOT_HASHES__', JSON.stringify(hashes));
+  if (/__ROOT_[A-Z]+__/.test(worker)) throw new Error('sw.js に書き込めていない印があります。');
+  writeFileSync(join(output, 'sw.js'), worker);
   // 公開された版と元のコミットを、外から確かめられるようにする
-  writeFileSync(join(output, 'build-info.json'), JSON.stringify({ version, commit: process.env.GITHUB_SHA ?? null, files }, null, 2));
+  writeFileSync(join(output, 'build-info.json'), JSON.stringify({ version, commit: process.env.GITHUB_SHA ?? null, files, assets, hashes }, null, 2));
   writeFileSync(join(output, '.nojekyll'), '');
-  return { version, output, files };
+  return { version, output, files, assets };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

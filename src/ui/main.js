@@ -4,6 +4,7 @@ import { StringAudio } from '../audio/engine.js';
 import { createStageScreen } from './stage-screen.js';
 import { createMonochordScreen } from './monochord-screen.js';
 import { createFlow } from './flow-screen.js';
+import { setupOffline } from './offline.js';
 import { artPath } from '../content/assets.js';
 
 const put = (id, text) => {
@@ -43,3 +44,6 @@ if (Object.values(screens).every(Boolean)) {
     flow.start(b.dataset.start);
   });
 }
+
+// 通信なしで遊ぶ仕組みと、新しい版の知らせ（段階7）。公開用にまとめた版だけで動く
+setupOffline({ document, navigator, location, version: APP_VERSION });

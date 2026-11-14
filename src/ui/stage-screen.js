@@ -391,6 +391,7 @@ export function createStageScreen({ audio, onTitle }) {
     hideStaff();
     startCue();
     renderAll();
+    notify();
   }
   $('result-toast').addEventListener('click', e => {
     const act = e.target.closest('button')?.dataset.act;
@@ -418,22 +419,43 @@ export function createStageScreen({ audio, onTitle }) {
   }
 
   // ---------- 操作 ----------
+  // 進み具合が変わったら、章の流れ（保存。段階7）へ知らせる。見つけた発見も、どの遊び方でもためる
+  function notify() {
+    const p = s.play;
+    if (!p) return;
+    for (const d of p.found) s.known.add(d);
+    s.onChange?.(p);
+  }
   // options：章の流れから始めるときに渡す（onChapterEnd：8つの星がそろって「次へ」を押したとき。null なら章の流れの外）。
-  // 画面の中からの始め直し（遊び方の切り替え・最初から）は options を渡さず、今の流れを保つ
+  //   restore：保存した遊びの状態（続きから）。lit：灯った星（選択プレイ）。found：今までに見つけた発見。onChange：進み具合が変わったとき
+  // 画面の中からの始め直し（遊び方の切り替え・最初から）は options を渡さず、今の流れと保存先を保つ
   function start(modeId, options) {
-    if (options) s.onChapterEnd = options.onChapterEnd ?? null;
+    if (options) {
+      s.onChapterEnd = options.onChapterEnd ?? null;
+      s.onChange = options.onChange ?? null;
+      s.known = new Set(options.found ?? []);
+    }
+    s.known ??= new Set();
     audio.stopAll();
     // 確認用：?check&prog=進行の記号 で、連続プレイをその進行で始める（実機で進行を試すため）
     const forced = s.check ? new URLSearchParams(location.search).get('prog') : null;
-    s.play = forced && MODES[modeId].continuous && PROGRESSIONS.some(x => x.id === forced)
+    let restored = null;
+    if (options?.restore) {
+      try { restored = Play.restore(modeId, options.restore); } catch { restored = null; /* 作り直せない続きは、新しい曲で始める */ }
+    }
+    s.play = restored ?? (forced && MODES[modeId].continuous && PROGRESSIONS.some(x => x.id === forced)
       ? new Play(modeId, buildRun({ ...runSpecFor(modeId, Math.random), progression: forced }))
-      : Play.start(modeId);
+      : Play.start(modeId));
+    if (!restored && options?.lit) for (const b of options.lit) s.play.lit.add(b);
+    // 今までに見つけた発見は、巻物に載ったまま（新しく見つけたものだけ知らせる）
+    s.play.found = new Set(s.known);
     s.busy = false; s.msg = null; s.playingBar = -1; s.focus = null;
     closeResult();
     hideStaff();
     renderMeterRows();
     startCue();
     renderAll();
+    notify();
   }
 
   // 選んでいる棒は、タップから3秒で外す（同じ棒をもう一度タップしたら数え直す）。残り1秒から色を薄くする
@@ -499,6 +521,7 @@ export function createStageScreen({ audio, onTitle }) {
     s.focus = null;
     s.msg = null;
     for (const d of p.lastFound) toast(`発見：${DISCOVERY_TEXT[d].title}`);
+    if (p.lastFound.length) notify();
     renderAll();
     // 3本で閉じたら三角形（辺をなぞって確かめる）、閉じなかったら使っている棒（外して選び直す）を光らせる
     if (p.ready) guide(p.closed ? document.querySelector('.board') : usedTiles());
@@ -580,6 +603,7 @@ export function createStageScreen({ audio, onTitle }) {
     if (s.busy) return;
     const r = play().useMeter();
     s.msg = r.ok ? null : { text: METER_REASON[r.reason], kind: 'warn' };
+    if (r.ok) notify();
     renderAll();
   });
 
@@ -592,6 +616,7 @@ export function createStageScreen({ audio, onTitle }) {
     if (r.result === 'need-three') { say('棒を3本選んでから回答してください。', 'warn'); return; }
     if (r.result === 'open') { say('閉じていない三角形では回答できません（失敗には数えません）。', 'warn'); return; }
     audio.stopAll();
+    notify();
     if (r.result === 'correct') {
       audio.chord(mine(), { timbre: timbre(), duration: 2.0 });
       s.busy = true;

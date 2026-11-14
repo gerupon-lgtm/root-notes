@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { APP_VERSION, COPYRIGHT, SERIES } from '../src/version.js';
 import { ART_BASE, ART, artPath } from '../src/content/assets.js';
 import { build } from '../scripts/build.js';
+import { createHash } from 'node:crypto';
 
 const root = new URL('../', import.meta.url);
 const read = path => readFileSync(new URL(path, root), 'utf8');
@@ -56,6 +57,20 @@ test('公開用のまとめ：版のフォルダに部品を置き、入口の�
     const info = JSON.parse(readFileSync(join(output, 'build-info.json'), 'utf8'));
     assert.equal(info.version, version);
     assert.ok(existsSync(join(output, '.nojekyll')));
+    // 通信なしで遊ぶ仕組み（段階7）：印を置き換え、sw.js に版・資材の一覧・照合値を書き込む
+    assert.match(index, /<meta name="root-offline" content="enabled"><link rel="manifest" href="\.\/manifest\.webmanifest">/);
+    assert.doesNotMatch(index, /OFFLINE_METADATA/);
+    const sw = readFileSync(join(output, 'sw.js'), 'utf8');
+    assert.ok(sw.includes(`const VERSION = '${version}';`));
+    assert.doesNotMatch(sw, /__ROOT_[A-Z]+__/);
+    assert.ok(info.assets.includes('./index.html') && info.assets.includes('./manifest.webmanifest'));
+    for (const a of info.assets) {
+      assert.ok(existsSync(join(output, a)), `${a} がありません`);
+      assert.equal(createHash('sha256').update(readFileSync(join(output, a))).digest('hex'), info.hashes[a], `${a} の照合値`);
+    }
+    const manifest = JSON.parse(readFileSync(join(output, 'manifest.webmanifest'), 'utf8'));
+    assert.equal(manifest.short_name, 'ROOT NOTES');
+    assert.equal(manifest.display, 'standalone');
   } finally {
     rmSync(output, { recursive: true, force: true });
   }

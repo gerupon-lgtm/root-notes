@@ -440,4 +440,8 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 .interlude-list { margin: 4px 0; padding-left: 1.4em; display: grid; gap: 6px; font-size: 0.9rem; line-height: 1.5; color: var(--ink); }
 .interlude-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 6px; }
 .interlude-buttons .btn { min-height: 54px; }
+/* 新しい版の知らせ（段階7）。画面の下に重ねる */
+.update-notice { position: fixed; z-index: 30; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom)); width: min(480px, calc(100% - 24px)); display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--gold); border-radius: 14px; background: var(--panel); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); font-size: 0.9rem; }
+.update-notice span { flex: 1; }
+.update-notice .btn { flex: none; min-height: 40px; padding: 4px 12px; font-size: 0.85rem; }
 .interlude-buttons .btn small { display: block; margin-top: 2px; font-size: 0.74rem; font-weight: 400; opacity: 0.85; }

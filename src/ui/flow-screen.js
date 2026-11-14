@@ -6,6 +6,9 @@
 import { FLOW, firstStep, nextStep, stepById, playableChapters, PROLOGUE_SCENES } from '../game/flow.js';
 import { MODES } from '../content/modes.js';
 import { TutorialBook } from '../game/tutorial-book.js';
+import { ProgressBook } from '../game/progress.js';
+import { BARS } from '../content/progressions.js';
+import { MONOCHORD_STAGES } from '../content/monochord.js';
 
 // 連続プレイの遊び方（FLOAT の levels() と同じく、名前と一言）。一言は MODES の値から作る
 const LEVEL_IDS = ['free', 'normal', 'expert'];
@@ -19,6 +22,10 @@ export function createFlow({ audio, screens, mono, stage, onTitle }) {
   const book = new TutorialBook(localStore());
   // 連続プレイで、序のあとに遊び方を選ぶか（タイトルの「連続プレイ」から入ったとき）
   let chooseAfterPrologue = false;
+  // 進み具合の記録（段階7。端末の中だけ）。run は今の連続プレイの続き（第1章に入ってから保存する）
+  const progress = new ProgressBook(localStore());
+  let run = null;
+  const saveRun = () => { if (run) progress.saveContinuous(run); };
 
   const show = name => {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
@@ -54,6 +61,9 @@ export function createFlow({ audio, screens, mono, stage, onTitle }) {
   // 連続プレイの1場面へ
   function go(step) {
     audio.stopAll();
+    // 連続プレイの続きを保存（どの章にいるか）。最後まで通したら消す
+    if (run && step && step.kind !== 'story') { run.step = step.id; saveRun(); }
+    if (run && !step) { progress.clearContinuous(); run = null; }
     if (!step) {
       interlude({ eyebrow: 'ここまで', title: '今作れている流れはここまでです', lines: ['謎・第3章・最終章・おはなしは、次の段階で作ります。'], buttons: [['タイトルへ', toTitle, true]] });
       return;
@@ -62,17 +72,28 @@ export function createFlow({ audio, screens, mono, stage, onTitle }) {
     if (step.kind === 'story') {
       // 序のあとは、連続プレイなら遊び方を選ぶ（FLOAT と同じ）。見たことがあれば「飛ばす」も出す
       const seen = !book.shouldAuto('prologue');
-      const after = () => { book.complete('prologue'); if (chooseAfterPrologue) chooseLevel(next); else next(); };
+      const after = () => { book.complete('prologue'); if (chooseAfterPrologue) chooseLevel(begin); else begin(); };
+      // 第1章に入るときに、新しい連続プレイの続きを作る
+      const begin = () => { run = { mode, step: 'ch1', ch1: [], ch2: null }; next(); };
       interlude({
         eyebrow: step.place, title: step.title, lines: ['（絵と語りは、のちの段階で入ります。いまは場面の見出しだけです）'], list: PROLOGUE_SCENES,
         buttons: [['タイトルへ', toTitle], ...(seen ? [['飛ばす', after]] : []), ['はじめる ▶', after, true]]
       });
     } else if (step.kind === 'monochord') {
       show('mono');
-      mono.start(mode, { onDone: next, onTitle: toTitle });
+      mono.start(mode, { onDone: next, onTitle: toTitle, lit: run?.ch1 ?? [], onLit: lit => { if (run) { run.ch1 = lit; saveRun(); } } });
     } else if (step.kind === 'triangle') {
       show('stage');
-      stage.start(mode, { onChapterEnd: next });
+      stage.start(mode, {
+        onChapterEnd: next, restore: run?.ch2 ?? null, found: progress.found(),
+        onChange: p => {
+          progress.addFound(p.found);
+          if (!run) return;
+          // ゲームオーバーで連続プレイの続きは終わり（「最初から」で新しい曲を始めると、また保存する）
+          if (p.over) { progress.clearContinuous(); return; }
+          run.ch2 = p.snapshot(); run.step = 'ch2'; saveRun();
+        }
+      });
     } else {
       interlude({ eyebrow: '準備中', title: step.title, lines: [step.note ?? ''], buttons: [['タイトルへ', toTitle], ['次へ ▶', next, true]] });
     }
@@ -96,10 +117,37 @@ export function createFlow({ audio, screens, mono, stage, onTitle }) {
       buttons: [...playableChapters().map(ch => [ch.title, () => playChapter(ch.id), true]), ['タイトルへ', toTitle]]
     });
   }
+  // 選択プレイで灯した星は残す（段階7。2026-11-14 発案者）
   function playChapter(id) {
+    run = null;
     const step = stepById(id);
-    if (step.kind === 'monochord') { show('mono'); mono.start(mode, { onDone: chooseChapter, onTitle: toTitle }); }
-    else { show('stage'); stage.start(mode, { onChapterEnd: null }); }
+    if (step.kind === 'monochord') {
+      show('mono');
+      mono.start(mode, { onDone: chooseChapter, onTitle: toTitle, lit: progress.selectLit('ch1'), onLit: lit => progress.addSelectLit('ch1', lit) });
+    } else {
+      show('stage');
+      stage.start(mode, {
+        onChapterEnd: null, lit: progress.selectLit('ch2'), found: progress.found(),
+        onChange: p => { progress.addFound(p.found); progress.addSelectLit('ch2', [...p.lit]); }
+      });
+    }
+  }
+
+  // 連続プレイの続きがあるとき：続きから／最初からを選ぶ（2026-11-14 発案者）。最初からを選ぶと、続きは消える（選んだときだけ）
+  function offerResume(saved, fresh) {
+    const where = stepById(saved.step);
+    const detail = [MODES[saved.mode].name, where?.title ?? ''];
+    if (saved.step === 'ch1') detail.push(`${saved.ch1.length} / ${MONOCHORD_STAGES.length}`);
+    if (saved.ch2 && saved.step === 'ch2') detail.push(`星 ${saved.ch2.lit.length} / ${BARS}`);
+    if (saved.ch2?.livesLeft != null) detail.push(`失敗あと${saved.ch2.livesLeft}回`);
+    interlude({
+      eyebrow: '連続プレイ', title: '続きがあります', lines: [detail.filter(Boolean).join('・')],
+      buttons: [
+        ['続きから ▶', () => { run = saved; mode = saved.mode; chooseAfterPrologue = false; go(where ?? firstStep()); }, true],
+        ['最初から', () => { progress.clearContinuous(); run = null; fresh(); }, false, '今の続きは消えます'],
+        ['タイトルへ', toTitle]
+      ]
+    });
   }
 
   // タイトルの入口から。'tutorial' はタイトルの「チュートリアル」（前作と同じ入口。ボタンは Codex がタイトルに足す）：
@@ -114,10 +162,16 @@ export function createFlow({ audio, screens, mono, stage, onTitle }) {
     }
     // 'continuous'：タイトルの「連続プレイ」。序のあとに遊び方を選ぶ（Codex がタイトルのボタンを減らしたあとの入口）。
     // 'free'・'normal'・'expert' は、遊び方を決めて序から始める（今までの入口。タイトルから外れても動く）
-    chooseAfterPrologue = modeId === 'continuous';
-    mode = modeId === 'continuous' ? 'free' : modeId;
-    if (modeId === 'select') chooseChapter();
-    else go(firstStep());
+    run = null;
+    if (modeId === 'select') { mode = 'select'; chooseChapter(); return; }
+    const fresh = () => {
+      chooseAfterPrologue = modeId === 'continuous';
+      mode = modeId === 'continuous' ? 'free' : modeId;
+      go(firstStep());
+    };
+    // 連続プレイの続きがあれば、勝手に上書きせず、続きから／最初からを選んでもらう（C-04）
+    const saved = progress.continuous();
+    if (saved) offerResume(saved, fresh); else fresh();
   }
 
   return { start, steps: FLOW };
