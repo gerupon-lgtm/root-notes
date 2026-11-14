@@ -26,7 +26,11 @@ export const ART = Object.freeze({
   'bell-8': null,
   'bell-6': null,
   // 見本の場面：序「鍛冶場で鐘が鳴る」
-  'scene-forge-legend': null
+  'scene-forge-legend': null,
+  // 採用済みのタイトル背景。文字・ボタンを含めず、縦横比を保つ。
+  'title-workshop-portrait': 'title-workshop-portrait.webp',
+  'title-workshop-landscape': 'title-workshop-landscape.webp',
+  'title-workshop-landscape-short': 'title-workshop-landscape-short.webp'
 });
 
 // 名前から、絵の場所（URL）を返す。まだ採用していない絵は null。

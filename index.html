@@ -10,18 +10,66 @@
 <body>
 <!-- タイトル。絵・書体・配置は仮（A区分。Codex の絵が採用されてから決める） -->
 <main class="title" id="title-screen" aria-label="ルート・ノーツのタイトル">
-  <p class="series" id="app-series"></p>
-  <h1 class="logo" aria-label="ROOT NOTES（ルート・ノーツ）">ROOT NOTES</h1>
-  <p class="lead">星の和音を、三角形でつくる。</p>
-  <nav class="title-menu" aria-label="はじめのメニュー">
-    <button type="button" class="big" data-start="select">三角形のステージ（選択プレイ）</button>
-    <button type="button" data-start="free">連続プレイ（フリー）</button>
-    <div class="pair">
-      <button type="button" data-start="normal">ノーマル</button>
-      <button type="button" data-start="expert">エキスパート</button>
+  <picture class="title-background" aria-hidden="true">
+    <source id="title-short-landscape-art" media="(min-aspect-ratio: 1/1) and (max-height: 360px)">
+    <source id="title-landscape-art" media="(min-aspect-ratio: 1/1)">
+    <img id="title-portrait-art" alt="" fetchpriority="high" decoding="async">
+  </picture>
+  <div class="title-inner">
+    <div class="title-hero">
+      <p class="series" id="app-series"></p>
+      <h1 class="logo" aria-label="ROOT NOTES（ルート・ノーツ）">
+        <svg viewBox="0 0 1000 440" aria-hidden="true" focusable="false">
+          <text class="logo-root" x="500" y="260">ROOT</text>
+          <text class="logo-notes" x="500" y="420">NOTES</text>
+        </svg>
+      </h1>
+      <p class="lead">響きを聴いて、かたちにする。</p>
+      <div class="title-symbol-space" aria-hidden="true"></div>
     </div>
-  </nav>
-  <footer class="foot"><span id="app-copyright"></span><span id="app-version"></span></footer>
+    <nav class="title-menu" aria-label="はじめのメニュー">
+      <div class="title-buttons">
+        <button type="button" class="big" data-start="select">選択プレイ</button>
+        <button type="button" data-start="free">連続プレイ（フリー）</button>
+        <div class="pair">
+          <button type="button" data-start="normal">ノーマル</button>
+          <button type="button" data-start="expert">エキスパート</button>
+        </div>
+        <details class="title-help">
+          <summary>遊び方と概要</summary>
+          <div class="title-help-body">
+            <h2>響きを聴いて、かたちにする。</h2>
+            <p>お題の和音を聴き、その響きになる3本の棒を選んで三角形を作ります。辺は弦になっていて、短い辺ほど高い音が鳴ります。</p>
+            <p>選択プレイでは好きな面から、連続プレイでは8つの星を順に遊べます。フリーは何度でも音を比べられます。</p>
+            <p class="title-help-close">「遊び方と概要」をもう一度押すと閉じます。</p>
+          </div>
+        </details>
+      </div>
+      <footer class="foot"><span id="app-copyright"></span><span id="app-version"></span></footer>
+    </nav>
+  </div>
+  <script type="module">
+    import { SERIES } from './src/version.js';
+    import { artPath } from './src/content/assets.js';
+
+    document.getElementById('title-short-landscape-art').srcset = artPath('title-workshop-landscape-short');
+    document.getElementById('title-landscape-art').srcset = artPath('title-workshop-landscape');
+    document.getElementById('title-portrait-art').src = artPath('title-workshop-portrait');
+    // main.js の差し込み後に、正典の文字列を前作と同じ組み方へ整える。
+    document.addEventListener('DOMContentLoaded', () => {
+      const series = document.getElementById('app-series');
+      const [name, number] = SERIES.split('|').map(part => part.trim());
+      const labels = name.split(/\s+/).map(word => {
+        const span = document.createElement('span');
+        span.textContent = word;
+        return span;
+      });
+      const mark = document.createElement('b');
+      mark.textContent = number;
+      series.setAttribute('aria-label', SERIES);
+      series.replaceChildren(...labels, mark);
+    }, { once: true });
+  </script>
 </main>
 
 <!-- 遊ぶ画面（段階3）。縦向きは1列、横向きは左に三角形・右に操作の2列（style.css） -->
