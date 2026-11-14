@@ -45,11 +45,11 @@ test('20セントの条件を外すと、減三和音の基本形・第1転回�
 });
 
 test('度数の読み取り：ローマ数字と和音の種類', () => {
-  assert.deepEqual(parseChord('I'), { degree: 0, quality: 'major' });
-  assert.deepEqual(parseChord('IIIm'), { degree: 2, quality: 'minor' });
-  assert.deepEqual(parseChord('VIm'), { degree: 5, quality: 'minor' });
-  assert.deepEqual(parseChord('VIIdim'), { degree: 6, quality: 'diminished' });
-  assert.deepEqual(parseChord('III'), { degree: 2, quality: 'major' });
+  assert.deepEqual(parseChord('I'), { degree: 0, quality: 'major', shift: 0 });
+  assert.deepEqual(parseChord('IIIm'), { degree: 2, quality: 'minor', shift: 0 });
+  assert.deepEqual(parseChord('VIm'), { degree: 5, quality: 'minor', shift: 0 });
+  assert.deepEqual(parseChord('VIIdim'), { degree: 6, quality: 'diminished', shift: 0 });
+  assert.deepEqual(parseChord('III'), { degree: 2, quality: 'major', shift: 0 });
   assert.throws(() => parseChord('VIII'), /読めません/);
 });
 

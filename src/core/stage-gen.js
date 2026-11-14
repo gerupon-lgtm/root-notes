@@ -3,7 +3,7 @@
 // 各小節：和音に合う純正な三角形を選び、最低音（最長辺）が平均律の音になるように K を決め、おとりの棒を足す。
 import { len, closes, compareLength, sameLengths, sortLengths, lengthValue } from './length.js';
 import { TRIADS } from './chord.js';
-import { parseChord, degreePc, midiToHz } from './harmony.js';
+import { parseChord, degreePc, midiToHz, chordName } from './harmony.js';
 import { pureTriangles } from './voicing.js';
 import { mulberry32, shuffle, pickOne } from './random.js';
 import { PROGRESSIONS, BARS } from '../content/progressions.js';
@@ -14,7 +14,7 @@ const midiInRange = (pc, [low]) => low + (((pc - low) % 12) + 12) % 12;
 
 // 三角形をキーと和音に置く：最低音の MIDI 番号と、基準の音 K（f ＝ K ÷ 長さ。C-01）
 export function placeVoicing({ key, chord, voicing }) {
-  const bassPc = (degreePc(key, chord.degree) + TRIADS[chord.quality][voicing.inversion]) % 12;
+  const bassPc = (degreePc(key, chord.degree) + (chord.shift ?? 0) + TRIADS[chord.quality][voicing.inversion] + 12) % 12;
   const lowMidi = midiInRange(bassPc, STAGE_RULES.lowMidi);
   const longest = sortLengths(voicing.target)[2];
   return { lowMidi, K: midiToHz(lowMidi) * lengthValue(longest) };
@@ -81,10 +81,12 @@ export function buildRun({ progression, key, seed, decoys }) {
     if (!options.length) throw new Error(`${entry.chord} に合う三角形がありません。`);
     const voicing = pickOne(options, rng);
     const { lowMidi, K } = placeVoicing({ key, chord, voicing });
-    const bassDegree = entry.bass ? parseChord(entry.bass).degree : chord.degree;
-    const bassMidi = midiInRange(degreePc(key, bassDegree), STAGE_RULES.bassMidi);
+    const bass = entry.bass ? parseChord(entry.bass) : chord;
+    const bassDegree = bass.degree, bassShift = bass.shift ?? 0;
+    const bassMidi = midiInRange((degreePc(key, bassDegree) + bassShift + 12) % 12, STAGE_RULES.bassMidi);
     const sticks = chooseSticks(voicing.target, decoys, rng);
-    return Object.freeze({ bar, label: entry.label, chord, bassDegree, target: voicing.target, inversion: voicing.inversion, lowMidi, K, bassMidi, sticks });
+    // label は画面に出す度数（短調の進行は短調の度数）、chordName はキーのコードネーム
+    return Object.freeze({ bar, label: entry.display ?? entry.label, chordName: chordName(entry.label, key), chord, bassDegree, bassShift, target: voicing.target, inversion: voicing.inversion, lowMidi, K, bassMidi, sticks });
   });
-  return Object.freeze({ progression: Object.freeze({ id: prog.id, name: prog.name }), key, seed, decoys, stages: Object.freeze(stages) });
+  return Object.freeze({ progression: Object.freeze({ id: prog.id, name: prog.name, mode: prog.mode ?? 'major' }), key, seed, decoys, stages: Object.freeze(stages) });
 }

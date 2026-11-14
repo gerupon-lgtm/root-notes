@@ -1,6 +1,8 @@
 // 遊ぶ画面（段階3）。決まりは src/game/play.js、音は src/audio/engine.js、描画は triangle-view.js に任せ、
 // ここは画面の部品と操作をつなぐだけにする（docs/design/段階3_三角形ステージの画面.md）
-import { Play, stageTimbre } from '../game/play.js';
+import { Play, stageTimbre, runSpecFor } from '../game/play.js';
+import { buildRun } from '../core/stage-gen.js';
+import { PROGRESSIONS } from '../content/progressions.js';
 import { buildScore } from '../game/song.js';
 import { MODES, MODE_ORDER } from '../content/modes.js';
 import { TIMBRES, SONG_TIMBRE, BASS_TIMBRE } from '../content/timbres.js';
@@ -11,7 +13,7 @@ import { frequency, frequencies, beats, beatLevel, ratioOf } from '../core/pitch
 import { sortLengths, lengthValue, formatLength } from '../core/length.js';
 import { gcd } from '../core/integer.js';
 import { colorOf, blendOf } from '../core/color.js';
-import { keyName, chordName } from '../core/harmony.js';
+import { keyLabel } from '../core/harmony.js';
 import { drawEmpty, drawOpen, drawClosed } from './triangle-view.js';
 import { drawStaff, markStaff } from './staff-view.js';
 import { staffColumn } from '../game/notation.js';
@@ -86,10 +88,13 @@ export function createStageScreen({ audio, onTitle }) {
   }
 
   // 度数とコードネームを並べる（例「IVmaj7（Fmaj7）」）。相対の度数から、進行の気づきにつなげる
-  const chordText = label => `${label}（${chordName(label, play().run.key)}）`;
+  // 画面に出すキー（短調の進行は平行調の短調。例 Gm）
+  const keyText = () => keyLabel(play().run.key, play().run.progression.mode);
+  const chordText = stage => `${stage.label}（${stage.chordName}）`;
   const progressionLines = (from, to) => {
     const labels = play().run.stages.slice(from, to + 1).map(x => x.label);
-    return [`度数：${labels.join(' → ')}`, `コード：${labels.map(l => chordName(l, play().run.key)).join(' → ')}`];
+    const stages = play().run.stages.slice(from, to + 1);
+    return [`度数：${labels.join(' → ')}`, `コード：${stages.map(st => st.chordName).join(' → ')}`];
   };
 
   // ---------- 表示 ----------
@@ -205,7 +210,7 @@ export function createStageScreen({ audio, onTitle }) {
     if (!reduceMotion()) b.classList.add('cue');
   }
 
-  function songTitle() { return `${play().run.progression.name}（キー ${keyName(play().run.key)}）`; }
+  function songTitle() { return `${play().run.progression.name}（キー ${keyText()}）`; }
 
   function renderSheet() {
     const p = play();
@@ -215,7 +220,7 @@ export function createStageScreen({ audio, onTitle }) {
     const info = $('song-info');
     const lines = (from, to) => progressionLines(from, to).flatMap(line => [el('br'), line]);
     if (p.lit.size === BARS) info.replaceChildren(el('b', {}, songTitle()), ...lines(0, BARS - 1));
-    else if (n >= PHRASE) info.replaceChildren(`キー ${keyName(p.run.key)}。ここまで（曲名は8つの星がそろうと分かります）`, ...lines(0, n - 1));
+    else if (n >= PHRASE) info.replaceChildren(`キー ${keyText()}。ここまで（曲名は8つの星がそろうと分かります）`, ...lines(0, n - 1));
     else info.textContent = '4つの星を灯すと、フレーズが聴けます。';
     $('carry-off').classList.toggle('on', !s.carryOver);
     $('carry-on').classList.toggle('on', s.carryOver);
@@ -290,7 +295,7 @@ export function createStageScreen({ audio, onTitle }) {
         markStaff($('staff'), bar - from);
         const msg = $('msg');
         msg.className = '';
-        msg.replaceChildren(`♪ ${title}　`, ...labels.flatMap((l, j) => [j ? ' → ' : '', from + j === bar ? el('span', { class: 'now' }, chordText(l)) : l]));
+        msg.replaceChildren(`♪ ${title}　`, ...labels.flatMap((l, j) => [j ? ' → ' : '', from + j === bar ? el('span', { class: 'now' }, chordText(p.run.stages[bar])) : l]));
       },
       onEnd: () => { s.playingBar = -1; s.busy = false; markStaff($('staff'), -1); done(); renderAll(); }
     });
@@ -310,7 +315,7 @@ export function createStageScreen({ audio, onTitle }) {
       // 度数とコードネームを並べる（相対の度数から、進行の気づきにつなげる。2026-11-14 発案者）
       body = song
         ? [p.run.progression.name, ...progressionLines(0, BARS - 1)]
-        : [`${bar}小節目は ${label} ＝ ${chordName(label, p.run.key)}`,
+        : [`${bar}小節目は ${label} ＝ ${p.stage.chordName}`,
            ...(phrase ? [`フレーズ${r.music.from / PHRASE + 1}がそろいました`, ...progressionLines(r.music.from, r.music.to)] : [])];
       if (p.mode.continuous) buttons = bar === BARS ? [['restart', '新しい曲で遊ぶ', true], ['title', 'タイトルへ']] : [['next', '次の星へ ▶', true]];
       else buttons = p.nextBar() === null ? [['close', '閉じる', true]] : [['next', '次の星へ ▶', true], ['close', 'この星に残る']];
@@ -329,9 +334,11 @@ export function createStageScreen({ audio, onTitle }) {
     t.replaceChildren(
       // 見出し（「1曲できあがり」とキーの行）の右に「もう一度聴く」（フレーズや1曲がそろったとき。2026-11-14 発案者）
       el('div', { class: 'result-head' },
-        el('div', { class: 'result-title' }, el('h3', {}, head, showKey ? el('span', { class: 'key-badge' }, `キー ${keyName(p.run.key)}`) : ''), el('p', { class: 'first-line' }, body[0])),
+        el('div', { class: 'result-title' }, el('h3', {}, head, showKey ? el('span', { class: 'key-badge' }, `キー ${keyText()}`) : '')),
         r?.music ? el('button', { type: 'button', class: 'replay', 'data-act': 'replay' }, '▶ もう一度聴く') : '',
         el('button', { type: 'button', class: 'close', 'data-act': 'close', 'aria-label': '閉じる' }, '×')),
+      // 2行目は横幅いっぱいに使う（ジャズの度数は長いので、1行に収めるため）
+      el('p', { class: 'first-line' }, body[0]),
       ...body.slice(1).map(line => el('p', { class: 'sub-line' }, line)),
       el('div', { class: 'result-actions' }, ...buttons.map(([act, text, primary]) => el('button', { type: 'button', class: primary ? 'btn primary' : 'btn', 'data-act': act }, text))));
     t.hidden = false;
@@ -392,14 +399,18 @@ export function createStageScreen({ audio, onTitle }) {
     const p = play();
     const done = () => { s.busy = false; renderAll(); showResult('correct', result); };
     if (result.music?.kind === 'song') playMusic(0, BARS - 1, songTitle(), done);
-    else if (result.music?.kind === 'phrase') playMusic(result.music.from, result.music.to, `キー ${keyName(p.run.key)}`, done);
+    else if (result.music?.kind === 'phrase') playMusic(result.music.from, result.music.to, `キー ${keyText()}`, done);
     else done();
   }
 
   // ---------- 操作 ----------
   function start(modeId) {
     audio.stopAll();
-    s.play = Play.start(modeId);
+    // 確認用：?check&prog=進行の記号 で、連続プレイをその進行で始める（実機で進行を試すため）
+    const forced = s.check ? new URLSearchParams(location.search).get('prog') : null;
+    s.play = forced && MODES[modeId].continuous && PROGRESSIONS.some(x => x.id === forced)
+      ? new Play(modeId, buildRun({ ...runSpecFor(modeId, Math.random), progression: forced }))
+      : Play.start(modeId);
     s.busy = false; s.msg = null; s.playingBar = -1;
     closeResult();
     hideStaff();
@@ -512,7 +523,7 @@ export function createStageScreen({ audio, onTitle }) {
     if (r.result === 'correct') {
       audio.chord(mine(), { timbre: timbre(), duration: 2.0 });
       s.busy = true;
-      s.msg = { text: `星が灯った！ ${p.index + 1}小節目は ${chordText(p.stage.label)}。`, kind: 'ok' };
+      s.msg = { text: `星が灯った！ ${p.index + 1}小節目は ${chordText(p.stage)}。`, kind: 'ok' };
       renderAll();
       glow(mine());
       // フレーズや1曲がそろったら和音の余韻のあとに流し、終わってから結果を出す。そうでなければ少し聞かせてから出す
@@ -545,7 +556,7 @@ export function createStageScreen({ audio, onTitle }) {
     if (!n) { toast('まだ1小節目から灯った和音がありません'); return; }
     if (s.busy) return;
     closeSheet();
-    playMusic(0, n - 1, n === BARS ? songTitle() : `キー ${keyName(play().run.key)}`);
+    playMusic(0, n - 1, n === BARS ? songTitle() : `キー ${keyText()}`);
   });
   $('carry-off').addEventListener('click', () => { s.carryOver = false; renderSheet(); });
   $('carry-on').addEventListener('click', () => { s.carryOver = true; renderSheet(); });

@@ -29,7 +29,7 @@ export const noteName = n => `${n.letter}${n.accidental}${n.octave}`;
 // 1小節ぶんの音符：三角形の3音（低い順）とベース。label は度数、name はキーのコードネーム
 export function staffColumn(stage, key) {
   const fs = frequencies(stage.target, stage.K);
-  const rootLetter = degreeLetter(key, stage.chord.degree), rootPc = degreePc(key, stage.chord.degree);
+  const rootLetter = degreeLetter(key, stage.chord.degree), rootPc = (degreePc(key, stage.chord.degree) + (stage.chord.shift ?? 0) + 12) % 12;
   const tones = TRIADS[stage.chord.quality];
   const preferFlat = [1, 3, 5, 8, 10].includes(key);
   const chord = fs.map(f => {
@@ -41,5 +41,5 @@ export function staffColumn(stage, key) {
   });
   const bassLetter = degreeLetter(key, stage.bassDegree);
   const bassShift = ((((stage.bassMidi % 12) - NATURAL[bassLetter]) + 18) % 12) - 6;
-  return { label: stage.label, name: chordName(stage.label, key), chord, bass: note(stage.bassMidi, bassLetter, bassShift) };
+  return { label: stage.label, name: stage.chordName ?? chordName(stage.label, key), chord, bass: note(stage.bassMidi, bassLetter, bassShift) };
 }

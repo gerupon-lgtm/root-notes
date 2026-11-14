@@ -37,21 +37,21 @@ function checkStage(stage, { key, decoys, where }) {
   assert.equal(ch.quality, stage.chord.quality, where);
   assert.equal(ch.inversion, stage.inversion, where);
   // 最低音：キー・度数・転回形どおりの音名で、音域の中。K で計算した最低音が平均律の周波数と一致
-  const bassPc = (degreePc(key, stage.chord.degree) + TRIAD_TONES[stage.chord.quality][stage.inversion]) % 12;
+  const bassPc = (degreePc(key, stage.chord.degree) + stage.chord.shift + TRIAD_TONES[stage.chord.quality][stage.inversion] + 12) % 12;
   assert.equal(stage.lowMidi % 12, bassPc, `${where} 最低音の音名`);
   assert.ok(stage.lowMidi >= STAGE_RULES.lowMidi[0] && stage.lowMidi <= STAGE_RULES.lowMidi[1], where);
   const longest = sortLengths(target)[2];
   const f = frequency(longest, K), want = midiToHz(stage.lowMidi);
   assert.ok(Math.abs(f - want) / want < 1e-12, `${where} K`);
   // ベース：小節のベースの度数どおりの音名で、音域の中
-  assert.equal(stage.bassMidi % 12, degreePc(key, stage.bassDegree), where);
+  assert.equal(stage.bassMidi % 12, (degreePc(key, stage.bassDegree) + stage.bassShift + 12) % 12, where);
   assert.ok(stage.bassMidi >= STAGE_RULES.bassMidi[0] && stage.bassMidi <= STAGE_RULES.bassMidi[1], where);
   // おとりの選び方（5章）：避けると決めた「同じ和音に聞こえる三角形」が無い
   const bad = soundAlikes(sticks, target, STAGE_RULES.avoidSoundAlike);
   assert.equal(bad.length, 0, `${where} ${bad.map(show).join(' / ')}`);
 }
 
-test('機械検査：5つの進行 × 12キー × おとり3〜5本 × 種12通りの全ステージ（AC-11・C-03）', () => {
+test('機械検査：すべての進行 × 12キー × おとり3〜5本 × 種12通りの全ステージ（AC-11・C-03）', () => {
   let count = 0;
   for (const progression of PROGRESSIONS) {
     for (let key = 0; key < 12; key++) {
@@ -61,7 +61,7 @@ test('機械検査：5つの進行 × 12キー × おとり3〜5本 × 種12通�
           assert.equal(run.stages.length, BARS);
           run.stages.forEach((stage, bar) => {
             const want = progression.chords[bar % progression.chords.length];
-            assert.equal(stage.label, want.label);
+            assert.equal(stage.label, want.display ?? want.label);
             checkStage(stage, { key, decoys, where: `${progression.name} key${key} おとり${decoys} 種${seed} ${bar + 1}小節` });
             count++;
           });

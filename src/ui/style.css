@@ -164,7 +164,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .result-toast { position: fixed; z-index: 15; display: flex; flex-direction: column; gap: 10px; padding: 14px 14px 12px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); overflow-y: auto; animation: toast-in 0.2s ease-out; }
 .result-toast.ok { border-color: var(--ok); }
 .result-toast.ng { border-color: var(--warn); }
-.result-head { display: flex; align-items: flex-start; gap: 8px; }
+.result-head { display: flex; align-items: center; gap: 8px; }
 .result-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .result-head .replay { flex: none; align-self: center; min-height: 40px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--gold); background: color-mix(in srgb, var(--gold) 14%, var(--panel)); font-size: 0.84rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .result-head h3 { margin: 0; font-size: 1.15rem; }

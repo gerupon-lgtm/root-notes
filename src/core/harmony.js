@@ -8,11 +8,13 @@ const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const NATURAL = [0, 2, 4, 5, 7, 9, 11];
 const accidental = n => (n > 0 ? '♯'.repeat(n) : '♭'.repeat(-n));
 
-// 'VIm' → { degree: 5, quality: 'minor' }（degree は 0 始まり）
+// 'VIm' → { degree: 5, quality: 'minor', shift: 0 }（degree は 0 始まり）。
+// 度数の前の ♯・♭ は音階の外の根音（例 '♯Vdim'＝キーC の G♯dim。2026-11-14、E7・A7・D7 を三角形＋ベースで作るため）
+const ACCIDENTAL = { '': 0, '♯': 1, '#': 1, '♭': -1, b: -1 };
 export function parseChord(text) {
-  const m = /^(VII|VI|V|IV|III|II|I)(m|dim)?$/.exec(text);
+  const m = /^([♯#♭b]?)(VII|VI|V|IV|III|II|I)(m|dim)?$/.exec(text);
   if (!m) throw new Error(`和音の書き方が読めません：${text}`);
-  return { degree: ROMAN.indexOf(m[1]), quality: m[2] === 'm' ? 'minor' : m[2] === 'dim' ? 'diminished' : 'major' };
+  return { degree: ROMAN.indexOf(m[2]), quality: m[3] === 'm' ? 'minor' : m[3] === 'dim' ? 'diminished' : 'major', shift: ACCIDENTAL[m[1]] };
 }
 
 // キー（0＝C … 11＝B）と度数から、その音名（0〜11）
@@ -31,12 +33,24 @@ export function spellDegree(key, degree) {
   return LETTERS[letter] + accidental(shift);
 }
 
-// 度数の書き方（I、IIIm、IVmaj7、VIm7 など）を、キーのコードネームにする（例：キー C の IVmaj7 → Fmaj7）
-export function chordName(label, key) {
-  const m = /^(VII|VI|V|IV|III|II|I)(|m|dim|maj7|m7|7)$/.exec(label);
-  if (!m) throw new Error(`和音の書き方が読めません：${label}`);
-  return spellDegree(key, ROMAN.indexOf(m[1])) + m[2];
+// 度数の音名に ♯・♭ を足して綴る（例：キーC の ♯V → G♯）
+function spellShifted(key, degree, shift) {
+  const letter = (LETTERS.indexOf(KEY_SPELL[key][0]) + degree) % 7;
+  const pc = (degreePc(key, degree) + shift + 12) % 12;
+  return LETTERS[letter] + accidental(((pc - NATURAL[letter] + 18) % 12) - 6);
 }
+
+// 度数の書き方を、キーのコードネームにする（例：キー C の IVmaj7 → Fmaj7、V/VII → G/B、VIIm7(♭5) → Bm7(♭5)、♯Vdim → G♯dim）
+const LABEL = /^([♯#♭b]?)(VII|VI|V|IV|III|II|I)(|m|dim|maj7|m7|7|m7\(♭5\))(?:\/([♯#♭b]?)(VII|VI|V|IV|III|II|I))?$/;
+export function chordName(label, key) {
+  const m = LABEL.exec(label);
+  if (!m) throw new Error(`和音の書き方が読めません：${label}`);
+  const name = spellShifted(key, ROMAN.indexOf(m[2]), ACCIDENTAL[m[1]]) + m[3];
+  return m[5] ? `${name}/${spellShifted(key, ROMAN.indexOf(m[5]), ACCIDENTAL[m[4]])}` : name;
+}
+
+// 画面に出すキー：長調はそのまま（B♭）、短調は平行調の短調（キー B♭ の短調は Gm。2026-11-14）
+export const keyLabel = (key, mode = 'major') => (mode === 'minor' ? `${spellDegree(key, 5)}m` : keyName(key));
 
 // キーの調号：♯・♭の数（♯が正、♭が負）と、文字ごとの変化（C D E F G A B の順に −1・0・1）
 const KEY_FIFTHS = [0, -5, 2, -3, 4, -1, 6, 1, -4, 3, -2, 5];
