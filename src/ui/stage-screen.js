@@ -35,7 +35,7 @@ function el(tag, attrs = {}, ...children) {
 }
 
 export function createStageScreen({ audio, onTitle }) {
-  const s = { focus: null, lastMusic: null, play: null, busy: false, carryOver: false, msg: null, playingBar: -1, heard: false, result: null, check: new URLSearchParams(location.search).has('check') };
+  const s = { songTimbre: SONG_TIMBRE, tapMode: 'second', lastTap: null, focus: null, lastMusic: null, play: null, busy: false, carryOver: false, msg: null, playingBar: -1, heard: false, result: null, check: new URLSearchParams(location.search).has('check') };
   const svgRoot = $('tri');
 
   const play = () => s.play;
@@ -174,8 +174,10 @@ export function createStageScreen({ audio, onTitle }) {
     $('sticks').replaceChildren(...p.stage.sticks.map((l, i) => {
       const order = p.selected.indexOf(i), focused = s.focus === i;
       // 選んでいる棒には、もう一度タップしたら何が起きるかを書く（選ぶ → 使う／外す の2段階。2026-11-14 発案者）
-      const act = !focused ? '' : order >= 0 ? 'もう一度で外す' : p.selected.length === 3 ? '先に1本外す' : 'もう一度で使う';
-      const b = el('button', { type: 'button', class: ['stick', order >= 0 && 'sel', focused && 'focus'].filter(Boolean).join(' '), 'aria-pressed': String(order >= 0), 'data-i': i, 'aria-label': `長さ ${formatLength(l)} の棒${order >= 0 ? '（使っている）' : ''}${act ? `。${act}` : ''}` },
+      // 選んでいる棒には、次に起きることを短い札で出す。使う＝金色、外す＝赤みのある色（2026-11-14 発案者）
+      const intent = !focused ? '' : order >= 0 ? 'remove' : p.selected.length === 3 ? 'full' : 'use';
+      const act = { remove: '外す', full: '先に外す', use: '使う' }[intent] ?? '';
+      const b = el('button', { type: 'button', class: ['stick', order >= 0 && 'sel', focused && 'focus', intent && `to-${intent}`].filter(Boolean).join(' '), 'aria-pressed': String(order >= 0), 'data-i': i, 'aria-label': `長さ ${formatLength(l)} の棒${order >= 0 ? '（使っている）' : ''}${act ? `。${act}` : ''}` },
         el('span', { class: 'num' }, formatLength(l)),
         el('span', { class: 'bar', style: `width:${(lengthValue(l) / STAGE_RULES.maxLength) * 100}%;background:${lenColor(l)}` }),
         act ? el('span', { class: 'act' }, act) : '',
@@ -224,6 +226,8 @@ export function createStageScreen({ audio, onTitle }) {
     if (p.lit.size === BARS) info.replaceChildren(el('b', {}, songTitle()), ...lines(0, BARS - 1));
     else if (n >= PHRASE) info.replaceChildren(`キー ${keyText()}。ここまで（曲名は8つの星がそろうと分かります）`, ...lines(0, n - 1));
     else info.textContent = '4つの星を灯すと、フレーズが聴けます。';
+    for (const b of document.querySelectorAll('[data-song-timbre]')) b.classList.toggle('on', b.dataset.songTimbre === s.songTimbre);
+    for (const b of document.querySelectorAll('[data-tap-mode]')) b.classList.toggle('on', b.dataset.tapMode === s.tapMode);
     $('carry-off').classList.toggle('on', !s.carryOver);
     $('carry-on').classList.toggle('on', s.carryOver);
     $('found').replaceChildren(...Object.entries(DISCOVERY_TEXT).map(([id, d]) => p.found.has(id)
@@ -289,7 +293,7 @@ export function createStageScreen({ audio, onTitle }) {
     s.lastMusic = { from, to, title };
     showStaff(from, to);
     audio.playScore(buildScore(p.run.stages, from, to, { carryOver: s.carryOver }), {
-      chordTimbre: TIMBRES[SONG_TIMBRE],
+      chordTimbre: TIMBRES[s.songTimbre],
       bassTimbre: TIMBRES[BASS_TIMBRE],
       onBar: bar => {
         s.playingBar = bar;
@@ -426,18 +430,27 @@ export function createStageScreen({ audio, onTitle }) {
     const b = e.target.closest('.stick');
     if (!b || s.busy || play().finished || play().awaitingNext) return;
     const i = Number(b.dataset.i), p = play();
-    const used = p.selected.includes(i);
-    // 1回目のタップ：選ぶ（音を鳴らし、もう一度タップで何が起きるかを書く）
-    if (s.focus !== i) {
+    const used = p.selected.includes(i), full = !used && p.selected.length === 3;
+    // 棒の操作は2通りを比べられる（2026-11-14 発案者）。
+    // second：1回目で選ぶ、2回目（間があいてもよい）で使う・外す。double：1回は選ぶ（音を聞く）だけ、素早い2回で使う・外す
+    const now = performance.now();
+    const quick = s.lastTap && s.lastTap.i === i && now - s.lastTap.t < 350;
+    s.lastTap = { i, t: now };
+    const act = s.tapMode === 'double' ? quick : s.focus === i;
+    if (!act) {
       s.focus = i;
-      s.msg = null;
       audio.pluck(hz(p.stage.sticks[i]), p.sustain, timbre());
+      const how = s.tapMode === 'double' ? 'ダブルタップ' : 'もう一度タップ';
+      s.msg = full ? { text: '3本そろっています。先に外す棒を選んでください。', kind: 'warn' }
+        : { text: `${formatLength(p.stage.sticks[i])} を選んでいます。${how}で${used ? '外します' : '使います'}。`, kind: '' };
       renderSticks();
-      if (!used && p.selected.length === 3) guide(usedTiles()); // そろっているときは、先に外す棒へ導く
+      renderStatus();
+      if (full) guide(usedTiles()); // そろっているときは、先に外す棒へ導く
       return;
     }
-    // 2回目のタップ：使う・外す。3本そろっているときは勝手に入れ替えない
-    if (!used && p.selected.length === 3) { guide(usedTiles()); return; }
+    s.lastTap = null;
+    // 使う・外す。3本そろっているときは勝手に入れ替えない
+    if (full) { guide(usedTiles()); return; }
     hideStaff();
     if (used) p.remove(i); else p.use(i);
     s.focus = null;
@@ -574,6 +587,8 @@ export function createStageScreen({ audio, onTitle }) {
     closeSheet();
     playMusic(0, n - 1, n === BARS ? songTitle() : `キー ${keyText()}`);
   });
+  $('song-timbres').addEventListener('click', e => { const b = e.target.closest('[data-song-timbre]'); if (b) { s.songTimbre = b.dataset.songTimbre; renderSheet(); } });
+  $('tap-modes').addEventListener('click', e => { const b = e.target.closest('[data-tap-mode]'); if (b) { s.tapMode = b.dataset.tapMode; s.focus = null; s.lastTap = null; renderSheet(); renderSticks(); } });
   $('carry-off').addEventListener('click', () => { s.carryOver = false; renderSheet(); });
   $('carry-on').addEventListener('click', () => { s.carryOver = true; renderSheet(); });
   $('meter-on').addEventListener('click', () => { play().setMeterToggle(true); renderAll(); renderSheet(); });

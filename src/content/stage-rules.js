@@ -12,6 +12,8 @@ export const STAGE_RULES = Object.freeze({
   maxOffsetCents: 20,
   // 三角形の最低音の音域（MIDI 50〜61 ＝ D3〜C♯4）。試作の値
   lowMidi: Object.freeze([50, 61]),
+  // 三角形のトップノート（一番高い音）の上限：C5（MIDI 72）。2026-11-14 発案者（高すぎてキツく聞こえたため）
+  maxTopMidi: 72,
   // ベースラインの音域（MIDI 36〜47 ＝ C2〜B2）。試作の値
   bassMidi: Object.freeze([36, 47]),
   // おとりの棒で「同じ和音に聞こえる別の三角形」を作らせない範囲（設計メモ5章）。

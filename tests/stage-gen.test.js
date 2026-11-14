@@ -54,6 +54,8 @@ function checkStage(stage, { key, decoys, where }) {
     const octaves = Math.log2(fr / midiToHz(stage.bassMidi));
     assert.ok(Math.abs(octaves - Math.round(octaves)) < 1e-9, `${where} ベースと根音のオクターヴ`);
   }
+  // トップノート（三角形の一番高い音）は C5（MIDI 72）以下（2026-11-14 発案者）
+  assert.ok(stage.topMidi <= STAGE_RULES.maxTopMidi, `${where} トップノート ${stage.topMidi}`);
   // ベース：小節のベースの度数どおりの音名で、音域の中
   assert.equal(stage.bassMidi % 12, (degreePc(key, stage.bassDegree) + stage.bassShift + 12) % 12, where);
   assert.ok(stage.bassMidi >= STAGE_RULES.bassMidi[0] && stage.bassMidi <= STAGE_RULES.bassMidi[1], where);

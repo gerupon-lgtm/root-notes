@@ -8,9 +8,9 @@ import { PROGRESSIONS, SELECT_PLAY } from '../src/content/progressions.js';
 const run = buildRun(SELECT_PLAY); // カノン進行・キーC
 const names = col => col.chord.map(noteName);
 
-test('音符：キーC の1小節目（I、12·15·20、最低音 G3）はソ・ド・ミ、ベースは C', () => {
+test('音符：キーC の1小節目（I、15·20·24、第1転回形、最低音 E3）はミ・ソ・ド、ベースは C', () => {
   const col = staffColumn(run.stages[0], run.key);
-  assert.deepEqual(names(col), ['G3', 'C4', 'E4']);
+  assert.deepEqual(names(col), ['E3', 'G3', 'C4']);
   assert.equal(noteName(col.bass), 'C2');
   assert.equal(col.label, 'I');
   assert.equal(col.name, 'C');

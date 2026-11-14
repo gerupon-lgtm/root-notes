@@ -26,7 +26,8 @@ export function placeVoicing({ key, chord, voicing }) {
   const rootRel = (12 - TRIADS[chord.quality][voicing.inversion]) % 12;
   const at = semis.findIndex(x => x % 12 === rootRel);
   const rootLength = sides[at], rootMidi = lowMidi + semis[at];
-  return { lowMidi, rootMidi, rootLength, K: midiToHz(rootMidi) * lengthValue(rootLength) };
+  const topMidi = lowMidi + semis[0]; // 一番高い音（一番短い辺）に一番近い平均律の音
+  return { lowMidi, rootMidi, rootLength, topMidi, K: midiToHz(rootMidi) * lengthValue(rootLength) };
 }
 
 // 正解の最低音を基準にした、その長さの音名（0〜11）。平均律からのずれが上限を超える音は null
@@ -86,16 +87,17 @@ export function buildRun({ progression, key, seed, decoys }) {
   const stages = Array.from({ length: BARS }, (_, bar) => {
     const entry = prog.chords[bar % prog.chords.length];
     const chord = Object.freeze(parseChord(entry.chord));
-    const options = pureTriangles().filter(v => v.quality === chord.quality);
+    // その和音に合う三角形のうち、置いたときにトップノートが上限（C5）を超えないもの
+    const options = pureTriangles().filter(v => v.quality === chord.quality && placeVoicing({ key, chord, voicing: v }).topMidi <= STAGE_RULES.maxTopMidi);
     if (!options.length) throw new Error(`${entry.chord} に合う三角形がありません。`);
     const voicing = pickOne(options, rng);
-    const { lowMidi, rootMidi, rootLength, K } = placeVoicing({ key, chord, voicing });
+    const { lowMidi, rootMidi, rootLength, topMidi, K } = placeVoicing({ key, chord, voicing });
     const bass = entry.bass ? parseChord(entry.bass) : chord;
     const bassDegree = bass.degree, bassShift = bass.shift ?? 0;
     const bassMidi = midiInRange((degreePc(key, bassDegree) + bassShift + 12) % 12, STAGE_RULES.bassMidi);
     const sticks = chooseSticks(voicing.target, decoys, rng);
     // label は画面に出す度数（短調の進行は短調の度数）、chordName はキーのコードネーム
-    return Object.freeze({ bar, label: entry.display ?? entry.label, chordName: chordName(entry.label, key), chord, bassDegree, bassShift, target: voicing.target, inversion: voicing.inversion, lowMidi, rootMidi, rootLength, K, bassMidi, sticks });
+    return Object.freeze({ bar, label: entry.display ?? entry.label, chordName: chordName(entry.label, key), chord, bassDegree, bassShift, target: voicing.target, inversion: voicing.inversion, lowMidi, rootMidi, rootLength, topMidi, K, bassMidi, sticks });
   });
   return Object.freeze({ progression: Object.freeze({ id: prog.id, name: prog.name, mode: prog.mode ?? 'major' }), key, seed, decoys, stages: Object.freeze(stages) });
 }

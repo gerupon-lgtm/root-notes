@@ -296,5 +296,13 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .result-toast p.first-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* 選んでいる棒（選ぶ → もう一度タップで使う／外す。2026-11-14 発案者） */
-.stick.focus { border-color: var(--ink); box-shadow: 0 0 0 2px var(--gold) inset; }
-.stick .act { font-size: 0.66rem; font-weight: 700; color: var(--gold); line-height: 1.15; white-space: nowrap; }
+.sticks { touch-action: manipulation; } /* ダブルタップで画面が拡大されないように */
+.stick .act { position: absolute; right: 6px; bottom: 6px; font-size: 0.72rem; font-weight: 700; line-height: 1; padding: 4px 7px; border-radius: 999px; white-space: nowrap; }
+/* 使う＝金色、外す＝赤みのある色、そろっている＝灰色（2026-11-14 発案者：使うときと外すときで色を変える） */
+.stick.to-use { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold) inset; }
+.stick.to-use .act { background: var(--gold); color: #1a1405; }
+.stick.to-remove { border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn) inset; }
+.stick.to-remove .act { background: var(--warn); color: #2a0d08; }
+.stick.to-full { border-color: var(--mute); box-shadow: 0 0 0 2px var(--mute) inset; }
+.stick.to-full .act { background: var(--line); color: var(--ink); }
+.seg.seg3 { grid-template-columns: 1fr 1fr 1fr; }
