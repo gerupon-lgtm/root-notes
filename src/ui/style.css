@@ -151,6 +151,15 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   40% { background: var(--panel); box-shadow: 0 0 0 1px var(--gold) inset; }
   67%, 84% { background: color-mix(in srgb, var(--gold) 55%, var(--panel)); box-shadow: 0 0 18px var(--gold); }
 }
+
+/* 導線：次に触る所を2回光らせる（stage-screen.js の guide）。棒の並び・三角形・ボタンに使う */
+.flash { animation: flash 1.75s ease 1 both; }
+.sticks { border-radius: 14px; }
+@keyframes flash {
+  0%, 40%, 60%, 100% { box-shadow: 0 0 0 0 transparent; }
+  7%, 24%, 67%, 84% { box-shadow: 0 0 0 3px var(--gold), 0 0 22px var(--gold); }
+}
+.result-toast p.sub-line { color: var(--mute); font-size: 0.84rem; font-variant-numeric: tabular-nums; }
 /* 結果のトースト（位置と高さの上限は stage-screen.js が操作欄に合わせて決める） */
 .result-toast { position: fixed; z-index: 15; display: flex; flex-direction: column; gap: 10px; padding: 14px 14px 12px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); overflow-y: auto; animation: toast-in 0.2s ease-out; }
 .result-toast.ok { border-color: var(--ok); }
@@ -249,6 +258,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .toast.show { opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
-  .side.ring, .shake, .btn.cue, .result-toast { animation: none; }
+  .side.ring, .shake, .btn.cue, .result-toast, .flash { animation: none; }
+  .flash { box-shadow: 0 0 0 3px var(--gold); }
   #tri-fill, .toast { transition: none; }
 }

@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { closes, formatLength } from '../src/core/length.js';
 import { pureTriangles } from '../src/core/voicing.js';
-import { parseChord, degreePc, midiToHz, keyName } from '../src/core/harmony.js';
+import { parseChord, degreePc, midiToHz, keyName, chordName } from '../src/core/harmony.js';
 import { mulberry32, shuffle } from '../src/core/random.js';
 
 const names = list => list.map(v => v.target.map(formatLength).join('·'));
@@ -74,4 +74,29 @@ test('乱数：同じ種なら同じ並び。値は0以上1未満', () => {
   assert.notDeepEqual(xs, Array.from({ length: 50 }, mulberry32(1)));
   const s = shuffle([1, 2, 3, 4, 5, 6], mulberry32(7));
   assert.deepEqual([...s].sort(), [1, 2, 3, 4, 5, 6]);
+});
+
+test('コードネーム：度数をキーのコードネームにする（キー C）', () => {
+  const names = ['I', 'IIIm', 'IV', 'V', 'VIm', 'III', 'IVmaj7', 'IIIm7', 'VIm7'].map(l => chordName(l, 0));
+  assert.deepEqual(names, ['C', 'Em', 'F', 'G', 'Am', 'E', 'Fmaj7', 'Em7', 'Am7']);
+});
+
+test('コードネーム：キーに合わせて正しく綴る（同じ高さでも、キーの音階の文字で書く）', () => {
+  assert.equal(chordName('V', 10), 'F'); // キー B♭
+  assert.equal(chordName('VIm', 10), 'Gm');
+  assert.equal(chordName('IV', 1), 'G♭'); // キー D♭
+  assert.equal(chordName('IIIm', 4), 'G♯m'); // キー E
+  assert.equal(chordName('VII', 6), 'E♯'); // キー F♯ の VII は F ではなく E♯
+  assert.equal(chordName('IIIm', 6), 'A♯m');
+  assert.equal(chordName('III', 8), 'C'); // キー A♭ の III
+  assert.throws(() => chordName('VIII', 0), /読めません/);
+});
+
+test('キーの名前：12キーはよく使う綴り（C♯ でなく D♭）', () => {
+  assert.deepEqual(Array.from({ length: 12 }, (_, k) => keyName(k)), ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B']);
+});
+
+test('コードネーム：進行に出てくる書き方は、12キーすべてで綴れる', async () => {
+  const { PROGRESSIONS } = await import('../src/content/progressions.js');
+  for (const p of PROGRESSIONS) for (const c of p.chords) for (let key = 0; key < 12; key++) assert.match(chordName(c.label, key), /^[A-G][♯♭]{0,2}/);
 });
