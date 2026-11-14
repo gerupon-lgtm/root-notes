@@ -20,6 +20,9 @@ const triples = xs => {
   return out;
 };
 const show = ls => ls.map(formatLength).join('·');
+// 正解以外で、純正な三角形（閉じる・三和音・純正さ・広がりの条件を満たす）になる3本の数
+const pureKeys = new Set(pureTriangles({ maxOffsetCents: Infinity }).map(v => v.target.map(l => l.n).join()));
+const lookalikes = (sticks, target) => triples(sticks).filter(t => !sameLengths(t, target) && pureKeys.has(sortLengths(t).map(l => l.n).join())).length;
 
 function checkStage(stage, { key, decoys, where }) {
   const { sticks, target, K } = stage;
@@ -54,6 +57,12 @@ function checkStage(stage, { key, decoys, where }) {
     const octaves = Math.log2(fr / midiToHz(stage.bassMidi));
     assert.ok(Math.abs(octaves - Math.round(octaves)) < 1e-9, `${where} ベースと根音のオクターヴ`);
   }
+  // 並び：棒を見せる順は混ぜてある（短い順の隣り合いで正解が分からないように。2026-11-14 発案者）
+  assert.deepEqual([...stage.order].sort((x, y) => x - y), sticks.map((_, i) => i), `${where} 並び`);
+  const pos = target.map(t => stage.order.indexOf(sticks.findIndex(x => x.n === t.n))).sort((x, y) => x - y);
+  assert.ok(pos[2] - pos[0] > 2, `${where} 正解の3本が隣り合って見える`);
+  // ひっかけ：正解とは別に、純正な三角形が棒の中に少なくとも1つある（数字のパターンだけでは決められないように）
+  assert.ok(lookalikes(sticks, target) >= 1, `${where} ひっかけの三角形がない`);
   // トップノート（三角形の一番高い音）は C5（MIDI 72）以下（2026-11-14 発案者）
   assert.ok(stage.topMidi <= STAGE_RULES.maxTopMidi, `${where} トップノート ${stage.topMidi}`);
   // ベース：小節のベースの度数どおりの音名で、音域の中

@@ -70,7 +70,19 @@ function chooseSticks(target, count, rng) {
   for (let n = minLength; n <= maxLength; n++) if (!used.has(n)) pool.push(len(n));
   if (!Number.isInteger(count) || count < 0 || count > pool.length) throw new Error(`おとりの本数は0〜${pool.length}本にしてください：${count}`);
   const sticks = [...target];
-  for (const candidate of shuffle(pool, rng)) {
+  // ひっかけ：正解とは別の純正な三角形（響きの違う和音）を、少なくとも1つ作れるようにする。
+  // 数字のパターン（4·5·6 など）や並びだけでは決められず、音を聞いて選ぶようにするため（2026-11-14 発案者）。
+  // 同じ音名の組の三角形は作らない決まり（B案）を守るので、ひっかけは必ず響きが違う。足す棒が少ないものを優先する
+  const have = new Set(target.map(l => l.n));
+  const plans = shuffle(pureTriangles().filter(v => !sameLengths(v.target, target)), rng)
+    .map(v => v.target.filter(l => !have.has(l.n)))
+    .filter(add => add.length >= 1 && add.length <= count)
+    .sort((a, b) => a.length - b.length);
+  for (const add of plans) {
+    const trial = [...sticks, ...add];
+    if (soundAlikes(trial, target, STAGE_RULES.avoidSoundAlike).length === 0) { sticks.push(...add); break; }
+  }
+  for (const candidate of shuffle(pool.filter(l => !sticks.some(x => x.n === l.n)), rng)) {
     if (sticks.length === target.length + count) break;
     const trial = [...sticks, candidate];
     if (soundAlikes(trial, target, STAGE_RULES.avoidSoundAlike, { mustInclude: candidate }).length === 0) sticks.push(candidate);
@@ -96,8 +108,15 @@ export function buildRun({ progression, key, seed, decoys }) {
     const bassDegree = bass.degree, bassShift = bass.shift ?? 0;
     const bassMidi = midiInRange((degreePc(key, bassDegree) + bassShift + 12) % 12, STAGE_RULES.bassMidi);
     const sticks = chooseSticks(voicing.target, decoys, rng);
+    // 棒を見せる並び（短い順の番号を混ぜたもの）。隣り合う3本で正解が分からないように（2026-11-14 発案者）。
+    // 偶然でも正解の3本が隣り合って見えると並びで分かると感じさせるので、そのときは混ぜ直す
+    const answerAt = voicing.target.map(t => sticks.findIndex(x => x.n === t.n));
+    const together = ord => { const pos = answerAt.map(i => ord.indexOf(i)).sort((x, y) => x - y); return pos[2] - pos[0] === 2; };
+    let shuffled = shuffle(sticks.map((_, i) => i), rng);
+    for (let tries = 0; tries < 30 && together(shuffled); tries++) shuffled = shuffle(shuffled, rng);
+    const order = Object.freeze(shuffled);
     // label は画面に出す度数（短調の進行は短調の度数）、chordName はキーのコードネーム
-    return Object.freeze({ bar, label: entry.display ?? entry.label, chordName: chordName(entry.label, key), chord, bassDegree, bassShift, target: voicing.target, inversion: voicing.inversion, lowMidi, rootMidi, rootLength, topMidi, K, bassMidi, sticks });
+    return Object.freeze({ bar, label: entry.display ?? entry.label, chordName: chordName(entry.label, key), chord, bassDegree, bassShift, target: voicing.target, inversion: voicing.inversion, lowMidi, rootMidi, rootLength, topMidi, K, bassMidi, sticks, order });
   });
   return Object.freeze({ progression: Object.freeze({ id: prog.id, name: prog.name, mode: prog.mode ?? 'major' }), key, seed, decoys, stages: Object.freeze(stages) });
 }

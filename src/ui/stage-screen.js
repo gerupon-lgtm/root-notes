@@ -171,7 +171,10 @@ export function createStageScreen({ audio, onTitle }) {
 
   function renderSticks() {
     const p = play();
-    $('sticks').replaceChildren(...p.stage.sticks.map((l, i) => {
+    // 棒は、ステージが決めた混ぜた並び（order）で見せる。i は短い順の番号のまま
+    const shownOrder = p.stage.order ?? p.stage.sticks.map((_, k) => k);
+    $('sticks').replaceChildren(...shownOrder.map(i => {
+      const l = p.stage.sticks[i];
       const order = p.selected.indexOf(i), focused = s.focus === i;
       // 選んでいる棒には、もう一度タップしたら何が起きるかを書く（選ぶ → 使う／外す の2段階。2026-11-14 発案者）
       // 選んでいる棒には、次に起きることを短い札で出す。使う＝金色、外す＝赤みのある色（2026-11-14 発案者）
