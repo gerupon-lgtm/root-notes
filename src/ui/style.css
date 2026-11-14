@@ -77,12 +77,14 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .title-symbol-space { width: min(380px, 100%); height: clamp(42px, 13vh, 112px); }
 .title-menu { width: min(430px, 100%); justify-self: center; text-align: center; }
 .title-buttons { display: grid; gap: 8px; width: 100%; }
+/* PRISM と同じ順。補助の入口を同じ段にまとめ、背景が見える高さを確保する。 */
+.title-links { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
 .title-menu button, .title-help summary { display: flex; align-items: center; justify-content: center; width: 100%; height: 44px; min-height: 44px; padding: 1px 6px; border-radius: 9px; border: 1px solid #c2b697; background: #062522ed; color: #f2e9d8; font: 500 15px/1.45 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif; cursor: pointer; white-space: nowrap; }
 .title-menu button.big { background: linear-gradient(110deg, #ecd083, #c8a556); border-color: #dcc28c; color: #18231c; }
 .title-menu .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .title-menu .pair button { height: 48px; }
 .title .foot { position: static; display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 12px; margin: 8px auto 0; padding: 4px 8px; width: max-content; max-width: 100%; border-radius: 7px; background: #041d1cc7; font-size: 11px; color: #cfccb9; }
-.title-help { position: relative; }
+.title-help { position: static; } /* 説明は title-links 全幅で開き、半幅に押し込まない。 */
 .title-help summary { list-style: none; }
 .title-help summary::-webkit-details-marker { display: none; }
 .title-help summary:focus-visible { outline: 2px solid var(--title-gold); outline-offset: 2px; }
