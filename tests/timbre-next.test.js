@@ -100,3 +100,20 @@ test('選択プレイ：次の星は、今より後ろでまだ灯っていな�
   assert.equal(p.nextBar(), null); // 全部灯った
   assert.equal(p.awaitingNext, false); // 選択プレイは待たない
 });
+
+test('音：鳴らし続ける音（第1章）は、鳴らしながら高さを変えられ、止められる', () => {
+  const ctx = fakeAudioContext();
+  const made = [];
+  const create = ctx.createOscillator.bind(ctx);
+  ctx.createOscillator = () => { const o = create(); made.push(o); return o; };
+  const audio = new StringAudio({ createContext: () => ctx });
+  audio.unlock();
+  const v = audio.hold(196, TIMBRES.organ);
+  assert.ok(made[0].stoppedAt > 3000); // 止めるまで鳴る
+  v.setHz(294);
+  assert.equal(v.hz, 294);
+  v.stop();
+  assert.ok(made.every(o => o.stoppedAt < 1));
+  v.setHz(300); // 止めたあとは何もしない
+  assert.equal(v.hz, 294);
+});

@@ -73,9 +73,10 @@ export class StringAudio {
     if (t.carrier === 'organ') carrier.setPeriodicWave(this.#organWave(t.ranks));
     else carrier.type = t.carrier === 'saw' || t.wave === 'sawtooth' ? 'sawtooth' : 'sine';
     carrier.frequency.setValueAtTime(hz, start);
+    let mod = null, depth = null, filter = null;
     if (t.ratio) {
       // FM：変調の深さ（周波数の揺れ幅）＝ 変調波の高さ × index。modDecay の時定数で indexSustain の割合まで減る（twist と同じ式）
-      const mod = ctx.createOscillator(), depth = ctx.createGain();
+      mod = ctx.createOscillator(); depth = ctx.createGain();
       const modHz = hz * t.ratio;
       mod.type = 'sine';
       mod.frequency.setValueAtTime(modHz, start);
@@ -87,7 +88,7 @@ export class StringAudio {
     let out = carrier;
     if (t.cutoff) {
       // 高音を削る（koekit の strings と同じ：最初は cutoff 倍、cutoffDecay の時定数で cutoffFloor 倍へ）
-      const filter = ctx.createBiquadFilter();
+      filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
       filter.Q.value = 0.55;
       filter.frequency.setValueAtTime(hz * t.cutoff, start);
@@ -105,6 +106,18 @@ export class StringAudio {
     for (const o of oscillators) { o.start(start); o.stop(end); }
     const handle = {
       hz, start, end, stopped: false,
+      // 鳴らしながら高さを変える（第1章の駒・微調整。15ミリ秒ほどでなめらかに移る）
+      setHz: next => {
+        if (handle.stopped) return;
+        const now = ctx.currentTime;
+        carrier.frequency.setTargetAtTime(next, now, 0.015);
+        if (mod) {
+          mod.frequency.setTargetAtTime(next * t.ratio, now, 0.015);
+          depth.gain.setTargetAtTime(next * t.ratio * t.index * t.indexSustain, now, 0.015);
+        }
+        if (filter) filter.frequency.setTargetAtTime(next * t.cutoffFloor, now, 0.015);
+        handle.hz = next;
+      },
       stop: (fade = STOP_FADE) => {
         if (handle.stopped) return;
         handle.stopped = true;
@@ -128,6 +141,12 @@ export class StringAudio {
     if (!this.ctx) return null;
     if (sustain === 'cut') for (const v of [...this.plucks]) v.stop();
     return this.#voice(hz, this.now + 0.01, { timbre, duration: 1.1, level: 1, family: this.plucks });
+  }
+
+  // 鳴らし続ける音（第1章の「重ねて鳴らす」）。止めるまで鳴る。handle.setHz で高さを変え、handle.stop で止める
+  hold(hz, timbre, { level = 0.6 } = {}) {
+    if (!this.ctx) return null;
+    return this.#voice(hz, this.now + 0.02, { timbre, duration: 3600, level, family: this.others });
   }
 
   // 和音を低い順にジャランと鳴らす

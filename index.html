@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ROOT NOTES</title>
-<meta name="theme-color" content="#0b1020">
+<meta name="theme-color" content="#062522">
 <link rel="stylesheet" href="./src/ui/style.css">
 </head>
 <body>
-<!-- タイトル。絵・書体・配置は仮（A区分。Codex の絵が採用されてから決める） -->
+<!-- タイトル。B案「響きの工房」（発案者が採用済み。Codex 作。2026-11-14） -->
 <main class="title" id="title-screen" aria-label="ルート・ノーツのタイトル">
   <picture class="title-background" aria-hidden="true">
     <source id="title-short-landscape-art" media="(min-aspect-ratio: 1/1) and (max-height: 360px)">
@@ -100,6 +100,44 @@
     <button type="button" class="btn primary" id="b-answer">回答する</button>
   </div>
 </div>
+
+<!-- 第1章「一弦の琴」（段階4）。並びは遊ぶ画面と同じ（縦は1列、横は左に琴・右に操作の2列） -->
+<div class="app mono" id="mono-screen" hidden>
+  <header class="head">
+    <h1 class="brand">第1章 一弦の琴</h1>
+    <span class="chip" id="mono-mode"></span>
+    <button type="button" class="chip" id="mono-title">タイトルへ</button>
+  </header>
+  <nav class="stars five" id="mono-stars" aria-label="第1章の5つの星"></nav>
+  <div class="sub"><span id="mono-where"></span><span id="mono-count"></span></div>
+  <section class="board" aria-label="一弦の琴">
+    <svg id="lyre" viewBox="0 0 320 210" preserveAspectRatio="xMidYMid meet" role="img" aria-label="一弦の琴。金色の駒を左右に動かすと、駒の左側の弦の長さが変わる。駒の左側をタップすると弦をはじく"></svg>
+    <div class="status">
+      <div class="meter mono-meter" id="mono-meter"><span class="dot" id="mono-dot"></span><span id="mono-beat"></span><span class="holdbar" aria-hidden="true"><i id="mono-hold"></i></span></div>
+      <p id="mono-msg" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+  <div class="sticks tune" aria-label="微調整">
+    <button type="button" class="btn nudge" id="mono-left" aria-label="駒を少し左へ（弦を少し短く）">◀<br>少し短く</button>
+    <div class="knobwrap"><svg id="knob" viewBox="0 0 100 100" role="slider" aria-label="微調整つまみ。回すと駒がゆっくり動く" tabindex="0"></svg><span>微調整つまみ</span></div>
+    <button type="button" class="btn nudge" id="mono-right" aria-label="駒を少し右へ（弦を少し長く）">▶<br>少し長く</button>
+  </div>
+  <div class="actions" id="mono-actions">
+    <button type="button" class="btn" id="mono-target">お題を<br>聞く</button>
+    <button type="button" class="btn" id="mono-pluck">弦を<br>はじく</button>
+    <button type="button" class="btn" id="mono-meter-toggle" aria-pressed="true">メーター</button>
+    <button type="button" class="btn primary" id="mono-drone">重ねて<br>鳴らす</button>
+  </div>
+  <div class="actions" id="mono-end" hidden>
+    <button type="button" class="btn" id="mono-end-title">タイトルへ</button>
+    <button type="button" class="btn primary" id="mono-next">次へ ▶</button>
+  </div>
+</div>
+
+<!-- 章の間の画面（序・章選び・まだ中身のない場面）。中身は src/ui/flow-screen.js が差し込む -->
+<main class="interlude" id="interlude-screen" hidden>
+  <div class="interlude-card" id="interlude-card"></div>
+</main>
 
 <!-- 引き出し（遊び方・曲・発見の巻物・設定） -->
 <div class="sheet" id="sheet" hidden>

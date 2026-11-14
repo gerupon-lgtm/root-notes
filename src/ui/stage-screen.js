@@ -326,7 +326,10 @@ export function createStageScreen({ audio, onTitle }) {
         ? [p.run.progression.name, ...progressionLines(0, BARS - 1)]
         : [`${bar}小節目は ${label} ＝ ${p.stage.chordName}`,
            ...(phrase ? [`フレーズ${r.music.from / PHRASE + 1}がそろいました`, ...progressionLines(r.music.from, r.music.to)] : [])];
-      if (p.mode.continuous) buttons = bar === BARS ? [['restart', '新しい曲で遊ぶ', true], ['title', 'タイトルへ']] : [['next', '次の星へ ▶', true]];
+      // 章の流れ（連続プレイ）の中では、8つの星がそろったら次の場面へ（段階4。src/ui/flow-screen.js）
+      if (p.mode.continuous) buttons = bar !== BARS ? [['next', '次の星へ ▶', true]]
+        : s.onChapterEnd ? [['chapter-next', '次へ ▶', true], ['title', 'タイトルへ']]
+        : [['restart', '新しい曲で遊ぶ', true], ['title', 'タイトルへ']];
       else buttons = p.nextBar() === null ? [['close', '閉じる', true]] : [['next', '次の星へ ▶', true], ['close', 'この星に残る']];
     } else if (r.gameOver) {
       head = 'ゲームオーバー';
@@ -396,6 +399,7 @@ export function createStageScreen({ audio, onTitle }) {
     else if (act === 'replay') { closeResult(); replay(); return; }
     else if (act === 'restart') { closeResult(); start(play().mode.id); }
     else if (act === 'title') { closeResult(); audio.stopAll(); onTitle(); }
+    else if (act === 'chapter-next') { closeResult(); audio.stopAll(); s.onChapterEnd?.(); return; }
     else closeResult({ guideNext: true });
     renderAll();
   });
@@ -414,7 +418,10 @@ export function createStageScreen({ audio, onTitle }) {
   }
 
   // ---------- 操作 ----------
-  function start(modeId) {
+  // options：章の流れから始めるときに渡す（onChapterEnd：8つの星がそろって「次へ」を押したとき。null なら章の流れの外）。
+  // 画面の中からの始め直し（遊び方の切り替え・最初から）は options を渡さず、今の流れを保つ
+  function start(modeId, options) {
+    if (options) s.onChapterEnd = options.onChapterEnd ?? null;
     audio.stopAll();
     // 確認用：?check&prog=進行の記号 で、連続プレイをその進行で始める（実機で進行を試すため）
     const forced = s.check ? new URLSearchParams(location.search).get('prog') : null;
