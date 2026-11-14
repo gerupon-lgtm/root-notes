@@ -40,6 +40,7 @@
 #stage-screen .stick .ord { top: 6px; right: 8px; font-size: 11px; }
 #stage-screen .stick .act { right: 4px; bottom: 4px; padding: 3px 5px; font-size: 11px; }
 #stage-screen .actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.16fr); gap: 5px; }
+#stage-screen .actions:has(> #b-meter[hidden]) { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.16fr); }
 #stage-screen .actions .btn { min-width: 0; min-height: 0; border-radius: 8px; padding: 4px 2px; font-size: 12px; line-height: 1.4; }
 #stage-screen .actions .primary:not(:disabled) { background: #d9bb6b; }
 .play-foot { grid-area: foot; align-self: end; display: flex; justify-content: center; gap: 12px; color: var(--mute); font-size: 10px; line-height: 1.5; }
