@@ -36,13 +36,24 @@ function checkStage(stage, { key, decoys, where }) {
   const ch = chordOf(target);
   assert.equal(ch.quality, stage.chord.quality, where);
   assert.equal(ch.inversion, stage.inversion, where);
-  // 最低音：キー・度数・転回形どおりの音名で、音域の中。K で計算した最低音が平均律の周波数と一致
+  // 最低音：キー・度数・転回形どおりの音名で、音域の中
   const bassPc = (degreePc(key, stage.chord.degree) + stage.chord.shift + TRIAD_TONES[stage.chord.quality][stage.inversion] + 12) % 12;
   assert.equal(stage.lowMidi % 12, bassPc, `${where} 最低音の音名`);
   assert.ok(stage.lowMidi >= STAGE_RULES.lowMidi[0] && stage.lowMidi <= STAGE_RULES.lowMidi[1], where);
+  // 根音を平均律に置く（v0.16。要件5章「根音とベースラインは12平均律」）：K で計算した根音の周波数が平均律と一致。
+  // 最低音は平均律から20セント以内（譜面には一番近い平均律の音を書く）
+  const rootPc = (degreePc(key, stage.chord.degree) + stage.chord.shift + 12) % 12;
+  assert.equal(stage.rootMidi % 12, rootPc, `${where} 根音の音名`);
+  const fr = frequency(stage.rootLength, K), wantRoot = midiToHz(stage.rootMidi);
+  assert.ok(Math.abs(fr - wantRoot) / wantRoot < 1e-12, `${where} K（根音）`);
   const longest = sortLengths(target)[2];
-  const f = frequency(longest, K), want = midiToHz(stage.lowMidi);
-  assert.ok(Math.abs(f - want) / want < 1e-12, `${where} K`);
+  const lowCents = 1200 * Math.log2(frequency(longest, K) / midiToHz(stage.lowMidi));
+  assert.ok(Math.abs(lowCents) <= STAGE_RULES.maxOffsetCents + 1e-9, `${where} 最低音のずれ ${lowCents.toFixed(1)}セント`);
+  // ベースが根音のとき、ベースと三角形の根音はちょうどオクターヴ（うならない）
+  if (stage.bassDegree === stage.chord.degree && stage.bassShift === stage.chord.shift) {
+    const octaves = Math.log2(fr / midiToHz(stage.bassMidi));
+    assert.ok(Math.abs(octaves - Math.round(octaves)) < 1e-9, `${where} ベースと根音のオクターヴ`);
+  }
   // ベース：小節のベースの度数どおりの音名で、音域の中
   assert.equal(stage.bassMidi % 12, (degreePc(key, stage.bassDegree) + stage.bassShift + 12) % 12, where);
   assert.ok(stage.bassMidi >= STAGE_RULES.bassMidi[0] && stage.bassMidi <= STAGE_RULES.bassMidi[1], where);
@@ -72,15 +83,16 @@ test('機械検査：すべての進行 × 12キー × おとり3〜5本 × 種1
   assert.equal(count, PROGRESSIONS.length * 12 * 3 * SEEDS.length * BARS);
 });
 
-test('機械検査：すべての純正な三角形を、すべてのキーと度数に置いても、最低音と K が正しい', () => {
+test('機械検査：すべての純正な三角形を、すべてのキーと度数に置いても、最低音と根音と K が正しい', () => {
   for (const voicing of pureTriangles()) {
     for (let key = 0; key < 12; key++) {
       for (let degree = 0; degree < 7; degree++) {
         const placed = placeVoicing({ key, chord: { degree, quality: voicing.quality }, voicing });
         const bassPc = (degreePc(key, degree) + TRIAD_TONES[voicing.quality][voicing.inversion]) % 12;
         assert.equal(placed.lowMidi % 12, bassPc);
-        const f = frequency(voicing.target[2], placed.K), want = midiToHz(placed.lowMidi);
+        const f = frequency(placed.rootLength, placed.K), want = midiToHz(placed.rootMidi);
         assert.ok(Math.abs(f - want) / want < 1e-12);
+        assert.equal(placed.rootMidi % 12, degreePc(key, degree));
       }
     }
   }

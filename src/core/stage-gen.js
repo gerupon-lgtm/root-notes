@@ -12,12 +12,21 @@ import { STAGE_RULES } from '../content/stage-rules.js';
 // 音域 [low, high] の中で、その音名（0〜11）になるいちばん低い MIDI 番号
 const midiInRange = (pc, [low]) => low + (((pc - low) % 12) + 12) % 12;
 
-// 三角形をキーと和音に置く：最低音の MIDI 番号と、基準の音 K（f ＝ K ÷ 長さ。C-01）
+// 三角形をキーと和音に置く：最低音の MIDI 番号、根音の MIDI 番号と辺、基準の音 K（f ＝ K ÷ 長さ。C-01）。
+// 根音を平均律に置き、和音の中は根音から純正律で積む（v0.16。要件5章「根音とベースラインは12平均律」）。
+// 旧：最低音を平均律に置いていた。転回形では根音と5度が平均律から最大約16セントずれ、曲のベースとうなった（2026-11-14 発案者の実機テスト）
 export function placeVoicing({ key, chord, voicing }) {
-  const bassPc = (degreePc(key, chord.degree) + (chord.shift ?? 0) + TRIADS[chord.quality][voicing.inversion] + 12) % 12;
-  const lowMidi = midiInRange(bassPc, STAGE_RULES.lowMidi);
-  const longest = sortLengths(voicing.target)[2];
-  return { lowMidi, K: midiToHz(lowMidi) * lengthValue(longest) };
+  const shift = chord.shift ?? 0;
+  const bassPc = (degreePc(key, chord.degree) + shift + TRIADS[chord.quality][voicing.inversion] + 12) % 12;
+  const lowMidi = midiInRange(bassPc, STAGE_RULES.lowMidi); // 譜面と音域のための、最低音に一番近い平均律の音
+  const sides = sortLengths(voicing.target);
+  const longest = sides[2];
+  // 最低音から見た各辺の半音の数と、根音の辺
+  const semis = sides.map(l => Math.round(12 * Math.log2(lengthValue(longest) / lengthValue(l))));
+  const rootRel = (12 - TRIADS[chord.quality][voicing.inversion]) % 12;
+  const at = semis.findIndex(x => x % 12 === rootRel);
+  const rootLength = sides[at], rootMidi = lowMidi + semis[at];
+  return { lowMidi, rootMidi, rootLength, K: midiToHz(rootMidi) * lengthValue(rootLength) };
 }
 
 // 正解の最低音を基準にした、その長さの音名（0〜11）。平均律からのずれが上限を超える音は null
@@ -80,13 +89,13 @@ export function buildRun({ progression, key, seed, decoys }) {
     const options = pureTriangles().filter(v => v.quality === chord.quality);
     if (!options.length) throw new Error(`${entry.chord} に合う三角形がありません。`);
     const voicing = pickOne(options, rng);
-    const { lowMidi, K } = placeVoicing({ key, chord, voicing });
+    const { lowMidi, rootMidi, rootLength, K } = placeVoicing({ key, chord, voicing });
     const bass = entry.bass ? parseChord(entry.bass) : chord;
     const bassDegree = bass.degree, bassShift = bass.shift ?? 0;
     const bassMidi = midiInRange((degreePc(key, bassDegree) + bassShift + 12) % 12, STAGE_RULES.bassMidi);
     const sticks = chooseSticks(voicing.target, decoys, rng);
     // label は画面に出す度数（短調の進行は短調の度数）、chordName はキーのコードネーム
-    return Object.freeze({ bar, label: entry.display ?? entry.label, chordName: chordName(entry.label, key), chord, bassDegree, bassShift, target: voicing.target, inversion: voicing.inversion, lowMidi, K, bassMidi, sticks });
+    return Object.freeze({ bar, label: entry.display ?? entry.label, chordName: chordName(entry.label, key), chord, bassDegree, bassShift, target: voicing.target, inversion: voicing.inversion, lowMidi, rootMidi, rootLength, K, bassMidi, sticks });
   });
   return Object.freeze({ progression: Object.freeze({ id: prog.id, name: prog.name, mode: prog.mode ?? 'major' }), key, seed, decoys, stages: Object.freeze(stages) });
 }
