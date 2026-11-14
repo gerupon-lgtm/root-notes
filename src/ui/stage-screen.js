@@ -436,21 +436,18 @@ export function createStageScreen({ audio, onTitle }) {
     const used = p.selected.includes(i), full = !used && p.selected.length === 3;
     // 棒の操作は2通りを比べられる（2026-11-14 発案者）。
     // second：1回目で選ぶ、2回目（間があいてもよい）で使う・外す。double：1回は選ぶ（音を聞く）だけ、素早い2回で使う・外す
-    // double は「タップで選ぶ → 選んだあとのダブルタップで使う」（2026-11-14 発案者）。
-    // ダブルタップの1回目が「すでに選んでいる棒を、間をおいてタップした」ときだけ数える。
-    // 選んでいない棒を素早く何度タップしても、選ぶ（音を聞く）だけで入らない
+    // double：タップで選ぶ（試聴）。ダブルタップで使う・外す。選んで試聴したあとでも、選んでいなくても使える（2026-11-14 発案者）
     const now = performance.now();
     const quick = s.lastTap && s.lastTap.i === i && now - s.lastTap.t < 350;
-    const opensDouble = s.focus === i && !quick; // ダブルタップの1回目になれるタップ
-    const act = s.tapMode === 'double' ? quick && s.lastTap.opensDouble : s.focus === i;
-    s.lastTap = { i, t: now, opensDouble };
+    const act = s.tapMode === 'double' ? quick : s.focus === i;
+    s.lastTap = { i, t: now };
     clearTimeout(s.pendingPluck);
     if (!act) {
       s.focus = i;
       const pluck = () => audio.pluck(hz(p.stage.sticks[i]), p.sustain, timbre());
-      // ダブルタップでは、選んでいる棒へのタップは音を0.35秒待たせる。その間に2回目が来たら、音を出さずに使う・外す
-      // （使う・外すのダブルタップで音が鳴ると紛らわしいため。2026-11-14 発案者）。2回目が来なければ、聞き直しとして鳴らす
-      if (s.tapMode === 'double' && opensDouble) s.pendingPluck = setTimeout(pluck, 350);
+      // ダブルタップでは、試聴の音を0.35秒待たせる。その間に2回目が来たら、音を出さずに使う・外す
+      // （使う・外すのダブルタップで音が鳴ると紛らわしいため。2026-11-14 発案者）。2回目が来なければ、試聴として鳴らす
+      if (s.tapMode === 'double') s.pendingPluck = setTimeout(pluck, 350);
       else pluck();
       const how = s.tapMode === 'double' ? 'ダブルタップ' : 'もう一度タップ';
       s.msg = full ? { text: '3本そろっています。先に外す棒を選んでください。', kind: 'warn' }
