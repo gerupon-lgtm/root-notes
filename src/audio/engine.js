@@ -6,6 +6,8 @@
 export const LATENCY_SECONDS = 0.03;
 // 音を止めるときのフェードアウトの長さ（秒）。短すぎるとブツっと鳴る（0.015秒で鳴っていた。2026-11-14 発案者）
 const STOP_FADE = 0.05;
+// 出口の安全装置（コンプレッサー）の設定：-3dB を超えたときだけ強く押さえる
+export const LIMITER = Object.freeze({ threshold: -3, knee: 0, ratio: 20, attack: 0.002, release: 0.1 });
 const SAW = Object.freeze({ carrier: 'saw', attack: 0.015, decay: 0.4, sustain: 0.6, release: 0.08, gain: 0.1 });
 
 function defaultContext() {
@@ -35,7 +37,10 @@ export class StringAudio {
       const lowpass = ctx.createBiquadFilter();
       lowpass.type = 'lowpass';
       lowpass.frequency.value = 9000;
+      // 割れそうなときだけ働く安全装置。初期設定（-24dB・12:1）のままだと和音でいつも強くかかり、
+      // 波の形が崩れて歪んでいた（曲で約6%。2026-11-14 発案者「音量を下げても歪む」）。ふだんは素通り
       const comp = ctx.createDynamicsCompressor();
+      for (const [k, v] of Object.entries(LIMITER)) comp[k].value = v;
       master.connect(lowpass); lowpass.connect(comp); comp.connect(ctx.destination);
       this.input = master;
     }
@@ -104,8 +109,10 @@ export class StringAudio {
         if (handle.stopped) return;
         handle.stopped = true;
         const now = ctx.currentTime;
-        if (typeof amp.gain.cancelAndHoldAtTime === 'function') amp.gain.cancelAndHoldAtTime(now);
-        else { amp.gain.cancelScheduledValues(now); amp.gain.setValueAtTime(amp.gain.value, now); }
+        // 今の音量から fade 秒かけて0へ。cancelAndHoldAtTime の後に直線で下げると、Chrome では
+        // その場で0に落ちてブツっと鳴っていた（書き出して確かめた。v0.8.9〜0.8.11）。予定を消して今の値から下げる
+        amp.gain.cancelScheduledValues(now);
+        amp.gain.setValueAtTime(amp.gain.value, now);
         amp.gain.linearRampToValueAtTime(0, now + fade);
         for (const o of oscillators) { try { o.stop(now + fade + 0.01); } catch { /* もう止まっている */ } }
         family.delete(handle);

@@ -27,7 +27,7 @@ export function fakeAudioContext() {
     createPeriodicWave(real, imag) { return { real, imag }; },
     createGain() { return node({ gain: param(1) }); },
     createBiquadFilter() { return node({ type: 'lowpass', frequency: param(), Q: param() }); },
-    createDynamicsCompressor() { return node(); }
+    createDynamicsCompressor() { return node({ threshold: param(-24), knee: param(30), ratio: param(12), attack: param(0.003), release: param(0.25) }); }
   };
   return ctx;
 }
