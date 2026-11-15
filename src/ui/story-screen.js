@@ -74,6 +74,8 @@ export function createStoryScreen({ audio }) {
         timers.push(setTimeout(() => glow(cue.bells.map(n => `bell-${n}`)), cue.at * 1000));
       }
       if (cue.chord) timers.push(setTimeout(() => audio.chord(cue.chord, { timbre: TIMBRES.epiano, duration: 2.6 }), cue.at * 1000));
+      // 精霊の声：5セントずらした2本を重ねて、グラスハープのゆらぎを出す
+      if (cue.voice) timers.push(setTimeout(() => audio.chord([cue.voice, cue.voice * 2 ** (5 / 1200)], { timbre: TIMBRES.glass, duration: 1.3, strum: 0, level: 0.55 }), cue.at * 1000));
       if (cue.pluck) timers.push(setTimeout(() => audio.pluck(cue.pluck, 'overlap', TIMBRES.organ), cue.at * 1000));
     }
   }

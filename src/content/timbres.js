@@ -18,6 +18,10 @@ export const TIMBRES = Object.freeze({
   epiano: Object.freeze({ name: 'エレピ', carrier: 'sine', ratio: 3, index: 3.8 / 3, indexSustain: 0.06, modDecay: 0.35, attack: 0.005, decay: 0.95, sustain: 0.055, release: 0.04, gain: 0.2 }),
   brass: Object.freeze({ name: 'ブラス', carrier: 'sine', ratio: 1, index: 3.1, indexSustain: 0.65, modDecay: 0.085, attack: 0.01, decay: 0.032, sustain: 0.88, release: 0.03, gain: 0.16 }),
   strings: Object.freeze({ name: 'ストリングス', carrier: 'saw', attack: 0.12, decay: 0.5, sustain: 0.82, release: 0.08, cutoff: 5, cutoffFloor: 4, cutoffDecay: 0.15, gain: 0.12 }),
+  // 弦の精霊の声（おはなし。2026-11-15 発案者「声をイメージしているならグラスハープのような音」）。
+  // ゆっくり立ち上がる澄んだ正弦波に、2倍音をうっすら足し、長く残す。おはなしでは高さを5セントずらした2本を重ねて、
+  // グラスハープのゆらぎ（ゆっくりしたうなり）を出す（story-screen.js）。遊ぶ部分では使わない
+  glass: Object.freeze({ name: 'グラスハープ', carrier: 'sine', ratio: 2, index: 0.35, indexSustain: 0.5, modDecay: 0.4, attack: 0.09, decay: 1.4, sustain: 0.45, release: 0.6, gain: 0.11 }),
   bass: Object.freeze({ name: 'ベース', carrier: 'sine', ratio: 1, index: 2.1, indexSustain: 0.55, modDecay: 0.1, attack: 0.003, decay: 0.036, sustain: 0.85, release: 0.04, gain: 0.19 })
 });
 
