@@ -74,6 +74,16 @@ if (Object.values(screens).every(Boolean)) {
     renderMute();
   });
 
+  // 「遊び方と概要」：開いている間にカードの外をタップしたら閉じる（2026-11-15 発案者）。
+  // 閉じるだけにして、そのタップでほかのボタン（連続プレイなど）は動かさない
+  const help = document.querySelector('.title-help');
+  document.addEventListener('click', e => {
+    if (!help?.open || e.target.closest('.title-help-body') || e.target.closest('.title-help summary')) return;
+    help.open = false;
+    e.preventDefault();
+    e.stopPropagation();
+  }, { capture: true });
+
   // タイトルのボタンを押したら、少し待ってから最初の画面（序章・第1章など）を始める（PRISM の LAUNCH_DELAY_MS と同じ 0.25秒。2026-11-15 発案者）。
   // 待つ間に重ねて押されても、1回だけ始める
   let launching = false;
