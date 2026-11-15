@@ -20,6 +20,13 @@ export const GUT = Object.freeze({
   hold: 0.5, life: 1.1, tail: 1.6, level: 0.17, sustainLevel: 0.11, bodyGain: 0, shelf: -6, shelfAt: 300,
   noise: 0.2, noiseBand: 3200, noiseQ: 0.9, noiseLen: 0.012
 });
+// おはなしの鐘の値（試聴ページの「K1＋キラッ（弱）」と同じ。2026-11-15 発案者。A区分）。
+// index → tailIndex：変調の深さ（打った瞬間 → 余韻）。sparkle：キラッの倍音 [何倍, 強さ, 消える時定数]、sparkleAmount：キラッの強さ
+export const BELL = Object.freeze({
+  index: 1.4, tailIndex: 0.12,
+  sparkle: Object.freeze([[4, 0.07, 0.05], [6, 0.05, 0.035], [9, 0.035, 0.022]].map(x => Object.freeze(x))),
+  sparkleAmount: 0.6
+});
 const SAW = Object.freeze({ carrier: 'saw', attack: 0.015, decay: 0.4, sustain: 0.6, release: 0.08, gain: 0.1 });
 
 function defaultContext() {
@@ -271,20 +278,20 @@ export class StringAudio {
     return this.#gut(hz, this.now + 0.02, { sustain: true, level, family: this.others });
   }
 
-  // おはなしの鐘（要件6.9：PRISM の鐘の音色）。PRISM src/ui/voices.js の bellVoice と同じ形：
-  // 変調の倍率は √2（倍音が整数倍に並ばない）、変調の深さ 5.2 → 0.9（時定数 0.42 秒）、
-  // 音量は 3ミリ秒で立ち上がり、0.6 秒までは時定数 0.325、そのあとは 0.18 で余韻が消える（全体 2.6 秒）。
-  // 打った瞬間の短い「カン」（PRISM は高さ2倍のピアノ 0.06 秒）は、エレピの音を短く重ねて近づける。at は今から何秒後か
+  // おはなしの鐘（2026-11-15 発案者が試聴で決定：「K1＋キラッ（弱）」。試聴ページ public/audition/bell.html）。
+  // 前は PRISM と同じ √2 の FM で、音の9割が整数倍に並ばない倍音だったため、重ねると濁った。
+  // 今は変調の倍率1（倍音が整数倍に並ぶ）、変調の深さ 1.4 → 0.12（時定数 0.42 秒）。鳴り方は PRISM の鐘と同じ：
+  // 3ミリ秒で立ち上がり、0.6 秒までは時定数 0.325、そのあとは 0.18 で余韻が消える（全体 2.6 秒）。
+  // 打った瞬間：高さ2倍の短い「カン」と、キラッ（4・6・9倍の倍音を 0.02〜0.05 秒、6000Hz より上の短い雑音。強さ 0.6）。at は今から何秒後か
   bell(hz, { at = 0, level = 1 } = {}) {
     if (!this.ctx) return null;
     const ctx = this.ctx, start = this.now + 0.02 + at, peak = 0.2 * level;
     const carrier = ctx.createOscillator(), mod = ctx.createOscillator(), depth = ctx.createGain(), amp = ctx.createGain();
     carrier.type = mod.type = 'sine';
     carrier.frequency.setValueAtTime(hz, start);
-    const modHz = hz * Math.SQRT2;
-    mod.frequency.setValueAtTime(modHz, start);
-    depth.gain.setValueAtTime(modHz * 5.2, start);
-    depth.gain.setTargetAtTime(modHz * 0.9, start, 0.42);
+    mod.frequency.setValueAtTime(hz, start);
+    depth.gain.setValueAtTime(hz * BELL.index, start);
+    depth.gain.setTargetAtTime(hz * BELL.tailIndex, start, 0.42);
     const bodyEnd = 0.6, body = peak * Math.exp(-(bodyEnd - 0.003) / 0.325);
     amp.gain.setValueAtTime(0, start);
     amp.gain.linearRampToValueAtTime(peak, start + 0.003);
@@ -295,8 +302,30 @@ export class StringAudio {
     amp.gain.linearRampToValueAtTime(0, start + 2.6);
     mod.connect(depth); depth.connect(carrier.frequency); carrier.connect(amp); amp.connect(this.input);
     const end = start + 2.62;
+    const oscs = [carrier, mod], nodes = [carrier, mod, depth, amp];
+    // 打った瞬間の音（カン・キラッ）は、まとめて attack を通す（止めるときに一緒に消す）
+    const attack = ctx.createGain();
+    attack.connect(this.input); nodes.push(attack);
+    const partial = (f, a, tau) => {
+      if (f > 12000) return;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(a * level, start + 0.003); g.gain.setTargetAtTime(0, start + 0.003, tau);
+      o.connect(g); g.connect(attack); o.start(start); o.stop(start + 0.4);
+      oscs.push(o); nodes.push(o, g);
+    };
+    partial(hz * 2, 0.06, 0.02); // カン
+    for (const [n, a, tau] of BELL.sparkle) partial(hz * n, a * BELL.sparkleAmount, tau); // キラッ
+    if (!this.sparkleNoise || this.sparkleNoise.sampleRate !== ctx.sampleRate) {
+      const n = Math.floor(ctx.sampleRate * 0.012), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.2));
+      this.sparkleNoise = buf;
+    }
+    const noise = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), ng = ctx.createGain();
+    noise.buffer = this.sparkleNoise; hp.type = 'highpass'; hp.frequency.value = 6000; ng.gain.value = 0.05 * BELL.sparkleAmount * level;
+    noise.connect(hp); hp.connect(ng); ng.connect(attack); noise.start(start);
+    nodes.push(noise, hp, ng);
     for (const o of [carrier, mod]) { o.start(start); o.stop(end); }
-    const hit = this.#voice(hz * 2, start, { timbre: { carrier: 'sine', ratio: 3, index: 0.9, indexSustain: 0.025, modDecay: 0.18, attack: 0.006, decay: 0.8, sustain: 0.035, release: 0.02, gain: 0.12 }, duration: 0.04, level, family: this.others });
     const handle = {
       hz, start, end, stopped: false,
       stop: (fade = STOP_FADE) => {
@@ -306,12 +335,14 @@ export class StringAudio {
         amp.gain.cancelScheduledValues(now);
         amp.gain.setValueAtTime(amp.gain.value, now);
         amp.gain.linearRampToValueAtTime(0, now + fade);
-        for (const o of [carrier, mod]) { try { o.stop(now + fade + 0.01); } catch { /* もう止まっている */ } }
-        hit.stop(fade);
+        attack.gain.cancelScheduledValues(now);
+        attack.gain.setValueAtTime(attack.gain.value, now);
+        attack.gain.linearRampToValueAtTime(0, now + fade);
+        for (const o of oscs) { try { o.stop(now + fade + 0.01); } catch { /* もう止まっている */ } }
         this.others.delete(handle);
       }
     };
-    carrier.onended = () => { this.others.delete(handle); for (const n of [carrier, mod, depth, amp]) { try { n.disconnect(); } catch { /* 外れている */ } } };
+    carrier.onended = () => { this.others.delete(handle); for (const n of nodes) { try { n.disconnect(); } catch { /* 外れている */ } } };
     this.others.add(handle);
     return handle;
   }
