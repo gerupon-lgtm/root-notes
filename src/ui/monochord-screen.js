@@ -199,7 +199,7 @@ export function createMonochordScreen({ audio }) {
     clearTimeout(S.nextTimer);
     // 案内つきの練習：帯は「チュートリアルクリア！」の表示だけにし、「次へ」はトーストにそろえる（2026-11-14 発案者）
     if (S.tutorial) { book.complete('ch1'); renderGuide(); renderCoach(); }
-    // 合格の判定のあと、設定の待ち（既定 0.5秒）でトーストを出す（2026-11-15 発案者。第2・3章とそろえる）
+    // 合格の判定のあと、設定の待ち（既定 1.5秒）でトーストを出す（2026-11-15 発案者。第2・3章とそろえる）
     S.nextTimer = setTimeout(showToast, resultDelayMs());
   }
   // 結果のトースト。buttons は [動き, 文言, 主ボタンか]
