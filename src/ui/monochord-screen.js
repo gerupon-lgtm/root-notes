@@ -11,7 +11,6 @@ import { woodDefs, woodBar, part } from './instrument-parts.js';
 import { MONOCHORD_STAGES, OPEN_HZ, KNOB_PER_RADIAN, NUDGE, PASS_BEAT, PASS_HOLD } from '../content/monochord.js';
 import { stringHz, targetHz, beatHz, holdStep, startPosition, clampBridge } from '../core/monochord.js';
 import { MODES } from '../content/modes.js';
-import { TIMBRES } from '../content/timbres.js';
 import { BEAT_FAR_ABOVE } from '../core/pitch.js';
 import { CH1_STEPS, CH1_CLEAR, CH1_FLASH, STEP_IDS, ACTIONS, FINE_BEAT, advanceStep, readNext, nextAction, plain } from '../content/tutorial.js';
 import { TutorialBook } from '../game/tutorial-book.js';
@@ -22,8 +21,8 @@ import { placeResultToast } from './result-layout.js';
 // 端末の保存場所（使えない端末では null。案内の記録は保存できなくても遊べる）
 function localStore() { try { return globalThis.localStorage ?? null; } catch { return null; } }
 
-// 重ねて鳴らすときの音色：音量が落ちず、揺れを聞き取りやすいオルガン（仮。2026-11-14 発案者 OK。A区分）
-const TIMBRE = TIMBRES.organ;
+// 弦の音：ガット弦（audio.pluckGut・holdGut。src/audio/engine.js の GUT）。2026-11-15 発案者が試聴で決定。
+// 前はオルガン（「オルガンは弦楽器ではないので違和感がある」）。「重ねて鳴らす」は消えずに鳴り続ける形（holdGut）
 const X0 = 30, X1 = 290, Y = 92; // 弦の左端・右端・高さ（SVG の単位。viewBox 320×210）
 // 駒の持ち手：駒から軸を下へ伸ばし、胴と目盛りより下に丸い持ち手を付ける（2026-11-14 発案者「指でコマを動かすと位置が隠れて見づらい。
 // 少し下にもつかめるものを付けて、位置を見ながら操作できるように。コマ自体でも動かせるように」）。弦の高さからの距離
@@ -70,13 +69,13 @@ export function createMonochordScreen({ audio }) {
   }
   function startDrone() {
     stopDrone();
-    S.drone = [audio.hold(target(), TIMBRE, { level: 0.55 }), audio.hold(current(), TIMBRE, { level: 0.55 })];
+    S.drone = [audio.holdGut(target()), audio.holdGut(current())];
     renderButtons();
     reach('drone');
   }
-  function pluck() { audio.pluck(current(), 'overlap', TIMBRE); S.pluckAt = performance.now(); reach('pluck'); }
+  function pluck() { audio.pluckGut(current()); S.pluckAt = performance.now(); reach('pluck'); }
   function playTarget() {
-    audio.chord([target()], { timbre: TIMBRE, duration: 1.6, level: 0.8 });
+    audio.pluckGut(target());
     twinkle();
     $('mono-target').classList.remove('guide');
     reach('target');

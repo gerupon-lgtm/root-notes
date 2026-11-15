@@ -8,6 +8,18 @@ export const LATENCY_SECONDS = 0.03;
 const STOP_FADE = 0.05;
 // 出口の安全装置（コンプレッサー）の設定：-3dB を超えたときだけ強く押さえる
 export const LIMITER = Object.freeze({ threshold: -3, knee: 0, ratio: 20, attack: 0.002, release: 0.1 });
+// ガット弦の値（試聴ページの「F＋・硬め・減り始め 0.5秒・低音をもっと抑える」と同じ。2026-11-15 発案者。A区分）。
+// hit・body：変調の深さ（はじいた瞬間・鳴っている間。高さの何倍か）、harm・harmBody・harmTail：倍率3の変調の深さ、
+// punch：はじいた瞬間の音量の山、hold：減り始めまで、life：約 -40dB になるまで、tail：音を止めるまで（秒）、
+// bodyGain：胴の響き（220Hz）の持ち上げ（dB）、shelf・shelfAt：低い側を下げる量（dB）と境目（Hz）。
+// 低音を抑えたのはスマホのスピーカーで低めの音が2つ重なると歪んで聞こえたため（2026-11-15 発案者。イヤホンでは歪まない）
+export const GUT = Object.freeze({
+  hit: 4.5, hitTau: 0.03, body: 0.95, harm: 0.8, harmBody: 0.22, harmTail: 0.06, hiCut: 12.6, punch: 1.7,
+  // level・sustainLevel：試聴ページ（0.24・0.16）の 0.7倍。2本同時にはじくと 0.84 になり、出口の安全装置（0.71 から押さえる）に届いて歪むため。
+  // 0.7倍で、2本同時 0.59・重ねて鳴らす＋はじく 0.48 前後（書き出して確認。2026-11-15）
+  hold: 0.5, life: 1.1, tail: 1.6, level: 0.17, sustainLevel: 0.11, bodyGain: 0, shelf: -6, shelfAt: 300,
+  noise: 0.2, noiseBand: 3200, noiseQ: 0.9, noiseLen: 0.012
+});
 const SAW = Object.freeze({ carrier: 'saw', attack: 0.015, decay: 0.4, sustain: 0.6, release: 0.08, gain: 0.1 });
 
 function defaultContext() {
@@ -167,6 +179,96 @@ export class StringAudio {
     const bars = [...new Set(score.notes.map(n => n.bar))].sort((a, b) => a - b);
     bars.forEach((bar, i) => this.timers.push(setTimeout(() => onBar(bar), (lead + i * (score.duration / bars.length)) * 1000)));
     this.timers.push(setTimeout(onEnd, (lead + score.duration + 0.4) * 1000));
+  }
+
+  // 弦の音：ガット弦（2026-11-15 発案者が試聴で決定：「F＋・硬め・減り始め 0.5秒」。試聴ページ public/audition/guitar.html）。
+  // FM で作る：変調の倍率1（温かい芯）＋倍率3（倍音を加える）。はじいた瞬間だけ変調を深くし（硬めのアタック）、
+  // 音量も一瞬だけ 1.7倍の山を作り、高めの短い雑音（ピック）を重ねる。0.5秒ほぼそのまま鳴ってから自然に減り、1.1秒ぐらいで約 -40dB。
+  // 高すぎる音を少し削り、胴の響き（220Hz あたり）を足す。sustain：重ねて鳴らす用に、消えずに鳴り続ける（止めるまで）
+  #gut(hz, start, { sustain = false, level = 1, family }) {
+    const ctx = this.ctx, G = GUT;
+    const car = ctx.createOscillator(), m1 = ctx.createOscillator(), d1 = ctx.createGain(), m3 = ctx.createOscillator(), d3 = ctx.createGain();
+    const lp = ctx.createBiquadFilter(), body = ctx.createBiquadFilter(), punch = ctx.createGain(), amp = ctx.createGain();
+    car.type = m1.type = m3.type = 'sine';
+    car.frequency.setValueAtTime(hz, start); m1.frequency.setValueAtTime(hz, start); m3.frequency.setValueAtTime(hz * 3, start);
+    d1.gain.setValueAtTime(hz * G.hit, start);
+    d1.gain.setTargetAtTime(hz * G.body, start, G.hitTau);
+    d3.gain.setValueAtTime(hz * 3 * G.harm, start);
+    d3.gain.setTargetAtTime(hz * 3 * G.harmBody, start, 0.08);
+    if (!sustain) {
+      d1.gain.setTargetAtTime(hz * G.body * 0.5, start + G.hold, 0.25);
+      d3.gain.setTargetAtTime(hz * 3 * G.harmTail, start + G.hold, 0.2);
+    }
+    m1.connect(d1); d1.connect(car.frequency); m3.connect(d3); d3.connect(car.frequency);
+    lp.type = 'lowpass'; lp.frequency.setValueAtTime(Math.min(9000, hz * G.hiCut), start); lp.Q.value = 0.5;
+    body.type = 'peaking'; body.frequency.value = 220; body.Q.value = 0.9; body.gain.value = G.bodyGain;
+    const shelf = ctx.createBiquadFilter(); shelf.type = 'lowshelf'; shelf.frequency.value = G.shelfAt; shelf.gain.value = G.shelf;
+    punch.gain.setValueAtTime(G.punch, start);
+    punch.gain.setTargetAtTime(1, start + 0.004, 0.025);
+    const peak = (sustain ? G.sustainLevel : G.level) * level;
+    amp.gain.setValueAtTime(0, start);
+    amp.gain.linearRampToValueAtTime(peak, start + 0.004);
+    let end;
+    if (sustain) {
+      amp.gain.setTargetAtTime(peak * 0.6, start + 0.004, 0.3);
+      end = start + 3600;
+    } else {
+      const tau = (G.life - G.hold) / 4.6; // 減り始めから G.life 秒（1.1秒）ぐらいで約 -40dB
+      amp.gain.linearRampToValueAtTime(peak * 0.9, start + G.hold);
+      amp.gain.setTargetAtTime(0, start + G.hold, tau);
+      end = start + G.tail;
+    }
+    car.connect(lp); lp.connect(body); body.connect(shelf); shelf.connect(punch); punch.connect(amp); amp.connect(this.input);
+    const oscs = [car, m1, m3];
+    for (const o of oscs) { o.start(start); o.stop(end); }
+    // ピック：短い雑音を帯域で絞って重ねる（雑音の波形は1回だけ作って使い回す）
+    if (!this.pickNoise || this.pickNoise.sampleRate !== ctx.sampleRate) {
+      const n = Math.floor(ctx.sampleRate * G.noiseLen), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.25));
+      this.pickNoise = buf;
+    }
+    const noise = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), ng = ctx.createGain();
+    noise.buffer = this.pickNoise; bp.type = 'bandpass'; bp.frequency.value = G.noiseBand; bp.Q.value = G.noiseQ; ng.gain.value = G.noise * level;
+    noise.connect(bp); bp.connect(ng); ng.connect(this.input); noise.start(start);
+    const nodes = [car, m1, d1, m3, d3, lp, body, shelf, punch, amp, noise, bp, ng];
+    const handle = {
+      hz, start, end, stopped: false,
+      setHz: next => {
+        if (handle.stopped) return;
+        const now = ctx.currentTime;
+        car.frequency.setTargetAtTime(next, now, 0.015);
+        m1.frequency.setTargetAtTime(next, now, 0.015);
+        m3.frequency.setTargetAtTime(next * 3, now, 0.015);
+        d1.gain.setTargetAtTime(next * G.body, now, 0.015);
+        d3.gain.setTargetAtTime(next * 3 * G.harmBody, now, 0.015);
+        lp.frequency.setTargetAtTime(Math.min(9000, next * G.hiCut), now, 0.015);
+        handle.hz = next;
+      },
+      stop: (fade = STOP_FADE) => {
+        if (handle.stopped) return;
+        handle.stopped = true;
+        const now = ctx.currentTime;
+        amp.gain.cancelScheduledValues(now);
+        amp.gain.setValueAtTime(amp.gain.value, now);
+        amp.gain.linearRampToValueAtTime(0, now + fade);
+        for (const o of oscs) { try { o.stop(now + fade + 0.01); } catch { /* もう止まっている */ } }
+        family.delete(handle);
+      }
+    };
+    car.onended = () => { family.delete(handle); for (const n of nodes) { try { n.disconnect(); } catch { /* 外れている */ } } };
+    family.add(handle);
+    return handle;
+  }
+  // 弦をはじく（第1章・章末の謎・序章の琴）。sustain が 'cut' なら前の単音を止めてから鳴らす。at は今から何秒後か
+  pluckGut(hz, { sustain = 'overlap', at = 0, level = 1 } = {}) {
+    if (!this.ctx) return null;
+    if (sustain === 'cut') for (const v of [...this.plucks]) v.stop();
+    return this.#gut(hz, this.now + 0.01 + at, { level, family: this.plucks });
+  }
+  // 弦を鳴らし続ける（第1章の「重ねて鳴らす」・謎の「重ねて聞く」）。止めるまで鳴る。handle.setHz で高さを変える
+  holdGut(hz, { level = 1 } = {}) {
+    if (!this.ctx) return null;
+    return this.#gut(hz, this.now + 0.02, { sustain: true, level, family: this.others });
   }
 
   // おはなしの鐘（要件6.9：PRISM の鐘の音色）。PRISM src/ui/voices.js の bellVoice と同じ形：

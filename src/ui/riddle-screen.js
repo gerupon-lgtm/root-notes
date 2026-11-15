@@ -12,7 +12,6 @@ import { storyArt } from '../content/story.js';
 import { riddleHz, beatRate } from '../content/riddles.js';
 import { TIMBRES } from '../content/timbres.js';
 
-const STRING_TIMBRE = TIMBRES.organ; // 第1章の弦と同じ（音色はあとで変える予定。2026-11-15 発案者）
 const W = 320, ROW = 46, TOP = 12;
 const VOICE_REPEAT_MS = 3800; // 声は、選ぶ前に何度か自然に漏れる
 
@@ -107,7 +106,7 @@ export function createRiddleScreen({ audio }) {
     chosen = Number(row.dataset.k);
     const hz = riddleHz(lengthAt(chosen));
     if (drone) { drone[1]?.setHz(hz); updateMeter(); }
-    else audio.pluck(hz, 'cut', STRING_TIMBRE);
+    else audio.pluckGut(hz, { sustain: 'cut' });
     render();
   });
   listen.addEventListener('click', () => { stopDrone(); voice(); });
@@ -115,7 +114,7 @@ export function createRiddleScreen({ audio }) {
     if (chosen < 0) return;
     if (drone) { stopDrone(); return; }
     audio.stopAll(); clearTimers();
-    drone = [audio.hold(riddleHz(R.answer), voiceTimbre(), { level: 0.5 }), audio.hold(riddleHz(lengthAt(chosen)), STRING_TIMBRE, { level: 0.5 })];
+    drone = [audio.hold(riddleHz(R.answer), voiceTimbre(), { level: 0.5 }), audio.holdGut(riddleHz(lengthAt(chosen)))];
     overlap.classList.add('on');
     overlap.textContent = '止める';
     updateMeter();
@@ -127,7 +126,7 @@ export function createRiddleScreen({ audio }) {
     // 正誤にかかわらず同じ反応（要件6.3）
     guide.textContent = takenText(lengthAt(chosen));
     picture.querySelector('.riddle-item')?.classList.add('taken');
-    audio.pluck(riddleHz(lengthAt(chosen)), 'cut', STRING_TIMBRE);
+    audio.pluckGut(riddleHz(lengthAt(chosen)), { sustain: 'cut' });
     render();
     next.focus({ preventScroll: true });
   });
