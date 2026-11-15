@@ -4,12 +4,16 @@
 // - 選択プレイ：章を選ぶ（第1章／第2章）→ その章の面を選ぶ
 // 中身がまだない場面は、仮の1画面（見出しと「次へ」）で通り抜ける。序章は紙芝居（src/ui/story-screen.js）
 import { FLOW, firstStep, nextStep, stepById, playableChapters } from '../game/flow.js';
-import { PROLOGUE } from '../content/story.js';
+import { PROLOGUE, endBefore, endAfter } from '../content/story.js';
+import { riddleHz } from '../content/riddles.js';
+import { buildRun } from '../core/stage-gen.js';
+import { buildScore } from '../game/song.js';
+import { TIMBRES, SONG_TIMBRE, BASS_TIMBRE } from '../content/timbres.js';
 import { RIDDLES } from '../content/riddles.js';
 import { MODES } from '../content/modes.js';
 import { TutorialBook } from '../game/tutorial-book.js';
 import { ProgressBook } from '../game/progress.js';
-import { BARS } from '../content/progressions.js';
+import { BARS, PHRASE } from '../content/progressions.js';
 import { MONOCHORD_STAGES } from '../content/monochord.js';
 
 // 連続プレイの遊び方（FLOAT の levels() と同じく、名前と一言）。一言は MODES の値から作る
@@ -28,6 +32,13 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle
   const progress = new ProgressBook(localStore());
   let run = null;
   const saveRun = () => { if (run) progress.saveContinuous(run); };
+  // 第2章の終わりで、最後の4小節のフレーズをもう一度鳴らす（その連続プレイの曲。なければ鳴らさない）
+  const lastPhrase = () => {
+    const spec = run?.ch2?.spec;
+    if (!spec) return;
+    const stages = buildRun(spec).stages;
+    audio.playScore(buildScore(stages, stages.length - PHRASE, stages.length - 1), { chordTimbre: TIMBRES[SONG_TIMBRE], bassTimbre: TIMBRES[BASS_TIMBRE] });
+  };
 
   const show = name => {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
@@ -82,12 +93,19 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle
       show('story');
       story.play(PROLOGUE, { title: step.title, canSkip: seen, endLabel: 'はじめる', onDone: after });
     } else if (step.kind === 'riddle') {
-      // 章末の謎（段階5）。選んだ長さを武具として続きに残す（正誤は見ない。要件6.3）。揺れメーターはフリーだけ
-      show('riddle');
-      riddle.start(RIDDLES[step.riddle], {
-        meter: mode === 'free', onTitle: toTitle,
-        onDone: length => { if (run) { run.artifacts = { ...(run.artifacts ?? {}), [step.riddle]: length }; saveRun(); } next(); }
-      });
+      // 章の終わり（段階6）：紙芝居の終1・終2 → 章末の謎（段階5）→ 終4 → 次の章。
+      // 謎で選んだ長さを武具として続きに残す（正誤は見ない。要件6.3）。揺れメーターはフリーだけ。
+      // 紙芝居は2回目から「飛ばす」を出す（序章と同じ。章ごとに 'end-shield' などで記録）
+      const R = RIDDLES[step.riddle], key = `end-${step.riddle}`, title = `${R.chapter}の終わり`;
+      const seen = !book.shouldAuto(key);
+      const after = length => {
+        if (run) { run.artifacts = { ...(run.artifacts ?? {}), [step.riddle]: length }; saveRun(); }
+        show('story');
+        story.play(endAfter(step.riddle, R.name, riddleHz(length)), { title, canSkip: seen, endLabel: '次へ', onDone: () => { book.complete(key); next(); } });
+      };
+      const toRiddle = () => { show('riddle'); riddle.start(R, { meter: mode === 'free', onTitle: toTitle, onDone: after }); };
+      show('story');
+      story.play(endBefore(step.riddle, R.name), { title, canSkip: seen, endLabel: '謎へ', onDone: toRiddle, phrase: lastPhrase });
     } else if (step.kind === 'monochord') {
       show('mono');
       mono.start(mode, { onDone: next, onTitle: toTitle, lit: run?.ch1 ?? [], onLit: lit => { if (run) { run.ch1 = lit; saveRun(); } } });

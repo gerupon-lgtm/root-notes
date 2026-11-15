@@ -3,6 +3,7 @@
 // 絵は 1280×960 の座標で重ね、％で置くので、画面の大きさが変わっても位置がずれない。絵をタップすると、その場面の音をもう一度鳴らす。
 import { storyArt, BELL_HZ, SKY_STARS, GONE_STARS, SPARKLE_STARS } from '../content/story.js';
 import { TIMBRES } from '../content/timbres.js';
+import { RIDDLES, riddleHz } from '../content/riddles.js';
 
 const W = 1280, H = 960;
 const pct = (v, total) => `${(v / total) * 100}%`;
@@ -33,7 +34,8 @@ export function createStoryScreen({ audio }) {
     const sparks = [];
     const parts = slide.layers.map(l => {
       const img = document.createElement('img');
-      img.src = storyArt(l.art);
+      // svg：声の形の印（章の終わり 2）。それ以外は webp の絵
+      img.src = l.svg ? new URL(`../../public/art/story/${l.svg}.svg`, import.meta.url).href : storyArt(l.art);
       img.alt = '';
       img.draggable = false;
       img.className = `story-layer ${l.cls ?? ''}`.trim();
@@ -50,6 +52,14 @@ export function createStoryScreen({ audio }) {
         if (!gone && SPARKLE_STARS.includes(i)) sparks.push(star);
         parts.splice(1, 0, star);
       });
+    }
+    // 灯った星（章の終わり 1）：その章で灯した数を、絵の上の方に並べ、順に灯す
+    for (let i = 0; i < (slide.lit ?? 0); i++) {
+      const star = document.createElement('span');
+      const x = slide.lit === 1 ? 640 : 330 + (620 * i) / (slide.lit - 1);
+      star.className = 'story-star lit';
+      Object.assign(star.style, { left: pct(x, W), top: pct(i % 2 ? 150 : 115, H), animationDelay: `${0.2 + i * 0.25}s` });
+      parts.push(star);
     }
     picture.replaceChildren(...parts);
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches) sparks.forEach(sparkle);
@@ -73,6 +83,15 @@ export function createStoryScreen({ audio }) {
         cue.bells.forEach(n => audio.bell(BELL_HZ[n], { at: cue.at, level: cue.bells.length > 1 ? 0.8 : 1 }));
         timers.push(setTimeout(() => glow(cue.bells.map(n => `bell-${n}`)), cue.at * 1000));
       }
+      // 武具から漏れる声（謎と同じ漏れ方・音色）。声の形の印を光らせる
+      if (cue.seal) timers.push(setTimeout(() => {
+        const R = RIDDLES[cue.seal], hz = riddleHz(R.answer), timbre = R.voice.tone === 'dark' ? TIMBRES.sealDark : TIMBRES.sealClear;
+        for (const [at, len] of R.voice.notes) audio.chord([hz], { timbre, delay: 0.02 + at, duration: len, strum: 0, level: R.voice.level });
+        const mark = picture.querySelector('[data-id="voice"]');
+        mark?.classList.remove('leak'); void mark?.offsetWidth; mark?.classList.add('leak');
+      }, cue.at * 1000));
+      // その章のフレーズ（第2章の終わり。曲を作る仕組みは流れの側から渡してもらう）
+      if (cue.phrase && opts.phrase) timers.push(setTimeout(() => opts.phrase(), cue.at * 1000));
       if (cue.chord) timers.push(setTimeout(() => audio.chord(cue.chord, { timbre: TIMBRES.epiano, duration: 2.6 }), cue.at * 1000));
       // 精霊の声：5セントずらした2本を重ねて、グラスハープのゆらぎを出す
       if (cue.voice) timers.push(setTimeout(() => audio.chord([cue.voice, cue.voice * 2 ** (5 / 1200)], { timbre: TIMBRES.glass, duration: 1.3, strum: 0, level: 0.55 }), cue.at * 1000));
@@ -96,7 +115,7 @@ export function createStoryScreen({ audio }) {
 
   // 次の場面の絵を先に読んでおく（切り替えで絵が遅れて出ないように）
   function preload(list) {
-    for (const name of new Set(list.flatMap(s => s.layers.map(l => l.art)))) { const img = new Image(); img.src = storyArt(name); }
+    for (const name of new Set(list.flatMap(s => s.layers.filter(l => l.art).map(l => l.art)))) { const img = new Image(); img.src = storyArt(name); }
   }
 
   next.addEventListener('click', () => {
@@ -108,8 +127,9 @@ export function createStoryScreen({ audio }) {
   picture.addEventListener('click', () => { if (opts) playCues(slides[index]); });
 
   // slides を最初から見せる。canSkip：2回目からの「飛ばす」。onDone：最後の「つづき」か「飛ばす」のあと
-  function play(list, { title, canSkip = false, endLabel = 'はじめる', onDone }) {
-    slides = list; opts = { title, onDone, endLabel };
+  // phrase：章の終わり 1 でフレーズを鳴らす関数（第2章。なければ鳴らさない）
+  function play(list, { title, canSkip = false, endLabel = 'はじめる', onDone, phrase = null }) {
+    slides = list; opts = { title, onDone, endLabel, phrase };
     skip.hidden = !canSkip;
     preload(list);
     show(0);

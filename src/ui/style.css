@@ -664,3 +664,11 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 .mono-time.new { color: var(--gold); font-weight: 700; }
 /* 結果のトーストの「記録更新」の札 */
 .record-badge { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: linear-gradient(110deg, #ecd083, #c8a556); color: #18231c; font-size: 0.72rem; font-weight: 700; vertical-align: middle; letter-spacing: 0.04em; }
+
+/* 章の終わりの紙芝居（段階6）。灯った星を順に灯す、声の形の印は声が漏れるたびに光る、預かった武具はやわらかく光る */
+.story-star.lit { width: 1.8%; margin: -0.9% 0 0 -0.9%; background: radial-gradient(circle, #fffbe8 0 35%, #f6dc8f 60%, #f0d79700 100%); box-shadow: 0 0 14px 5px #f0d797cc, 0 0 30px 8px #f0d79744; opacity: 0; animation: story-lit 0.9s ease-out forwards; }
+@keyframes story-lit { 0% { opacity: 0; transform: scale(0.3); } 60% { opacity: 1; transform: scale(1.5); } 100% { opacity: 1; transform: scale(1); } }
+.story-layer.voice-mark { opacity: 0; }
+.story-layer.voice-mark.leak { animation: riddle-leak 2.2s ease-out; }
+.story-layer.held { filter: drop-shadow(0 0 14px #f0d797aa); }
+@media (prefers-reduced-motion: reduce) { .story-star.lit { animation: none; opacity: 1; } .story-layer.voice-mark.leak { animation: none; opacity: 0.8; } }

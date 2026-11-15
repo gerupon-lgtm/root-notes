@@ -101,3 +101,47 @@ export const PROLOGUE = Object.freeze([
     cues: [{ at: 0.3, pluck: 349.23 }, { at: 1.1, pluck: 698.46 }]
   }
 ].map(s => Object.freeze(s)));
+
+// ---------- 章の終わり（第1〜3章で共通の型。要件6.10・段階6 設計メモ 2章。2026-11-15 発案者：おすすめの形で） ----------
+// 終1（章の締め・灯った星）→ 終2（武具から声が漏れる）→ 謎（src/ui/riddle-screen.js）→ 終4（切れ端の声を拾う）
+// 正誤は出さない（終4 の語りに、選んだ長さも出さない。要件6.3）。語りは仮
+const END_ITEM = { x: 500, y: 300, w: 300 }; // 武具（封印中）の置き場所
+const spiritLeft = art => ({ art, x: 120, y: 290, w: 300 });
+export const CHAPTER_END = Object.freeze({
+  shield: Object.freeze({ chapter: '第1章', place: '鍛冶場の跡', background: 'forge-ruins', stars: 5, close: '一弦の琴で、澄んだ響きを思い出しました。', sound: 'ratios' }),
+  sword: Object.freeze({ chapter: '第2章', place: '星空', background: 'stars-night-empty', stars: 8, close: '3本の弦が、ひとつの響きになりました。星が灯っていきます。', sound: 'phrase' }),
+  armor: Object.freeze({ chapter: '第3章', place: '夜の神殿', background: 'temple-entrance-corridor', stars: 0, close: '明るい響きと影の響き。神殿に、ふたつの響きがそろいました。', sound: null })
+});
+// 第1章の5つの比（弦全体 196Hz の 2・3/2・4/3・5/4・6/5 倍）
+const OPEN = 196;
+const RATIO_CUES = [2, 3 / 2, 4 / 3, 5 / 4, 6 / 5].map((r, i) => ({ at: 0.3 + i * 0.55, pluck: OPEN * r }));
+
+// 謎の前の2枚（終1・終2）。name は武具の名前（盾・剣・鎧）
+export function endBefore(id, name) {
+  const e = CHAPTER_END[id], bg = { art: e.background, x: 0, y: 0, w: 1280 };
+  return Object.freeze([
+    Object.freeze({
+      id: `${id}-end1`, place: e.place, layers: [bg], lit: e.stars,
+      narration: e.close,
+      cues: e.sound === 'ratios' ? RATIO_CUES : e.sound === 'phrase' ? [{ at: 0.2, phrase: true }] : []
+    }),
+    Object.freeze({
+      id: `${id}-end2`, place: e.place,
+      layers: [bg, spiritLeft('spirit-listening'), { art: `${id}-sealed`, ...END_ITEM }, { svg: `voice-${id}`, id: 'voice', x: 450, y: 250, w: 400, cls: 'voice-mark' }],
+      speaker: '弦の精霊', say: `どこからか、声が漏れています。${name}の中から……？`,
+      cues: [{ at: 0.4, seal: id }, { at: 3.4, seal: id }]
+    })
+  ]);
+}
+// 謎のあとの1枚（終4）。length は持ち帰った弦の長さ（音だけに使い、文には出さない）
+export function endAfter(id, name, hz) {
+  const e = CHAPTER_END[id], bg = { art: e.background, x: 0, y: 0, w: 1280 };
+  return Object.freeze([
+    Object.freeze({
+      id: `${id}-end4`, place: e.place,
+      layers: [bg, spiritLeft('spirit-smiling'), { art: `${id}-sealed`, ...END_ITEM, cls: 'held' }],
+      speaker: '弦の精霊', say: `切れ端の声を、弦に写せました。この${name}は、わたしが預かりましょう。`,
+      cues: [{ at: 0.4, pluck: hz }]
+    })
+  ]);
+}

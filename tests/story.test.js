@@ -32,3 +32,18 @@ test('序章：欠けた星は星の表の中、音の合図は鐘の大きさ�
   for (const i of GONE_STARS) assert.ok(SKY_STARS[i]);
   for (const s of PROLOGUE) for (const c of s.cues) for (const n of c.bells ?? []) assert.ok(BELL_HZ[n], `${s.id} 鐘${n}`);
 });
+
+test('章の終わり：終1・終2 と 終4 の絵がそろい、終4 の文に選んだ長さを出さない（正誤を漏らさない）', async () => {
+  const { endBefore, endAfter, CHAPTER_END } = await import('../src/content/story.js');
+  for (const [id, name] of [['shield', '盾'], ['sword', '剣'], ['armor', '鎧']]) {
+    assert.ok(CHAPTER_END[id], id);
+    const slides = [...endBefore(id, name), ...endAfter(id, name, 465.6)];
+    assert.equal(slides.length, 3, id);
+    for (const s of slides) for (const l of s.layers) {
+      const file = l.svg ? `${STORY_ART_DIR}${l.svg}.svg` : `${STORY_ART_DIR}${l.art}.webp`;
+      assert.ok(existsSync(new URL(file, root)), `${s.id}：${file} がない`);
+    }
+    const last = slides[2];
+    assert.ok(!/\d/.test(last.say), `${id}：終4 の文に数字（長さ）が出ている`);
+  }
+});
