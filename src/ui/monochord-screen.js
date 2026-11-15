@@ -229,8 +229,9 @@ export function createMonochordScreen({ audio }) {
       el('div', { class: 'result-body', tabindex: '0', 'aria-label': '結果の説明' },
         el('p', { class: 'first-line' }, lines[0]),
         ...lines.slice(1).map(line => el('p', { class: 'sub-line' }, line))),
-      // 章の終わり（全部灯った）は、進むボタンを上に大きく、「タイトルへ」を下に縦に並べる（進む導線を先に見せる。2026-11-15 発案者）
-      el('div', { class: all ? 'result-actions stack' : 'result-actions' }, ...buttons.map(([act, text, primary]) => el('button', { type: 'button', class: primary ? 'btn primary' : 'btn', 'data-act': act }, text))));
+      // 進むボタンと「タイトルへ」の組（章の終わり・チュートリアルの続き）は、進むボタンを上に大きく、「タイトルへ」を下に縦に並べる
+      // （進む導線を先に見せる。第2章のトーストも同じ。2026-11-15 発案者）
+      el('div', { class: buttons.at(-1)[0] === 'title' ? 'result-actions stack' : 'result-actions' }, ...buttons.map(([act, text, primary]) => el('button', { type: 'button', class: primary ? 'btn primary' : 'btn', 'data-act': act }, text))));
     t.hidden = false;
     placeToast();
   }

@@ -360,7 +360,9 @@ export function createStageScreen({ audio, onTitle }) {
       el('div', { class: 'result-body', tabindex: '0', 'aria-label': '結果の説明' },
         el('p', { class: 'first-line' }, body[0]),
         ...body.slice(1).map(line => el('p', { class: 'sub-line' }, line))),
-      el('div', { class: 'result-actions' }, ...buttons.map(([act, text, primary]) => el('button', { type: 'button', class: primary ? 'btn primary' : 'btn', 'data-act': act }, text))));
+      // 進むボタンと「タイトルへ」の組（章の終わり・新しい曲・ゲームオーバー）は、進むボタンを上に大きく、「タイトルへ」を下に縦に並べる
+      // （第1章のトーストとそろえる。2026-11-15 発案者「進む導線が優先的に見えるように」）
+      el('div', { class: buttons.at(-1)[0] === 'title' ? 'result-actions stack' : 'result-actions' }, ...buttons.map(([act, text, primary]) => el('button', { type: 'button', class: primary ? 'btn primary' : 'btn', 'data-act': act }, text))));
     t.hidden = false;
     placeResult();
   }
