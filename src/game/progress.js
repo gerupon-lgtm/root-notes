@@ -5,7 +5,7 @@
 // 保存する物（2026-11-14 発案者）
 // - found：発見の巻物。遊び方にかかわらずためる
 // - select：選択プレイで灯した星（ch1：第1章の面の id、ch2：第2章の星の番号）。残す
-// - continuous：連続プレイの続き（遊び方・今の章・第1章の灯った面・第2章の遊びの状態）。「連続プレイ」で続きから／最初からを選ぶ
+// - continuous：連続プレイの続き（遊び方・今の章・第1章の灯った面・第2章の遊びの状態・章末の謎で持ち帰った武具）。「連続プレイ」で続きから／最初からを選ぶ
 export const PROGRESS_KEY = 'root-notes-progress-v1';
 const FORMAT = 1;
 const CONTINUOUS_MODES = ['free', 'normal', 'expert'];
@@ -25,7 +25,10 @@ export function validContinuous(c) {
     if (count(c.ch2.livesLeft) === undefined || count(c.ch2.meterLeft) === undefined) return null;
     ch2 = { spec: { progression: s.progression, key: s.key, seed: s.seed, decoys: s.decoys }, lit: bars(c.ch2.lit), livesLeft: c.ch2.livesLeft, meterLeft: c.ch2.meterLeft };
   }
-  return { mode: c.mode, step: c.step, ch1: strings(c.ch1), ch2 };
+  // 章末の謎で持ち帰った武具（段階5）：{ shield, sword, armor } に選んだ弦の長さ（2〜24 の整数）
+  const artifacts = {};
+  for (const id of ['shield', 'sword', 'armor']) { const n = c.artifacts?.[id]; if (Number.isInteger(n) && n >= 2 && n <= 24) artifacts[id] = n; }
+  return { mode: c.mode, step: c.step, ch1: strings(c.ch1), ch2, artifacts };
 }
 
 export class ProgressBook {

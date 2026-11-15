@@ -22,6 +22,10 @@ export const TIMBRES = Object.freeze({
   // ゆっくり立ち上がる澄んだ正弦波に、2倍音をうっすら足し、長く残す。おはなしでは高さを5セントずらした2本を重ねて、
   // グラスハープのゆらぎ（ゆっくりしたうなり）を出す（story-screen.js）。遊ぶ部分では使わない
   glass: Object.freeze({ name: 'グラスハープ', carrier: 'sine', ratio: 2, index: 0.35, indexSustain: 0.5, modDecay: 0.4, attack: 0.09, decay: 1.4, sustain: 0.45, release: 0.6, gain: 0.11 }),
+  // 封音の声（章末の謎）。武具に封じられた、こもった声。弦の音（オルガン）と聞き分けられるように、FM の倍音を少しだけ。
+  // 重ねて聞くときに鳴らし続けられるよう、保つ割合（sustain）を高くする。剣は暗い音色（変調を浅く）（2026-11-15 発案者）
+  sealClear: Object.freeze({ name: '封音の声', carrier: 'sine', ratio: 1, index: 0.9, indexSustain: 0.6, modDecay: 0.2, attack: 0.03, decay: 0.4, sustain: 0.8, release: 0.12, gain: 0.12 }),
+  sealDark: Object.freeze({ name: '封音の声（暗い）', carrier: 'sine', ratio: 1, index: 0.35, indexSustain: 0.5, modDecay: 0.2, attack: 0.03, decay: 0.4, sustain: 0.8, release: 0.12, gain: 0.14 }),
   bass: Object.freeze({ name: 'ベース', carrier: 'sine', ratio: 1, index: 2.1, indexSustain: 0.55, modDecay: 0.1, attack: 0.003, decay: 0.036, sustain: 0.85, release: 0.04, gain: 0.19 })
 });
 

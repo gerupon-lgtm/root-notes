@@ -5,6 +5,7 @@
 // 中身がまだない場面は、仮の1画面（見出しと「次へ」）で通り抜ける。序章は紙芝居（src/ui/story-screen.js）
 import { FLOW, firstStep, nextStep, stepById, playableChapters } from '../game/flow.js';
 import { PROLOGUE } from '../content/story.js';
+import { RIDDLES } from '../content/riddles.js';
 import { MODES } from '../content/modes.js';
 import { TutorialBook } from '../game/tutorial-book.js';
 import { ProgressBook } from '../game/progress.js';
@@ -16,7 +17,7 @@ const LEVEL_IDS = ['free', 'normal', 'expert'];
 const levelNote = m => (m.lives === Infinity ? '制限なし。和音もメーターも自由' : `失敗${m.lives}回まで・メーター${m.meterCount}回`);
 function localStore() { try { return globalThis.localStorage ?? null; } catch { return null; } }
 
-export function createFlow({ audio, screens, mono, stage, story, onTitle }) {
+export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle }) {
   const card = document.getElementById('interlude-card');
   let mode = 'free';
   // 序を見たかの記録（2回目からは飛ばせる。要件6.10）。案内の記録と同じ場所に 'prologue' として残す
@@ -31,7 +32,7 @@ export function createFlow({ audio, screens, mono, stage, story, onTitle }) {
   const show = name => {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
   };
-  const toTitle = () => { audio.stopAll(); mono.stop(); story.stop(); show('title'); onTitle(); };
+  const toTitle = () => { audio.stopAll(); mono.stop(); story.stop(); riddle.stop(); show('title'); onTitle(); };
 
   // 仮の画面を組み立てる。buttons：[文言, 動き, 主ボタンか, 一言（小さく添える）]
   function interlude({ eyebrow = '', title, lines = [], list = null, buttons, stack = false }) {
@@ -76,10 +77,17 @@ export function createFlow({ audio, screens, mono, stage, story, onTitle }) {
       const seen = !book.shouldAuto('prologue');
       const after = () => { book.complete('prologue'); if (chooseAfterPrologue) chooseLevel(begin); else begin(); };
       // 第1章に入るときに、新しい連続プレイの続きを作る
-      const begin = () => { run = { mode, step: 'ch1', ch1: [], ch2: null }; next(); };
+      const begin = () => { run = { mode, step: 'ch1', ch1: [], ch2: null, artifacts: {} }; next(); };
       // 紙芝居（段階6）。最後の「はじめる」か、2回目からの「飛ばす」で次へ
       show('story');
       story.play(PROLOGUE, { title: step.title, canSkip: seen, endLabel: 'はじめる', onDone: after });
+    } else if (step.kind === 'riddle') {
+      // 章末の謎（段階5）。選んだ長さを武具として続きに残す（正誤は見ない。要件6.3）。揺れメーターはフリーだけ
+      show('riddle');
+      riddle.start(RIDDLES[step.riddle], {
+        meter: mode === 'free', onTitle: toTitle,
+        onDone: length => { if (run) { run.artifacts = { ...(run.artifacts ?? {}), [step.riddle]: length }; saveRun(); } next(); }
+      });
     } else if (step.kind === 'monochord') {
       show('mono');
       mono.start(mode, { onDone: next, onTitle: toTitle, lit: run?.ch1 ?? [], onLit: lit => { if (run) { run.ch1 = lit; saveRun(); } } });

@@ -181,6 +181,29 @@
   </section>
 </main>
 
+<!-- 章末の謎（段階5）。中身は src/ui/riddle-screen.js が差し込む -->
+<main class="riddle" id="riddle-screen" hidden>
+  <header class="story-top">
+    <div class="story-brand">ROOT<span>NOTES</span></div>
+    <p id="riddle-place"></p>
+    <button type="button" class="story-skip" id="riddle-title">タイトルへ</button>
+  </header>
+  <section class="riddle-layout">
+    <figure class="story-picture riddle-picture" id="riddle-picture"></figure>
+    <div class="riddle-side">
+      <p class="riddle-guide" id="riddle-guide" aria-live="polite"></p>
+      <svg class="riddle-bars" id="riddle-bars" role="group" aria-label="弦（タップで選んで鳴らす）"></svg>
+      <p class="riddle-meter" id="riddle-meter" hidden></p>
+      <div class="riddle-buttons">
+        <button type="button" class="btn" id="riddle-listen">声を聞く</button>
+        <button type="button" class="btn" id="riddle-overlap" disabled>重ねて聞く</button>
+        <button type="button" class="btn primary" id="riddle-take" disabled>この弦を持ち帰る</button>
+        <button type="button" class="btn primary" id="riddle-next" hidden>次へ ▶</button>
+      </div>
+    </div>
+  </section>
+</main>
+
 <!-- 章の間の画面（序章・章選び・まだ中身のない場面）。中身は src/ui/flow-screen.js が差し込む -->
 <main class="interlude" id="interlude-screen" hidden>
   <div class="interlude-card" id="interlude-card"></div>

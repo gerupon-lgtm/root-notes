@@ -603,3 +603,45 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
   .interlude-buttons.stack .btn { min-height: 64px; font-size: 1rem; }
   .interlude-buttons.stack .btn:last-child { min-height: 38px; }
 }
+
+/* 章末の謎（段階5）。紙芝居と同じ枠組み：縦は上に絵・下に弦とボタン、横は左に絵・右に弦とボタン */
+.riddle { height: 100dvh; width: 100%; max-width: 1280px; margin: auto; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); display: grid; grid-template-rows: 44px minmax(0, 1fr); gap: 10px; background: var(--night); }
+.riddle-layout { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 12px; min-width: 0; min-height: 0; }
+.riddle-picture { cursor: default; }
+.riddle-picture .riddle-item { filter: drop-shadow(0 0 10px #b9d7ff66); transition: filter 0.6s; }
+.riddle-picture .riddle-item.taken { filter: drop-shadow(0 0 16px #f0d797cc); }
+.riddle-voice { position: absolute; left: 25%; top: 10%; width: 50%; opacity: 0; pointer-events: none; }
+.riddle-voice.leak { animation: riddle-leak 2.2s ease-out; }
+@keyframes riddle-leak { 0% { opacity: 0; transform: scale(0.92); } 20% { opacity: 1; } 100% { opacity: 0; transform: scale(1.08); } }
+.riddle-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
+.riddle-guide { margin: 0; font-size: 16px; line-height: 1.6; color: var(--ink); }
+.riddle-bars { width: 100%; flex: 1 1 auto; min-height: 120px; max-height: 240px; }
+.riddle-row { cursor: pointer; }
+.riddle-string { stroke: #e8dcc0; stroke-width: 1.6; }
+.riddle-row.chosen .riddle-string { stroke: #f0d797; stroke-width: 2.6; filter: drop-shadow(0 0 4px #f0d797); }
+.riddle-row.chosen .riddle-label { fill: var(--gold); font-weight: 700; }
+.riddle-label { fill: var(--ink); }
+.riddle-meter { margin: 0; font-size: 14px; color: var(--gold); }
+.riddle-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; }
+.riddle-buttons .btn { min-height: 54px; }
+.riddle-buttons #riddle-take, .riddle-buttons #riddle-next { grid-column: 1 / -1; }
+.riddle-buttons #riddle-overlap.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+@media (orientation: portrait) {
+  .riddle { max-width: 640px; }
+  .riddle-picture { max-width: calc((100dvh - 470px) * 4 / 3); justify-self: center; }
+}
+@media (orientation: landscape) {
+  .riddle { padding: 8px 14px; grid-template-rows: 40px minmax(0, 1fr); gap: 8px; }
+  .riddle-layout { grid-template-columns: minmax(0, 1fr) minmax(300px, 0.85fr); grid-template-rows: minmax(0, 1fr); gap: 18px; }
+  .riddle-picture { max-height: 100%; width: min(100%, calc((100dvh - 64px) * 4 / 3)); }
+}
+@media (orientation: landscape) and (max-height: 420px) {
+  .riddle { grid-template-rows: 36px minmax(0, 1fr); gap: 6px; padding: 6px 12px; }
+  .riddle-picture { width: min(100%, calc((100dvh - 54px) * 4 / 3)); }
+  .riddle-guide { font-size: 14px; line-height: 1.45; }
+  .riddle-bars { min-height: 90px; }
+  .riddle-buttons { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .riddle-buttons .btn { min-height: 44px; font-size: 0.8rem; }
+  .riddle-buttons #riddle-take, .riddle-buttons #riddle-next { grid-column: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .riddle-voice.leak { animation: none; opacity: 0.8; } }

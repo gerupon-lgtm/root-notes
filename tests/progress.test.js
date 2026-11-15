@@ -27,11 +27,13 @@ test('記録：発見の巻物と選択プレイの灯った星は、足すだ�
 test('記録：連続プレイの続きは、保存・読み直し・消すができる。形の合わない続きは使わない', () => {
   const storage = memory();
   const book = new ProgressBook(storage);
-  const run = { mode: 'normal', step: 'ch2', ch1: ['1-1', '1-2', '1-3', '1-4', '1-5'], ch2: { spec: { progression: 'canon', key: 0, seed: 7, decoys: 4 }, lit: [0, 1, 2], livesLeft: 8, meterLeft: 5 } };
+  const run = { mode: 'normal', step: 'ch2', ch1: ['1-1', '1-2', '1-3', '1-4', '1-5'], ch2: { spec: { progression: 'canon', key: 0, seed: 7, decoys: 4 }, lit: [0, 1, 2], livesLeft: 8, meterLeft: 5 }, artifacts: { shield: 9 } };
   book.saveContinuous(run);
   assert.deepEqual(new ProgressBook(storage).continuous(), run);
   assert.throws(() => book.saveContinuous({ mode: 'select', step: 'ch1' })); // 選択プレイは連続プレイの続きにならない
   assert.equal(validContinuous({ mode: 'free', step: 'ch2', ch1: [], ch2: { spec: { progression: 'canon', key: 0, seed: 1 }, lit: [], livesLeft: null, meterLeft: null } }), null);
+  // 章末の謎の武具は、2〜24 の整数の長さだけ残す（段階5）
+  assert.deepEqual(validContinuous({ mode: 'free', step: 'ch2', artifacts: { shield: 9, sword: 1.5, armor: 30, other: 4 } }).artifacts, { shield: 9 });
   book.clearContinuous();
   assert.equal(new ProgressBook(storage).continuous(), null);
 });

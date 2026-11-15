@@ -5,6 +5,7 @@ import { createStageScreen } from './stage-screen.js';
 import { createMonochordScreen } from './monochord-screen.js';
 import { createFlow } from './flow-screen.js';
 import { createStoryScreen } from './story-screen.js';
+import { createRiddleScreen } from './riddle-screen.js';
 import { setupOffline } from './offline.js';
 import { artPath } from '../content/assets.js';
 
@@ -26,7 +27,8 @@ const screens = {
   stage: document.getElementById('stage-screen'),
   mono: document.getElementById('mono-screen'),
   interlude: document.getElementById('interlude-screen'),
-  story: document.getElementById('story-screen')
+  story: document.getElementById('story-screen'),
+  riddle: document.getElementById('riddle-screen')
 };
 
 if (Object.values(screens).every(Boolean)) {
@@ -38,7 +40,8 @@ if (Object.values(screens).every(Boolean)) {
   const stage = createStageScreen({ audio, onTitle: () => { mono.stop(); showTitle(); } });
   const mono = createMonochordScreen({ audio });
   const story = createStoryScreen({ audio });
-  const flow = createFlow({ audio, screens, mono, stage, story, onTitle: showTitle });
+  const riddle = createRiddleScreen({ audio });
+  const flow = createFlow({ audio, screens, mono, stage, story, riddle, onTitle: showTitle });
 
   screens.title.addEventListener('click', e => {
     const b = e.target.closest('button[data-start]');

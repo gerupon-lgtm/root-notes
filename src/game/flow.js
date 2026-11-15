@@ -4,11 +4,11 @@
 export const FLOW = Object.freeze([
   { id: 'prologue', kind: 'story', title: '序章', place: '鍛冶場（伝承の時代）→ 星空（今）' },
   { id: 'ch1', kind: 'monochord', title: '第1章 一弦の琴', place: '鍛冶場の跡', playable: true },
-  { id: 'riddle-shield', kind: 'placeholder', title: '第1章の終わり：謎（盾）', note: '装備から漏れる声と同じ高さの弦を選ぶ謎は、段階5で作ります。' },
+  { id: 'riddle-shield', kind: 'riddle', riddle: 'shield', title: '第1章の終わり：謎（盾）' },
   { id: 'ch2', kind: 'triangle', title: '第2章 三角形で和音', place: '星空', playable: true },
-  { id: 'riddle-sword', kind: 'placeholder', title: '第2章の終わり：謎（剣）', note: '段階5で作ります。' },
+  { id: 'riddle-sword', kind: 'riddle', riddle: 'sword', title: '第2章の終わり：謎（剣）' },
   { id: 'ch3', kind: 'placeholder', title: '第3章 長調と短調', note: '夜の神殿。中身は段階5で作ります。' },
-  { id: 'riddle-armor', kind: 'placeholder', title: '第3章の終わり：謎（鎧）', note: '段階5で作ります。' },
+  { id: 'riddle-armor', kind: 'riddle', riddle: 'armor', title: '第3章の終わり：謎（鎧）' },
   { id: 'final', kind: 'placeholder', title: '最終章 門と扉', note: '門の課題と「直角に開く」は段階5で作ります。' }
 ].map(x => Object.freeze(x)));
 
