@@ -90,15 +90,12 @@ test('連続プレイ：正解のあとは「次の星へ」を待ち、その�
   assert.equal(p.index, 1);
 });
 
-test('選択プレイ：次の星は、今より後ろでまだ灯っていない星（後ろになければ前から）', () => {
+test('選択プレイ：連続プレイと同じく、正解したら「次の星へ」を待ち、順に進む（2026-11-15 発案者）', () => {
   const p = fixed('select');
-  p.goTo(6); solve(p);
-  assert.equal(p.nextBar(), 7);
-  p.goTo(7); solve(p);
-  assert.equal(p.nextBar(), 0);
-  for (let bar = 0; bar < BARS; bar++) { p.goTo(bar); solve(p); }
-  assert.equal(p.nextBar(), null); // 全部灯った
-  assert.equal(p.awaitingNext, false); // 選択プレイは待たない
+  solve(p);
+  assert.equal(p.awaitingNext, true);
+  p.advance();
+  assert.equal(p.index, 1);
 });
 
 test('音：鳴らし続ける音（第1章）は、鳴らしながら高さを変えられ、止められる', () => {

@@ -1,11 +1,13 @@
 // 遊び方の段階（要件6.6、docs/design/段階3_三角形ステージの画面.md 4章）。
 // 失敗の上限とメーターの回数は【想定】（Q-07、実機で調整）。おとりの本数は要件に記載がなく、試作の値【想定】。
 // meter：'button' は使うボタンで表示（meterCount はプレイ全体の回数）、'toggle' は表示／非表示を選ぶ
+// continuous：星を1から順に通す（次の星へ）。fixedSong：曲を固定する（選択プレイ。カノン進行・キーC）。
+//   選択プレイも、章を選ぶたびにまっさらから、星1から順に通す（2026-11-15 発案者。前は好きな星を選び、灯した星を残していた）
 export const MODES = Object.freeze({
   select: Object.freeze({
-    id: 'select', name: '選択プレイ', label: '選択プレイ', continuous: false,
+    id: 'select', name: '選択プレイ', label: '選択プレイ', continuous: true, fixedSong: true,
     lives: Infinity, meter: 'button', meterCount: Infinity, chordBeforeAnswer: false, decoys: 3,
-    desc: '好きな星を選んで遊びます。曲はカノン進行（キーC）で固定です。回答するまで自分の和音は鳴らせません。メーターは使うたびに表示します。'
+    desc: '星を順番に通します。曲はカノン進行（キーC）で固定です。回答するまで自分の和音は鳴らせません。メーターは使うたびに表示します。'
   }),
   free: Object.freeze({
     id: 'free', name: 'フリー', label: '連続・フリー', continuous: true,

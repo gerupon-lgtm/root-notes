@@ -20,7 +20,7 @@ export function modeOf(id) {
 // progression：決まった曲の作り方を使うとき（第3章の光と影 'mirror'）。null なら第2章の進行から選ぶ
 export function runSpecFor(modeId, random, progression = null) {
   const mode = modeOf(modeId);
-  if (!mode.continuous) return { ...SELECT_PLAY, ...(progression ? { progression } : {}), decoys: mode.decoys };
+  if (mode.fixedSong) return { ...SELECT_PLAY, ...(progression ? { progression } : {}), decoys: mode.decoys };
   return {
     progression: progression ?? PROGRESSIONS[Math.floor(random() * PROGRESSIONS.length)].id,
     key: Math.floor(random() * 12),

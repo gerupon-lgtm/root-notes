@@ -152,18 +152,19 @@ test('正解で星が灯り、4つそろうとフレーズ、8つで1曲。連�
   assert.equal(play.lit.size, BARS);
 });
 
-test('選択プレイ：好きな星を選べ、そろった4つの星でフレーズが鳴る', () => {
+test('選択プレイ：星1から順に通し、4つ目でフレーズ、8つ目で1曲が鳴る（ほかの星では鳴らない。2026-11-15 発案者）', () => {
   const play = fixed('select');
-  for (const bar of [7, 5, 6, 4]) {
-    play.goTo(bar);
+  assert.throws(() => play.goTo(3), /選択プレイ/); // 好きな星は選べない
+  for (let bar = 0; bar < 8; bar++) {
+    assert.equal(play.index, bar);
     pickAll(play, answerIndexes(play));
     const r = play.answer();
     assert.equal(r.result, 'correct');
-    if (bar === 4) assert.deepEqual(r.music, { kind: 'phrase', from: 4, to: 7 });
+    const want = bar === 3 ? { kind: 'phrase', from: 0, to: 3 } : bar === 7 ? { kind: 'song', from: 0, to: 7 } : null;
+    assert.deepEqual(r.music, want, `${bar + 1}つ目の星`);
+    play.advance();
   }
-  assert.equal(play.litFromStart, 0); // 1小節目から続いて灯った数（曲を聴き直すとき）
-  const cont = fixed('free');
-  assert.throws(() => cont.goTo(3), /選択プレイ/);
+  assert.equal(play.complete, true);
 });
 
 test('発見：3本選ぶと新しい発見を返し、同じ発見は2度返さない', () => {

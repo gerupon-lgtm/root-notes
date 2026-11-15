@@ -7,6 +7,7 @@ import { woodDefs, woodBar, part, PIN } from './instrument-parts.js';
 import { storyArt } from '../content/story.js';
 import { GATES, FINAL_K } from '../content/final.js';
 import { TIMBRES } from '../content/timbres.js';
+import { resultDelayMs } from './timing.js';
 
 const W = 320, ROW = 40, TOP = 8;
 const hz = n => FINAL_K / n;
@@ -17,8 +18,8 @@ export function createFinalScreen({ audio }) {
   const picture = $('final-picture'), bars = $('final-bars'), guide = $('final-guide');
   const listen = $('final-listen'), mine = $('final-mine'), offer = $('final-offer'), open = $('final-open'), next = $('final-next');
   let P = null, opts = null, chosen = [], mode = 'free', after = null, busy = false, waitTimer = 0;
-  // 差し出した和音を鳴らし終えてから次の場面へ移るまでの待ち（和音 1.6秒＋判定のあとの待ち 0.3秒。2026-11-15 発案者「音がブツっと切れる」）
-  const OFFER_RING_MS = 1900;
+  // 差し出した和音を鳴らし終えてから次の場面へ移るまでの待ち（和音 1.6秒＋判定のあとの待ち（設定）。2026-11-15 発案者「音がブツっと切れる」）
+  const offerRingMs = () => 1600 + resultDelayMs();
 
   const canHearMine = () => mode === 'free' || mode === 'select';
   function picture1(art) {
@@ -126,7 +127,7 @@ export function createFinalScreen({ audio }) {
     if (then) {
       busy = true; listen.disabled = mine.disabled = offer.disabled = true;
       guide.textContent = r.result === 'open' ? '門が、響きに応えています……' : '門の響きが、乱れています……';
-      waitTimer = setTimeout(() => { busy = false; then(); }, OFFER_RING_MS);
+      waitTimer = setTimeout(() => { busy = false; then(); }, offerRingMs());
       return;
     }
     guide.textContent = `門は応えません。長さ ${r.used.n} の弦は、門に残りました。もう一度、門の響きを聞いてみよう。`;

@@ -20,7 +20,7 @@ import { staffColumn } from '../game/notation.js';
 import { APP_VERSION, COPYRIGHT } from '../version.js';
 import { triangleHint } from '../content/tutorial.js';
 import { placeResultToast } from './result-layout.js';
-import { RESULT_DELAY_MS, AFTER_TOAST_MS } from './timing.js';
+import { resultDelayMs, AFTER_TOAST_MS } from './timing.js';
 
 const $ = id => document.getElementById(id);
 const ROWS = ['低', '中', '高'];
@@ -362,7 +362,7 @@ export function createStageScreen({ audio, onTitle }) {
            ...(phrase ? [`フレーズ${r.music.from / PHRASE + 1}がそろいました`, ...progressionLines(r.music.from, r.music.to)] : [])];
       // 章の流れ（連続プレイ）の中では、8つの星がそろったら次の場面へ（段階4。src/ui/flow-screen.js）
       if (p.mode.continuous) buttons = bar !== BARS ? [['next', '次の星へ ▶', true]]
-        : s.onChapterEnd ? [['chapter-next', '次へ ▶', true], ['title', 'タイトルへ']]
+        : s.onChapterEnd ? [['chapter-next', s.endLabel, true], ['title', 'タイトルへ']]
         : [['restart', '新しい曲で遊ぶ', true], ['title', 'タイトルへ']];
       else buttons = p.nextBar() === null ? [['close', '閉じる', true]] : [['next', '次の星へ ▶', true], ['close', 'この星に残る']];
     } else if (r.gameOver) {
@@ -467,7 +467,7 @@ export function createStageScreen({ audio, onTitle }) {
   function afterCorrect(result) {
     const p = play();
     // 曲を流し終えてから（流さないときはすぐ）、少し待ってトーストを出す（判定のあとの待ち。2026-11-15 発案者）
-    const done = () => { s.busy = true; renderAll(); setTimeout(() => { s.busy = false; renderAll(); showResult('correct', result); }, RESULT_DELAY_MS); };
+    const done = () => { s.busy = true; renderAll(); setTimeout(() => { s.busy = false; renderAll(); showResult('correct', result); }, resultDelayMs()); };
     if (result.music?.kind === 'song') playMusic(0, BARS - 1, songTitle(), done);
     else if (result.music?.kind === 'phrase') playMusic(result.music.from, result.music.to, `キー ${keyText()}`, done);
     else done();
@@ -491,6 +491,8 @@ export function createStageScreen({ audio, onTitle }) {
       // chapter：'ch2'（三角形で和音）か 'ch3'（長調と短調。光と影の組）。画面の中からの始め直しでは保つ
       s.chapter = options.chapter ?? 'ch2';
       s.onChapterEnd = options.onChapterEnd ?? null;
+      // 章の終わりのトーストの進むボタンの文言（選択プレイは「章を選ぶ」。第1章とそろえる）
+      s.endLabel = options.endLabel ?? '次へ ▶';
       s.onChange = options.onChange ?? null;
       s.known = new Set(options.found ?? []);
     }
@@ -504,7 +506,7 @@ export function createStageScreen({ audio, onTitle }) {
     if (options?.restore) {
       try { restored = Play.restore(modeId, options.restore); } catch { restored = null; /* 作り直せない続きは、新しい曲で始める */ }
     }
-    s.play = restored ?? (forced && MODES[modeId].continuous && PROGRESSIONS.some(x => x.id === forced)
+    s.play = restored ?? (forced && !MODES[modeId].fixedSong && PROGRESSIONS.some(x => x.id === forced)
       ? new Play(modeId, buildRun({ ...runSpecFor(modeId, Math.random), progression: forced }))
       : Play.start(modeId, Math.random, s.chapter === 'ch3' ? 'mirror' : null));
     if (!restored && options?.lit) for (const b of options.lit) s.play.lit.add(b);
@@ -685,7 +687,7 @@ export function createStageScreen({ audio, onTitle }) {
       renderAll();
       glow(mine());
       // フレーズや1曲がそろったら和音の余韻のあとに流し、終わってから結果を出す。そうでなければ少し聞かせてから出す
-      // 星だけのときは、和音を鳴らしたまま 0.3秒でトーストを出す（前は 0.9秒。2026-11-15 発案者「0.3秒ぐらい」。すべてのトーストでそろえる）
+      // 星だけのときは、和音を鳴らしたまま、設定の待ち（既定 0.5秒）でトーストを出す（前は 0.9秒。2026-11-15 発案者。すべてのトーストでそろえる）
       setTimeout(() => afterCorrect(r), r.music ? 2200 : 0);
       return;
     }
@@ -693,7 +695,7 @@ export function createStageScreen({ audio, onTitle }) {
     shake();
     s.msg = r.gameOver ? null : { text: '違う響きです。', kind: 'warn' };
     renderAll();
-    setTimeout(() => showResult('wrong', r), RESULT_DELAY_MS);
+    setTimeout(() => showResult('wrong', r), resultDelayMs());
   });
 
   // ---------- 引き出し ----------

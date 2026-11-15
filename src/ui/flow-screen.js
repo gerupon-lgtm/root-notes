@@ -240,20 +240,22 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
     audio.stopAll();
     interlude({
       eyebrow: '選択プレイ', title: '章を選ぶ', lines: ['遊びたい章を選んでください。'],
-      buttons: [...playableChapters().map(ch => [ch.title, () => playChapter(ch.id), true]), ['タイトルへ', toTitle]]
+      buttons: [...playableChapters().map(ch => [ch.title, () => playChapter(ch.id), true]), ['タイトルへ', toTitle]],
+      stack: true // 連続プレイの遊び方を選ぶ画面と同じ並び（2026-11-15 発案者）
     });
   }
-  // 選択プレイで灯した星は残す（段階7。2026-11-14 発案者）
+  // 選択プレイ：章を選ぶたびに、まっさらから星1を順に通す（2026-11-15 発案者。前は灯した星を残していたため、
+  // 8つ灯したあとはどの星で正解しても1曲が流れていた）。灯した記録（selectLit）は書き続けるが、始めるときには使わない
   function playChapter(id) {
     run = null;
     const step = stepById(id);
     if (step.kind === 'monochord') {
       show('mono');
-      mono.start(mode, { onDone: chooseChapter, onTitle: toTitle, lit: progress.selectLit('ch1'), onLit: lit => progress.addSelectLit('ch1', lit) });
+      mono.start(mode, { onDone: chooseChapter, onTitle: toTitle, endLabel: '章を選ぶ', onLit: lit => progress.addSelectLit('ch1', lit) });
     } else {
       show('stage');
       stage.start(mode, {
-        chapter: id, onChapterEnd: null, lit: progress.selectLit(id), found: progress.found(), onMirror: showMirror,
+        chapter: id, onChapterEnd: chooseChapter, endLabel: '章を選ぶ', found: progress.found(), onMirror: showMirror,
         onChange: p => { progress.addFound(p.found); progress.addSelectLit(id, [...p.lit]); }
       });
     }

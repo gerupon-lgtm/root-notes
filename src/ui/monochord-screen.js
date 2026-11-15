@@ -17,7 +17,7 @@ import { TutorialBook } from '../game/tutorial-book.js';
 import { RecordBook, formatSeconds } from '../game/record-book.js';
 import { artPath } from '../content/assets.js';
 import { placeResultToast } from './result-layout.js';
-import { RESULT_DELAY_MS, AFTER_TOAST_MS } from './timing.js';
+import { resultDelayMs, AFTER_TOAST_MS } from './timing.js';
 
 // 端末の保存場所（使えない端末では null。案内の記録は保存できなくても遊べる）
 function localStore() { try { return globalThis.localStorage ?? null; } catch { return null; } }
@@ -199,8 +199,8 @@ export function createMonochordScreen({ audio }) {
     clearTimeout(S.nextTimer);
     // 案内つきの練習：帯は「チュートリアルクリア！」の表示だけにし、「次へ」はトーストにそろえる（2026-11-14 発案者）
     if (S.tutorial) { book.complete('ch1'); renderGuide(); renderCoach(); }
-    // 合格の判定のあと、少し待ってからトーストを出す（2026-11-15 発案者「0.3秒ぐらい」。第2・3章とそろえる）
-    S.nextTimer = setTimeout(showToast, RESULT_DELAY_MS);
+    // 合格の判定のあと、設定の待ち（既定 0.5秒）でトーストを出す（2026-11-15 発案者。第2・3章とそろえる）
+    S.nextTimer = setTimeout(showToast, resultDelayMs());
   }
   // 結果のトースト。buttons は [動き, 文言, 主ボタンか]
   function showToast() {
@@ -246,6 +246,7 @@ export function createMonochordScreen({ audio }) {
   function chapterEnd() {
     S.ended = true;
     S.passed = true;
+    renderButtons();
     showToast();
   }
   // 次の面（今より後ろで灯っていない面。なければ前から）
@@ -446,6 +447,8 @@ export function createMonochordScreen({ audio }) {
     const b = $('mono-drone');
     b.classList.toggle('on', !!S.drone);
     b.innerHTML = S.drone ? '止める' : '重ねて<br>鳴らす';
+    // 合格したら、音が消えていく間もトーストが出ている間も押せなくする（次の面で戻る。2026-11-15 発案者）
+    b.disabled = S.passed;
     $('mono-meter-toggle').hidden = !meterAllowed();
     $('mono-meter-toggle').innerHTML = S.meterOn ? 'メーター<br>表示中' : 'メーター<br>非表示';
     $('mono-meter-toggle').setAttribute('aria-label', '揺れメーター（補助表示）');
@@ -561,7 +564,7 @@ export function createMonochordScreen({ audio }) {
 
   $('mono-target').addEventListener('click', playTarget);
   $('mono-pluck').addEventListener('click', pluck);
-  $('mono-drone').addEventListener('click', () => (S.drone ? stopDrone() : startDrone()));
+  $('mono-drone').addEventListener('click', () => { if (!S.passed) (S.drone ? stopDrone() : startDrone()); });
   $('mono-meter-toggle').addEventListener('click', () => { S.meterOn = !S.meterOn; renderButtons(); });
   $('mono-stars').addEventListener('click', e => {
     const b = e.target.closest('button[data-i]');

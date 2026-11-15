@@ -11,7 +11,7 @@ import { createMirrorScreen } from './mirror-screen.js';
 import { storyArt } from '../content/story.js';
 import { setupOffline } from './offline.js';
 import { artPath } from '../content/assets.js';
-import { LAUNCH_DELAY_MS } from './timing.js';
+import { LAUNCH_DELAY_MS, resultDelayMs, setResultDelayMs } from './timing.js';
 
 const put = (id, text) => {
   const element = document.getElementById(id);
@@ -77,12 +77,26 @@ if (Object.values(screens).every(Boolean)) {
   // タイトルのボタンを押したら、少し待ってから最初の画面（序章・第1章など）を始める（PRISM の LAUNCH_DELAY_MS と同じ 0.25秒。2026-11-15 発案者）。
   // 待つ間に重ねて押されても、1回だけ始める
   let launching = false;
-  // 遊ぶ画面以外のメニュー（☰）：音とタイトルへだけ（2026-11-15 発案者）。遊ぶ画面は今までどおり自分のメニュー
+  // 結果を出すまでの待ち（設定。0〜5秒・0.1秒きざみ。どのメニューで変えても同じ値。2026-11-15 発案者）
+  const renderDelay = () => {
+    const sec = resultDelayMs() / 1000;
+    for (const r of document.querySelectorAll('.result-delay')) r.value = String(sec);
+    for (const o of document.querySelectorAll('.result-delay-value')) o.textContent = `${sec.toFixed(1)}秒`;
+  };
+  renderDelay();
+  document.addEventListener('input', e => {
+    if (!e.target.classList?.contains('result-delay')) return;
+    setResultDelayMs(Number(e.target.value) * 1000);
+    renderDelay();
+  });
+  document.getElementById('menu-button').addEventListener('click', renderDelay);
+
+  // 遊ぶ画面以外のメニュー（☰）：音・結果を出すまでの待ち・タイトルへ（2026-11-15 発案者）。遊ぶ画面は今までどおり自分のメニュー
   const mini = document.getElementById('mini-sheet');
   document.getElementById('mini-version').textContent = `v${APP_VERSION}`;
   document.getElementById('mini-copyright').textContent = COPYRIGHT;
   const closeMini = () => { mini.hidden = true; };
-  document.addEventListener('click', e => { if (e.target.closest('.menu-btn')) { renderMute(); mini.hidden = false; } });
+  document.addEventListener('click', e => { if (e.target.closest('.menu-btn')) { renderMute(); renderDelay(); mini.hidden = false; } });
   document.getElementById('mini-sheet-back').addEventListener('click', closeMini);
   document.getElementById('mini-close').addEventListener('click', closeMini);
   document.getElementById('mini-title').addEventListener('click', () => { closeMini(); flow.toTitle(); });

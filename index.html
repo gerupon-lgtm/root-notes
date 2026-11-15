@@ -116,7 +116,7 @@
     <button type="button" class="chip" id="mono-guide-open" aria-label="案内（チュートリアル）をもう一度見る">案内</button>
     <button type="button" class="chip" id="mono-title">タイトルへ</button>
     <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false" title="音を消す"></button>
-    <button type="button" class="menu-btn" aria-label="メニュー（音・タイトルへ）" title="メニュー">☰</button>
+    <button type="button" class="menu-btn" aria-label="メニュー（音・待ち・タイトルへ）" title="メニュー">☰</button>
   </header>
   <nav class="stars five" id="mono-stars" aria-label="第1章の5つの星"></nav>
   <div class="sub"><span id="mono-where"></span><span class="mono-time" id="mono-time" hidden></span><span id="mono-count"></span></div>
@@ -173,7 +173,7 @@
     <p id="story-place"></p>
     <button type="button" class="story-skip" id="story-skip" hidden>飛ばす</button>
     <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false" title="音を消す"></button>
-    <button type="button" class="menu-btn" aria-label="メニュー（音・タイトルへ）" title="メニュー">☰</button>
+    <button type="button" class="menu-btn" aria-label="メニュー（音・待ち・タイトルへ）" title="メニュー">☰</button>
   </header>
   <section class="story-layout" aria-label="おはなし">
     <figure class="story-picture" id="story-picture"></figure>
@@ -194,7 +194,7 @@
     <p id="riddle-place"></p>
     <button type="button" class="story-skip" id="riddle-title">タイトルへ</button>
     <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false" title="音を消す"></button>
-    <button type="button" class="menu-btn" aria-label="メニュー（音・タイトルへ）" title="メニュー">☰</button>
+    <button type="button" class="menu-btn" aria-label="メニュー（音・待ち・タイトルへ）" title="メニュー">☰</button>
   </header>
   <section class="riddle-layout">
     <figure class="story-picture riddle-picture" id="riddle-picture"></figure>
@@ -219,7 +219,7 @@
     <p id="final-place"></p>
     <button type="button" class="story-skip" id="final-title">タイトルへ</button>
     <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false" title="音を消す"></button>
-    <button type="button" class="menu-btn" aria-label="メニュー（音・タイトルへ）" title="メニュー">☰</button>
+    <button type="button" class="menu-btn" aria-label="メニュー（音・待ち・タイトルへ）" title="メニュー">☰</button>
   </header>
   <section class="riddle-layout">
     <figure class="story-picture riddle-picture" id="final-picture"></figure>
@@ -244,7 +244,7 @@
     <p id="mirror-place"></p>
     <button type="button" class="story-skip" id="mirror-skip" hidden>飛ばす</button>
     <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false" title="音を消す"></button>
-    <button type="button" class="menu-btn" aria-label="メニュー（音・タイトルへ）" title="メニュー">☰</button>
+    <button type="button" class="menu-btn" aria-label="メニュー（音・待ち・タイトルへ）" title="メニュー">☰</button>
   </header>
   <section class="story-layout">
     <figure class="story-picture mirror-picture" id="mirror-picture"><img class="story-layer mirror-bg" id="mirror-bg" alt=""><svg id="mirror-stage" viewBox="0 0 480 360" role="img"></svg></figure>
@@ -280,6 +280,8 @@
   <div class="sheet-body" role="dialog" aria-label="メニュー">
     <h2>音</h2>
     <div class="seg" id="sound-seg"><button type="button" data-sound="on">鳴らす</button><button type="button" data-sound="off">消す</button></div>
+    <h2>結果を出すまでの待ち</h2>
+    <div class="delay-row"><input type="range" class="result-delay" min="0" max="5" step="0.1" aria-label="判定のあと、結果を出すまでの秒数"><output class="result-delay-value"></output></div>
     <h2>遊び方を選ぶ</h2>
     <div class="modes" id="modes"></div>
     <p id="mode-desc"></p>
@@ -316,6 +318,8 @@
   <div class="sheet-body mini" role="dialog" aria-label="メニュー">
     <h2>音</h2>
     <div class="seg" id="mini-sound-seg"><button type="button" data-sound="on">鳴らす</button><button type="button" data-sound="off">消す</button></div>
+    <h2>結果を出すまでの待ち</h2>
+    <div class="delay-row"><input type="range" class="result-delay" min="0" max="5" step="0.1" aria-label="判定のあと、結果を出すまでの秒数"><output class="result-delay-value"></output></div>
     <div class="sheet-foot"><span id="mini-version"></span><span id="mini-copyright"></span></div>
     <div class="sheet-buttons">
       <button type="button" class="btn" id="mini-title">タイトルへ</button>

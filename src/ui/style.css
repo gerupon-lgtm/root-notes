@@ -162,6 +162,10 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #tri-fill { fill: var(--gold); fill-opacity: 0.06; transition: fill-opacity 0.6s ease; }
 #tri-fill.lit { fill-opacity: 0.5; }
 .mirror-tri-fill { fill: var(--gold); fill-opacity: 0.06; }
+/* 結果を出すまでの待ち（メニューの設定） */
+.delay-row { display: flex; align-items: center; gap: 12px; }
+.delay-row input { flex: 1; accent-color: var(--gold); min-height: 32px; }
+.delay-row output { flex: none; min-width: 3.5em; text-align: right; color: var(--ink); font-size: 0.9rem; }
 .tri-hint { fill: var(--mute); font-size: 13px; }
 .tri-label { font-size: 15px; font-weight: 700; pointer-events: none; paint-order: stroke; stroke: var(--night); stroke-width: 3.5px; stroke-linejoin: round; }
 .tri-vertex { fill: var(--ink); pointer-events: none; }
