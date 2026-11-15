@@ -16,22 +16,31 @@
   h2 small { color: var(--mute); font-weight: 400; font-size: 0.8rem; margin-left: 6px; }
   .row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
   button { min-height: 54px; border-radius: 12px; border: 1px solid #b69b60; background: #062522; color: var(--ink); font: inherit; font-weight: 700; font-size: 0.92rem; padding: 4px 6px; }
-  button.wide { grid-column: 1 / -1; background: linear-gradient(110deg, #ecd083, #c8a556); color: #18231c; border-color: #dcc28c; }
   button:active { background: #d9bb6b; color: #18231c; }
   .note { font-size: 0.8rem; }
+  .hold { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .hold span { color: var(--mute); font-size: 0.9rem; }
+  .hold button { min-height: 44px; flex: 1; }
+  .hold button.on { background: linear-gradient(110deg, #ecd083, #c8a556); color: #18231c; border-color: #dcc28c; }
 </style>
 </head>
 <body>
 <main>
   <h1>弦の音の試聴（ROOT NOTES）</h1>
-  <p>第1章・章末の謎・序章の琴で使う「弦の音」の候補です。どれもアコースティックギターのようにピッキングのアタックがあり、196Hz（第1章の弦全体）で 1.1秒の間に消えます。ほかの高さも同じ長さで消えます。</p>
+  <p>ガット弦（羊の腸の弦。古い竪琴やリュートの音）の方向です。指ではじいたやわらかいアタックがあり、少しの間そのまま鳴ってから自然に減っていき、1.1秒ぐらいで聞こえなくなります。ほかの高さも同じくらいの長さで消えます。</p>
+  <p>どちらも FM（周波数変調）で作っています。候補は2つ：「FM だけ」と「FM に倍音を加えたもの」（倍音を足して、少し明るく豊かにしたもの）。</p>
+  <div class="hold" id="hold"><span>減り始め：</span></div>
   <p class="note">「重ねて（揺れ1回/秒）」は、第1章の「重ねて鳴らす」と謎の「重ねて聞く」用です。ここだけは消えずに鳴り続け、392Hz と 393Hz を重ねて、1秒に1回の揺れを 4秒聞かせます。</p>
   <div id="list"></div>
 </main>
 <script>
-// 試聴だけのページ（本体には読み込まない）。候補は3つ：
-// A：FM（変調の深さが急に減って、明るい音からやわらかい音へ）、B：弦の物理モデル（カープラス・ストロング。雑音を弦の長さの遅れで何度も回す）、
-// C：倍音を重ねる（高い倍音ほど早く消える）。比べるために、今の音（オルガン）も置く
+// 試聴だけのページ（本体には読み込まない）。2026-11-15 発案者：ガット弦、減衰が始まるのを遅めに、FM で作る。
+// FM ガット：変調の倍率1・浅めの深さで、倍音の少ないこもった温かい音にする。はじいた瞬間だけ深くして、すぐ浅くする（指先のアタック）。
+// 「倍音を加えたもの」は、倍率3の変調をもう1本、薄く足す。どちらも高すぎる音を少し削り、胴の響き（220Hz あたり）を足す。
+// 以下の物理モデルの関数（gutData）は、比べるために前に作ったもので、今の候補では使っていない
+// 音の作り：弦の物理モデル（カープラス・ストロング：雑音を弦の長さの遅れで何度も回す）。
+// ガットらしさ：はじく雑音を丸め（指先のやわらかさ）、回すたびに高い音を強めに削る（こもった温かい音）、胴の響きを足す。
+// 音量：hold 秒までほぼそのまま鳴り、そこから減って LIFE 秒でちょうど0（最後の0.08秒は直線で0へ）
 let ctx = null, out = null;
 function audio() {
   if (!ctx) {
@@ -44,80 +53,126 @@ function audio() {
   if (ctx.state === 'suspended') ctx.resume();
   return ctx;
 }
-const LIFE = 1.1; // 消えるまでの秒数
-// 音量の形：すぐ立ち上がり、指数で減り、LIFE 秒でちょうど0（最後の0.08秒は直線で0へ）
-function envelope(g, t, peak, life = LIFE, tau = 0.22) {
+const LIFE = 1.1;
+
+// 音量の形：4ミリ秒で立ち上がり、hold 秒まで保ち（ほんの少しだけ下がる）、そこから自然に減って、LIFE 秒（1.1秒）ぐらいで約 -40dB（聞こえなくなるくらい）。
+// 無理に0へ落とさず、そのまま減り続ける（2026-11-15 発案者「1.1秒で完全に消えることは求めていない。1.1秒ぐらい」）
+const TAIL = 1.6; // 音を作っておく長さ（この頃には -60dB より小さい）
+function envelope(g, t, peak, hold, life = LIFE) {
+  const tau = Math.max(0.05, (life - hold) / 4.6);
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(peak, t + 0.003);
-  g.gain.setTargetAtTime(0, t + 0.003, tau);
-  const fadeAt = t + life - 0.08;
-  g.gain.setValueAtTime(peak * Math.exp(-(life - 0.083) / tau), fadeAt);
-  g.gain.linearRampToValueAtTime(0, t + life);
+  g.gain.linearRampToValueAtTime(peak, t + 0.004);
+  g.gain.linearRampToValueAtTime(peak * 0.9, t + hold);
+  g.gain.setTargetAtTime(0, t + hold, tau);
 }
-// ピッキングのアタック：とても短い雑音（高い音を残す）
-function pick(t, level = 0.18, bright = 2600) {
-  const c = audio(), n = Math.floor(c.sampleRate * 0.025), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
-  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.18));
-  const src = c.createBufferSource(), hp = c.createBiquadFilter(), g = c.createGain();
-  src.buffer = buf; hp.type = 'bandpass'; hp.frequency.value = bright; hp.Q.value = 0.8; g.gain.value = level;
-  src.connect(hp); hp.connect(g); g.connect(out); src.start(t);
+// 指ではじいた音の頭：短くやわらかい雑音（高すぎない帯域）
+function pluckNoise(t, level = 0.07) {
+  const c = audio(), n = Math.floor(c.sampleRate * 0.018), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.2));
+  const src = c.createBufferSource(), bp = c.createBiquadFilter(), g = c.createGain();
+  src.buffer = buf; bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 0.7; g.gain.value = level;
+  src.connect(bp); bp.connect(g); g.connect(out); src.start(t);
 }
-
-// A：FM。変調の倍率1、深さ 3.5 → 0.25（時定数 0.09 秒）
-function fmVoice(hz, t, { life = LIFE, sustain = false, level = 0.22 } = {}) {
-  const c = audio(), car = c.createOscillator(), mod = c.createOscillator(), dep = c.createGain(), g = c.createGain();
-  car.frequency.value = hz; mod.frequency.value = hz;
-  dep.gain.setValueAtTime(hz * 3.5, t); dep.gain.setTargetAtTime(hz * (sustain ? 0.6 : 0.25), t, 0.09);
-  mod.connect(dep); dep.connect(car.frequency); car.connect(g); g.connect(out);
-  if (sustain) { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.003); g.gain.setTargetAtTime(level * 0.45, t + 0.003, 0.25); g.gain.setValueAtTime(level * 0.45, t + life - 0.1); g.gain.linearRampToValueAtTime(0, t + life); }
-  else envelope(g, t, level, life);
-  for (const o of [car, mod]) { o.start(t); o.stop(t + life + 0.05); }
-  pick(t, 0.14, 3000);
-}
-
-// B：弦の物理モデル（カープラス・ストロング）。音の形は計算して作り、最後は LIFE で0にする
-function ksBuffer(hz, life) {
+// ガット弦の波形を計算で作る
+function gutData(hz, life) {
   const c = audio(), sr = c.sampleRate, N = Math.max(2, Math.round(sr / hz)), len = Math.ceil(sr * life), d = new Float32Array(len);
   const line = new Float32Array(N);
-  let prev = 0;
-  for (let i = 0; i < N; i++) { const r = Math.random() * 2 - 1; line[i] = 0.6 * r + 0.4 * prev; prev = line[i]; } // 少し丸めた雑音（指先のやわらかさ）
-  let idx = 0;
-  const damp = 0.996;
+  let p1 = 0, p2 = 0;
+  for (let i = 0; i < N; i++) { const r = Math.random() * 2 - 1; p1 = 0.45 * r + 0.55 * p1; p2 = 0.5 * p1 + 0.5 * p2; line[i] = p2; } // 2回丸めた雑音（指先）
+  let m = 0; for (const v of line) m += v; m /= N; for (let i = 0; i < N; i++) line[i] -= m; // 片寄りを取る
+  let peak = 0; for (const v of line) peak = Math.max(peak, Math.abs(v)); for (let i = 0; i < N; i++) line[i] /= peak || 1;
+  let idx = 0, lp = 0;
   for (let i = 0; i < len; i++) {
-    const a = line[idx], b = line[(idx + 1) % N], v = damp * 0.5 * (a + b);
-    d[i] = a; line[idx] = v; idx = (idx + 1) % N;
+    const a = line[idx], b = line[(idx + 1) % N];
+    lp = 0.5 * (a + b) * 0.9995;            // 回すたびに少し高い音を削る
+    lp = 0.82 * lp + 0.18 * (line[(idx + N - 1) % N] * 0.9995); // さらに少しこもらせる（ガットの温かさ）
+    d[i] = a; line[idx] = lp; idx = (idx + 1) % N;
   }
+  // 弦の物理モデルは、高い音ほど自分で早く小さくなる（1397Hz では 0.2秒で約 -23dB）。
+  // 音色の変わり方（高い倍音が先に消える）は残し、大きさだけを平らにして、消え方は envelope だけで決める（どの高さも同じ長さで消える）
+  const win = Math.max(N * 2, Math.round(sr * 0.01));
+  let sum = 0;
+  const level = new Float32Array(len);
+  for (let i = 0; i < len; i++) { sum += d[i] * d[i]; if (i >= win) sum -= d[i - win] * d[i - win]; level[i] = Math.sqrt(Math.max(sum, 0) / Math.min(i + 1, win)); }
+  const ref = level[Math.min(len - 1, win)] || 1;
+  let smooth = ref;
+  for (let i = 0; i < len; i++) { smooth += (level[i] - smooth) * 0.002; d[i] *= ref / Math.max(smooth, ref * 0.02); }
   return d;
 }
-function ksVoice(hz, t, { life = LIFE, sustain = false, level = 0.5 } = {}) {
-  if (sustain) { addVoice(hz, t, { life, sustain: true, level: 0.2, tilt: 1.4 }); return; } // 物理モデルは保てないので、保つ音は倍音を重ねる形で同じ明るさに
-  const c = audio(), data = ksBuffer(hz, life), buf = c.createBuffer(1, data.length, c.sampleRate);
+function gutVoice(hz, t, { hold = 0.3, life = LIFE, level = 0.42, harmonics = false } = {}) {
+  const c = audio(), data = gutData(hz, TAIL), buf = c.createBuffer(1, data.length, c.sampleRate);
   buf.getChannelData(0).set(data);
-  const src = c.createBufferSource(), g = c.createGain(), lp = c.createBiquadFilter();
-  src.buffer = buf; lp.type = 'lowpass'; lp.frequency.value = Math.min(9000, hz * 14);
-  src.connect(lp); lp.connect(g); g.connect(out);
-  envelope(g, t, level, life, 0.3);
+  const src = c.createBufferSource(), lp = c.createBiquadFilter(), body = c.createBiquadFilter(), g = c.createGain();
+  src.buffer = buf;
+  lp.type = 'lowpass'; lp.frequency.value = Math.min(6000, hz * 7); lp.Q.value = 0.5;
+  body.type = 'peaking'; body.frequency.value = 220; body.Q.value = 0.9; body.gain.value = 5; // 胴の響き
+  src.connect(lp); lp.connect(body); body.connect(g); g.connect(out);
+  envelope(g, t, level, hold, life);
   src.start(t);
-  pick(t, 0.1, 3400);
+  pluckNoise(t);
+  if (harmonics) addHarmonics(hz, t, hold, life, body);
 }
-
-// C：倍音を重ねる。倍音 n の強さは 1/n^tilt、n が高いほど早く消える。胴の響き（200Hz あたり）を少し足す
-function addVoice(hz, t, { life = LIFE, sustain = false, level = 0.2, tilt = 1.15 } = {}) {
-  const c = audio(), sum = c.createGain(), body = c.createBiquadFilter(), g = c.createGain();
-  body.type = 'peaking'; body.frequency.value = 200; body.Q.value = 1; body.gain.value = 4;
-  sum.connect(body); body.connect(g); g.connect(out);
-  for (let n = 1; n <= 10; n++) {
-    if (hz * n > 9000) break;
-    const o = c.createOscillator(), a = c.createGain(), amp = 1 / Math.pow(n, tilt);
+// 倍音を加える：2〜6倍音を薄く重ねる（高い倍音ほど早く減る）。同じ胴の響きを通す
+function addHarmonics(hz, t, hold, life, body) {
+  const c = audio();
+  for (let n = 2; n <= 6; n++) {
+    if (hz * n > 7000) break;
+    const o = c.createOscillator(), a = c.createGain(), amp = 0.11 / Math.pow(n - 1, 0.9);
+    const tau = Math.max(0.04, (life - hold) / (4.6 * Math.sqrt(n - 0.5)));
     o.frequency.value = hz * n;
-    a.gain.setValueAtTime(0, t); a.gain.linearRampToValueAtTime(amp, t + 0.003);
-    if (sustain) a.gain.setTargetAtTime(amp * (n === 1 ? 0.8 : 0.35 / n), t + 0.003, 0.25);
-    else a.gain.setTargetAtTime(0, t + 0.003, 0.32 / Math.sqrt(n));
+    a.gain.setValueAtTime(0, t); a.gain.linearRampToValueAtTime(amp, t + 0.004);
+    a.gain.linearRampToValueAtTime(amp * 0.85, t + hold * 0.7);
+    a.gain.setTargetAtTime(0, t + hold * 0.7, tau);
+    o.connect(a); a.connect(body); o.start(t); o.stop(t + TAIL);
+  }
+}
+// 重ねて鳴らす用（保つ音）：同じくらいこもった倍音を重ね、はじいたあと少し下がって鳴り続ける
+function gutSustain(hz, t, { life = 4, level = 0.16 } = {}) {
+  const c = audio(), sum = c.createGain(), body = c.createBiquadFilter(), g = c.createGain();
+  body.type = 'peaking'; body.frequency.value = 220; body.Q.value = 0.9; body.gain.value = 5;
+  sum.connect(body); body.connect(g); g.connect(out);
+  for (let n = 1; n <= 7; n++) {
+    if (hz * n > 6000) break;
+    const o = c.createOscillator(), a = c.createGain(), amp = 1 / Math.pow(n, 1.7);
+    o.frequency.value = hz * n;
+    a.gain.setValueAtTime(0, t); a.gain.linearRampToValueAtTime(amp, t + 0.004);
+    a.gain.setTargetAtTime(amp * (n === 1 ? 0.8 : 0.45 / n), t + 0.004, 0.3);
     o.connect(a); a.connect(sum); o.start(t); o.stop(t + life + 0.05);
   }
-  if (sustain) { g.gain.setValueAtTime(level, t); g.gain.setValueAtTime(level, t + life - 0.1); g.gain.linearRampToValueAtTime(0, t + life); }
-  else envelope(g, t, level, life, 0.3);
-  pick(t, 0.12, 2400);
+  g.gain.setValueAtTime(level, t); g.gain.setValueAtTime(level, t + life - 0.1); g.gain.linearRampToValueAtTime(0, t + life);
+  pluckNoise(t);
+}
+
+// FM ガット弦。harmonics：倍率3の変調を薄く足す。sustain：重ねて鳴らす用に消えずに鳴り続ける
+function fmGut(hz, t, { hold = 0.35, life = LIFE, level = 0.24, harmonics = false, sustain = false, length = TAIL } = {}) {
+  const c = audio(), car = c.createOscillator(), m1 = c.createOscillator(), d1 = c.createGain();
+  const lp = c.createBiquadFilter(), body = c.createBiquadFilter(), g = c.createGain();
+  car.type = m1.type = 'sine';
+  car.frequency.value = hz; m1.frequency.value = hz;
+  // 変調の深さ：はじいた瞬間 2.2 → すぐ 0.7（時定数 0.06 秒）→ 減り始めからさらに 0.35 へ（音が小さくなるほど丸くなる）
+  d1.gain.setValueAtTime(hz * 2.2, t);
+  d1.gain.setTargetAtTime(hz * 0.7, t, 0.06);
+  if (!sustain) d1.gain.setTargetAtTime(hz * 0.35, t + hold, 0.25);
+  m1.connect(d1); d1.connect(car.frequency);
+  const oscs = [car, m1];
+  if (harmonics) {
+    const m3 = c.createOscillator(), d3 = c.createGain();
+    m3.type = 'sine'; m3.frequency.value = hz * 3;
+    d3.gain.setValueAtTime(hz * 3 * 0.55, t);
+    d3.gain.setTargetAtTime(hz * 3 * 0.22, t, 0.08);
+    if (!sustain) d3.gain.setTargetAtTime(hz * 3 * 0.06, t + hold, 0.2);
+    m3.connect(d3); d3.connect(car.frequency); oscs.push(m3);
+  }
+  lp.type = 'lowpass'; lp.frequency.value = Math.min(7000, hz * (harmonics ? 9 : 6)); lp.Q.value = 0.5;
+  body.type = 'peaking'; body.frequency.value = 220; body.Q.value = 0.9; body.gain.value = 5;
+  car.connect(lp); lp.connect(body); body.connect(g); g.connect(out);
+  if (sustain) {
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.004);
+    g.gain.setTargetAtTime(level * 0.6, t + 0.004, 0.3);
+    g.gain.setValueAtTime(level * 0.6, t + length - 0.12); g.gain.linearRampToValueAtTime(0, t + length);
+  } else envelope(g, t, level, hold, life);
+  for (const o of oscs) { o.start(t); o.stop(t + length); }
+  pluckNoise(t);
 }
 
 // 今の音（オルガン。比べる用）：倍音1〜8を足した波形を、1.1秒保ってから短く消す
@@ -131,11 +186,20 @@ function organVoice(hz, t, { life = LIFE, level = 0.14 } = {}) {
   o.connect(g); g.connect(out); o.start(t); o.stop(t + life + 0.1);
 }
 
+// 減り始めの長さ（上の切り替えで選ぶ。2つの候補の両方に効く）
+const HOLDS = [0.2, 0.35, 0.5];
+let hold = 0.35;
+const holdRow = document.getElementById('hold');
+for (const h of HOLDS) {
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = `${h}秒`;
+  b.className = h === hold ? 'on' : '';
+  b.addEventListener('click', () => { hold = h; for (const x of holdRow.querySelectorAll('button')) x.classList.toggle('on', x === b); });
+  holdRow.append(b);
+}
 const CANDIDATES = [
-  { name: 'A：FM', note: '明るいアタックから、すぐやわらかい音へ', play: fmVoice },
-  { name: 'B：弦の物理モデル', note: '本物の弦に近い、少しざらっとした音', play: ksVoice },
-  { name: 'C：倍音を重ねる', note: '胴の響きがある、やわらかめの音', play: addVoice },
-  { name: '今の音：オルガン', note: '比べる用', play: organVoice, organ: true }
+  { name: 'F：ガット弦（FM だけ）', note: 'こもった、やわらかい音', play: (hz, t) => fmGut(hz, t, { hold }), sustain: (hz, t) => fmGut(hz, t, { sustain: true, length: 4, level: 0.16 }) },
+  { name: 'F＋：ガット弦（FM に倍音を加えたもの）', note: '少し明るく、豊かな音', play: (hz, t) => fmGut(hz, t, { hold, harmonics: true }), sustain: (hz, t) => fmGut(hz, t, { sustain: true, harmonics: true, length: 4, level: 0.16 }) },
+  { name: '今の音：オルガン', note: '比べる用', play: (hz, t) => organVoice(hz, t), sustain: (hz, t) => organVoice(hz, t, { life: 4 }) }
 ];
 const NOTES = [['196Hz（弦全体）', 196], ['392Hz（1オクターブ上）', 392], ['466Hz（盾の声の高さ）', 465.64], ['1397Hz（いちばん高い弦）', 1396.92]];
 
@@ -153,16 +217,13 @@ for (const cand of CANDIDATES) {
   seq.addEventListener('click', () => { const c = audio(), t = c.currentTime + 0.03; [196, 293.66, 392].forEach((hz, i) => cand.play(hz, t + i * 0.45)); });
   row.append(seq);
   const both = document.createElement('button'); both.type = 'button'; both.textContent = '重ねて（揺れ1回/秒）';
-  both.addEventListener('click', () => {
-    const c = audio(), t = c.currentTime + 0.03;
-    if (cand.organ) { organVoice(392, t, { life: 4 }); organVoice(393, t, { life: 4 }); return; }
-    cand.play(392, t, { life: 4, sustain: true, level: cand.play === ksVoice ? 0.2 : 0.16 });
-    cand.play(393, t, { life: 4, sustain: true, level: cand.play === ksVoice ? 0.2 : 0.16 });
-  });
+  both.addEventListener('click', () => { const c = audio(), t = c.currentTime + 0.03; cand.sustain(392, t); cand.sustain(393, t); });
   row.append(both);
   sec.append(row);
   list.append(sec);
 }
+// 確認用（書き出して、1.1秒で消えるかを測る）
+window.audition = { gutData, envelope, fmGut, LIFE, TAIL };
 </script>
 </body>
 </html>
