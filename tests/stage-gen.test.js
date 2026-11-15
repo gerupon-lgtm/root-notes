@@ -60,6 +60,7 @@ function checkStage(stage, { key, decoys, where }) {
     const near = (c, want) => fromBass.some(x => Math.abs(x - want) < 1e-6);
     const c = r => 1200 * Math.log2(r);
     if (kind === 'm7') assert.ok(near(0, c(6 / 5)) && near(0, c(3 / 2)) && near(0, c(9 / 5)), `${where} m7 が純正 ${fromBass}`);
+    if (kind === 'm7b5') assert.ok(near(0, c(6 / 5)) && near(0, c(36 / 25)) && near(0, c(9 / 5)), `${where} m7(♭5) が 25:30:36:45 ${fromBass}`);
     if (kind === 'maj7') assert.ok(near(0, c(5 / 4)) && near(0, c(3 / 2)) && near(0, c(15 / 8)), `${where} maj7 が純正 ${fromBass}`);
     if (kind === 'dom7') {
       // 3度と5度の、純正からのずれが同じ大きさ（約24セント）で向きが逆

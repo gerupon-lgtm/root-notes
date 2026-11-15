@@ -36,16 +36,20 @@ export function placeVoicing({ key, chord, voicing }) {
 //   maj7：三角形の根音はベースの長3度上（5/4、386c）→ 5度 3/2・7度 15/8 も純正になる
 //   7   ：減三和音の三角形は音程の並び（7/6 の上に 6/5）が純正な属七（6/5 の上に 7/6）と逆で、純正にはできない
 //         （純正な属七には長さ 30·35·42 が要り、棒の範囲 2〜24 を超える）。3度と5度のずれが同じ大きさ（約±24c）になる高さに置く（発案者：ずれを3音に分ける）
-//   m7(♭5) と分数コードは、今までどおり三角形の根音を平均律に置く
+//   m7(♭5)：三角形の根音はベースの短3度上（6/5）。ベースから見て 3度 6/5・♭5度 36/25・7度 9/5（25：30：36：45）になる
+//         （2026-11-15 発案者。旧：三角形の根音を平均律に置き、ベースとの短3度が約16セントずれてうなっていた）
+//   分数コードは、今までどおり三角形の根音を平均律に置く
 const cents = r => 1200 * Math.log2(r);
 export const SEVENTH_TUNING = Object.freeze({
   m7: Object.freeze({ above: 3, cents: cents(6 / 5) }),
+  m7b5: Object.freeze({ above: 3, cents: cents(6 / 5) }),
   maj7: Object.freeze({ above: 4, cents: cents(5 / 4) }),
   dom7: Object.freeze({ above: 4, cents: (cents(5 / 4) + cents(3 / 2) - cents(7 / 6)) / 2 })
 });
-// 表示名から七の和音の種類（m7(♭5) と分数コードは null）
+// 表示名から七の和音の種類（分数コードは null）
 export function seventhKind(label) {
-  if (label.includes('/') || label.endsWith('m7(♭5)')) return null;
+  if (label.includes('/')) return null;
+  if (label.endsWith('m7(♭5)')) return 'm7b5';
   if (label.endsWith('maj7')) return 'maj7';
   if (label.endsWith('m7')) return 'm7';
   if (label.endsWith('7')) return 'dom7';
