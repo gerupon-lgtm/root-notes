@@ -139,6 +139,9 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // 試聴などの確認用ページ（audition/）は本体の画面ではないので、いつも通信で開く。
+  // ここで受けると、どのページの移動にも入口のページ（index.html）を返してしまい、確認用ページが開けない（2026-11-15）
+  if (url.pathname.startsWith(new URL('./audition/', self.location.href).pathname)) return;
   event.respondWith((async () => {
     if (request.mode === 'navigate') {
       if (await ready()) {

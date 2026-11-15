@@ -124,6 +124,13 @@ test('準備済みなら、入口のページは通信を待たずに保存し�
   assert.ok(!w.fetched.length);
 });
 
+test('確認用ページ（audition/）は受けず、通信に任せる（入口のページを返さない）', async () => {
+  const rel = release('0.2.0');
+  const w = boot(rel, { caches: makeCaches({ 'root-notes-0.2.0': full(rel) }) });
+  const res = await w.fire('fetch', { request: { method: 'GET', mode: 'navigate', url: `${ORIGIN}audition/guitar.html` } });
+  assert.equal(res, undefined);
+});
+
 test('準備ができておらず通信もできないとき、前の版の保存か案内のページを返す', async () => {
   const old = release('0.1.0'), rel = release('0.2.0');
   const withOld = boot(rel, { caches: makeCaches({ 'root-notes-0.1.0': full(old) }) });
