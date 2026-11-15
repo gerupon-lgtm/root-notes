@@ -453,7 +453,9 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
   .app.mono { grid-template-rows: auto auto auto minmax(0, 1fr) auto; grid-template-areas: "head stars" "board sub" "board guide" "board sticks" "board actions"; }
 }
 @media (orientation: landscape) and (max-height: 500px) {
-  .mono-guide { height: clamp(104px, 31dvh, 132px); grid-template-columns: 32px minmax(0, 1fr); grid-template-rows: 30px minmax(0, 1fr) 3px; padding: 6px 8px; gap: 4px 8px; }
+  /* 横向きの帯は高さを決め打ちにせず、全部の手順のうち一番長い文が入る高さに合わせる（monochord-screen.js の lockGuideHeight が min-height を置く）。
+     決め打ちの 128px だと、スマホで文が1行増えたときに、下の進み具合の線に重なった（2026-11-15 発案者、Pixel 9a 横向き） */
+  .mono-guide { height: auto; max-height: 48dvh; grid-template-columns: 32px minmax(0, 1fr); grid-template-rows: 30px auto 3px; padding: 6px 8px; gap: 4px 8px; }
   .mono-guide .guide-spirit { width: 32px; height: 44px; }
   .guide-heading { font-size: 12px; }
   .guide-text { font-size: 12px; }
@@ -579,7 +581,8 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 /* 文は帯の上に寄せる（2026-11-15 発案者）。見出しは「1 / 6」と同じ行に置き、本文をすぐ下から始める */
 .guide-top .guide-count { flex: none; }
 .guide-top .guide-heading { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mono-guide .guide-copy { align-self: start; justify-content: flex-start; }
+/* 文は上から詰める。帯からはみ出さないよう、行の高さいっぱいに置き（はみ出す分は帯の中でスクロール） */
+.mono-guide .guide-copy { align-self: stretch; justify-content: flex-start; }
 .mono-guide .guide-description { justify-content: flex-start; }
 /* 少し短く／少し長く：枠をはっきり、押している間は色を変える（2026-11-15 発案者「押した感じがない」「枠が非活性に見える」） */
 #mono-screen .btn.nudge { border-color: #b69b60; color: var(--ink); }
