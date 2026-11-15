@@ -33,6 +33,14 @@ export function createStoryScreen({ audio }) {
     clearSparks();
     const sparks = [];
     const parts = slide.layers.map(l => {
+      // text：絵の上に重ねる文字（巻物の言葉など。文字は画像に焼き付けない）
+      if (l.text) {
+        const div = document.createElement('div');
+        div.className = `story-text ${l.cls ?? ''}`.trim();
+        div.textContent = l.text;
+        Object.assign(div.style, { left: pct(l.x, W), top: pct(l.y, H), width: pct(l.w, W) });
+        return div;
+      }
       const img = document.createElement('img');
       // svg：声の形の印（章の終わり 2）。それ以外は webp の絵
       img.src = l.svg ? new URL(`../../public/art/story/${l.svg}.svg`, import.meta.url).href : storyArt(l.art);

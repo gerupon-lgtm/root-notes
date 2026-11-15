@@ -31,7 +31,10 @@ export function validContinuous(c) {
   // 章末の謎で持ち帰った武具（段階5）：{ shield, sword, armor } に選んだ弦の長さ（2〜24 の整数）
   const artifacts = {};
   for (const id of ['shield', 'sword', 'armor']) { const n = c.artifacts?.[id]; if (Number.isInteger(n) && n >= 2 && n <= 24) artifacts[id] = n; }
-  return { mode: c.mode, step: c.step, ch1: strings(c.ch1), ch2, ch3, artifacts };
+  // 拾った弦（おとりの辺。第2・3章の終わり）と、最終章での失敗の残り（ZAP で減る。上限なしは null）
+  const decoys = Array.isArray(c.decoys) ? c.decoys.filter(n => Number.isInteger(n) && n >= 2 && n <= 24) : [];
+  const finalLives = Number.isInteger(c.finalLives) && c.finalLives >= 0 ? c.finalLives : null;
+  return { mode: c.mode, step: c.step, ch1: strings(c.ch1), ch2, ch3, artifacts, decoys, finalLives };
 }
 
 export class ProgressBook {

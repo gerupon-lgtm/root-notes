@@ -4,7 +4,9 @@
 // - 選択プレイ：章を選ぶ（第1章／第2章）→ その章の面を選ぶ
 // 中身がまだない場面は、仮の1画面（見出しと「次へ」）で通り抜ける。序章は紙芝居（src/ui/story-screen.js）
 import { FLOW, firstStep, nextStep, stepById, playableChapters } from '../game/flow.js';
-import { PROLOGUE, endBefore, endAfter } from '../content/story.js';
+import { PROLOGUE, endBefore, endAfter, FINAL_INTRO, gateBefore, gateOpened, zapSlide, DOOR_BEFORE, ENDING } from '../content/story.js';
+import { GATES, DECOY_BY_CHAPTER, FINAL_K } from '../content/final.js';
+import { FinalPlay } from '../game/final-play.js';
 import { riddleHz } from '../content/riddles.js';
 import { buildRun } from '../core/stage-gen.js';
 import { buildScore } from '../game/song.js';
@@ -21,7 +23,7 @@ const LEVEL_IDS = ['free', 'normal', 'expert'];
 const levelNote = m => (m.lives === Infinity ? '制限なし。和音もメーターも自由' : `失敗${m.lives}回まで・メーター${m.meterCount}回`);
 function localStore() { try { return globalThis.localStorage ?? null; } catch { return null; } }
 
-export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle }) {
+export function createFlow({ audio, screens, mono, stage, story, riddle, final, onTitle }) {
   const card = document.getElementById('interlude-card');
   let mode = 'free';
   // 序を見たかの記録（2回目からは飛ばせる。要件6.10）。案内の記録と同じ場所に 'prologue' として残す
@@ -44,7 +46,7 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle
   const show = name => {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
   };
-  const toTitle = () => { audio.stopAll(); mono.stop(); story.stop(); riddle.stop(); show('title'); onTitle(); };
+  const toTitle = () => { audio.stopAll(); mono.stop(); story.stop(); riddle.stop(); final.stop(); show('title'); onTitle(); };
 
   // 仮の画面を組み立てる。buttons：[文言, 動き, 主ボタンか, 一言（小さく添える）]
   function interlude({ eyebrow = '', title, lines = [], list = null, buttons, stack = false }) {
@@ -89,7 +91,7 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle
       const seen = !book.shouldAuto('prologue');
       const after = () => { book.complete('prologue'); if (chooseAfterPrologue) chooseLevel(begin); else begin(); };
       // 第1章に入るときに、新しい連続プレイの続きを作る
-      const begin = () => { run = { mode, step: 'ch1', ch1: [], ch2: null, ch3: null, artifacts: {} }; next(); };
+      const begin = () => { run = { mode, step: 'ch1', ch1: [], ch2: null, ch3: null, artifacts: {}, decoys: [] }; next(); };
       // 紙芝居（段階6）。最後の「はじめる」か、2回目からの「飛ばす」で次へ
       show('story');
       story.play(PROLOGUE, { title: step.title, canSkip: seen, endLabel: 'はじめる', onDone: after });
@@ -99,14 +101,22 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle
       // 紙芝居は2回目から「飛ばす」を出す（序章と同じ。章ごとに 'end-shield' などで記録）
       const R = RIDDLES[step.riddle], key = `end-${step.riddle}`, title = `${R.chapter}の終わり`;
       const seen = !book.shouldAuto(key);
+      // 第2・3章の終わりでは、精霊が「もう1本、落ちていた弦」（おとりの辺 7・10）を拾う（Q-13）
+      const decoy = DECOY_BY_CHAPTER[step.riddle] ?? null;
       const after = length => {
-        if (run) { run.artifacts = { ...(run.artifacts ?? {}), [step.riddle]: length }; saveRun(); }
+        if (run) {
+          run.artifacts = { ...(run.artifacts ?? {}), [step.riddle]: length };
+          if (decoy && !(run.decoys ?? []).includes(decoy)) run.decoys = [...(run.decoys ?? []), decoy];
+          saveRun();
+        }
         show('story');
-        story.play(endAfter(step.riddle, R.name, riddleHz(length)), { title, canSkip: seen, endLabel: '次へ', onDone: () => { book.complete(key); next(); } });
+        story.play(endAfter(step.riddle, R.name, riddleHz(length), decoy ? riddleHz(decoy) : null), { title, canSkip: seen, endLabel: '次へ', onDone: () => { book.complete(key); next(); } });
       };
       const toRiddle = () => { show('riddle'); riddle.start(R, { meter: mode === 'free', onTitle: toTitle, onDone: after }); };
       show('story');
       story.play(endBefore(step.riddle, R.name), { title, canSkip: seen, endLabel: '謎へ', onDone: toRiddle, phrase: songOf(step.riddle === 'armor' ? 'ch3' : 'ch2') });
+    } else if (step.kind === 'final') {
+      enterFinal(step);
     } else if (step.kind === 'monochord') {
       show('mono');
       mono.start(mode, { onDone: next, onTitle: toTitle, lit: run?.ch1 ?? [], onLit: lit => { if (run) { run.ch1 = lit; saveRun(); } } });
@@ -127,6 +137,81 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle
     } else {
       interlude({ eyebrow: '準備中', title: step.title, lines: [step.note ?? ''], buttons: [['タイトルへ', toTitle], ['次へ ▶', next, true]] });
     }
+  }
+
+  // ---------- 最終章（要件6.4。2026-11-15 発案者と決めた形） ----------
+  // 門の前の紙芝居 → 門（遊ぶ）→ 開いた門と小部屋の紙芝居 → …… → 最後の扉 → 直角に開く → 結末。
+  // 足りない武具があれば ZAP：合わない声の紙芝居 → 足りない武具の謎だけ解き直し → 最終章を初めから。ZAP のたびに失敗の残りを1つ使う
+  function enterFinal(step) {
+    const play = new FinalPlay({ artifacts: run?.artifacts ?? {}, decoys: run?.decoys ?? [] });
+    const seen = !book.shouldAuto('final');
+    const title = '最終章';
+    const startGates = () => { const miss = play.missing(); if (miss.length) zap(step, play, miss); else gateLoop(step, play); };
+    show('story');
+    story.play(FINAL_INTRO, { title, canSkip: seen, endLabel: '門へ', onDone: () => { book.complete('final'); startGates(); } });
+  }
+  function gateLoop(step, play) {
+    const title = '最終章';
+    if (play.atDoor) {
+      show('story');
+      story.play(DOOR_BEFORE, { title, endLabel: '扉へ', onDone: () => playFinal(step, play) });
+      return;
+    }
+    const g = play.current;
+    show('story');
+    story.play(gateBefore(g.art, g.name, play.opened.length), { title, endLabel: '門へ', onDone: () => playFinal(step, play) });
+  }
+  function playFinal(step, play) {
+    show('final');
+    final.start(play, {
+      modeId: mode, onTitle: toTitle,
+      onGateOpen: r => {
+        const k = GATES.indexOf(r.gate);
+        show('story');
+        story.play(gateOpened(k, r.gate.art, r.gate.name, [...r.gate.given, r.gate.answer].map(n => FINAL_K / n), k === GATES.length - 1),
+          { title: '最終章', endLabel: '次へ', onDone: () => gateLoop(step, play) });
+      },
+      onZap: miss => zap(step, play, miss),
+      onDoor: () => {
+        show('story');
+        story.play(ENDING, { title: '結末', endLabel: 'おわり', phrase: songOf('ch2'), onDone: () => { if (run) { progress.clearContinuous(); run = null; } finishedAll(); } });
+      }
+    });
+  }
+  // ZAP：失敗の残り（ノーマル・エキスパート）を1つ使い、足りない武具の謎へ。名前を教えるのはフリーだけ（要件6.6）
+  function zap(step, play, miss) {
+    const names = mode === 'free' ? miss.map(a => GATES.find(g => g.art === a).name).join('と') : null;
+    if (run) {
+      const lives = run.finalLives ?? (run.ch3 ?? run.ch2)?.livesLeft ?? null;
+      if (lives !== null) {
+        run.finalLives = Math.max(0, lives - 1);
+        saveRun();
+        if (run.finalLives <= 0) {
+          progress.clearContinuous(); run = null;
+          interlude({ eyebrow: '最終章', title: 'ゲームオーバー', lines: ['失敗の上限に達しました。連続プレイを最初から始められます。'], buttons: [['タイトルへ', toTitle, true]] });
+          return;
+        }
+      }
+    }
+    show('story');
+    story.play(zapSlide(play.opened.length, names), {
+      title: '最終章', endLabel: '謎へ戻る',
+      onDone: () => {
+        const queue = [...miss];
+        const one = () => {
+          const art = queue.shift();
+          if (!art) { enterFinal(step); return; }
+          show('riddle');
+          riddle.start(RIDDLES[art], { meter: mode === 'free', onTitle: toTitle, onDone: length => { if (run) { run.artifacts = { ...(run.artifacts ?? {}), [art]: length }; saveRun(); } one(); } });
+        };
+        one();
+      }
+    });
+  }
+  // 最後まで通したとき
+  function finishedAll() {
+    audio.stopAll();
+    interlude({ eyebrow: 'ROOT NOTES', title: 'おしまい', lines: ['最後まで遊んでくれて、ありがとうございました。'], buttons: [['タイトルへ', toTitle, true]] });
   }
 
   // 連続プレイ：遊び方を選ぶ（FLOAT の levels() と同じ形：説明文と、名前に一言を添えた3つのボタン）

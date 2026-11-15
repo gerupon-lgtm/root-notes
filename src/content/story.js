@@ -134,14 +134,109 @@ export function endBefore(id, name) {
   ]);
 }
 // 謎のあとの1枚（終4）。length は持ち帰った弦の長さ（音だけに使い、文には出さない）
-export function endAfter(id, name, hz) {
+// decoy：精霊が拾う「もう1本、落ちていた弦」（第2・3章。Q-13。音だけ鳴らし、長さは文に出さない）
+export function endAfter(id, name, hz, decoyHz = null) {
   const e = CHAPTER_END[id], bg = { art: e.background, x: 0, y: 0, w: 1280 };
   return Object.freeze([
     Object.freeze({
       id: `${id}-end4`, place: e.place,
       layers: [bg, spiritLeft('spirit-smiling'), { art: `${id}-sealed`, ...END_ITEM, cls: 'held' }],
-      speaker: '弦の精霊', say: `切れ端の声を、弦に写せました。この${name}は、わたしが預かりましょう。`,
-      cues: [{ at: 0.4, pluck: hz }]
+      speaker: '弦の精霊', say: `切れ端の声を、弦に写せました。この${name}は、わたしが預かりましょう。${decoyHz ? '……あら、もう1本、弦が落ちていました。これも持っていきましょう。' : ''}`,
+      cues: [{ at: 0.4, pluck: hz }, ...(decoyHz ? [{ at: 2.2, pluck: decoyHz }] : [])]
     })
   ]);
 }
+
+// ---------- 最終章と結末（段階6・要件6.10。2026-11-15 発案者と決めた形。語りは仮。足りない絵はプレースホルダーなし＝既存の絵で組む） ----------
+// 門の広間の背景：開いた門の数（左から盾・剣・鎧）
+const GATE_BG = ['temple-three-gates-000', 'temple-three-gates-100', 'temple-three-gates-110', 'temple-three-gates-111'];
+const gateBg = opened => ({ art: GATE_BG[opened], x: 0, y: 0, w: 1280 });
+// 小部屋の門の印（Codex v0.6.0 placements.json の案）
+const MARK = [{ x: 596, y: 84, w: 88 }, { x: 581, y: 84, w: 118 }, { x: 556, y: 84, w: 168 }];
+// 封音が初めて話す言葉（仮。要件6.8 の性格：盾＝慎重で心配性「まだ終わらせない」、剣＝寡黙でまっすぐ・本当は優しい、鎧＝おおらかな年長者）
+const SEAL_WORDS = {
+  shield: 'まだ、終わらせない。……この辺を、扉へ。わたしはここで、響きを守ろう。',
+  sword: '……影は、引き受けた。これを持っていけ。',
+  armor: 'よく来たね。最後の言葉は、この巻物に預けてあるよ。'
+};
+const HZ = n => (BELL_BASE_HZ * 12) / n; // 謎・鐘と同じ基準の音（長さ n の弦）
+
+// 最1：門の前（最終章の始まり）。新しい決まり（使うとなくなる・似た辺がある）は精霊の語りで伝える（要件6.10）
+export const FINAL_INTRO = Object.freeze([
+  Object.freeze({
+    id: 'final-1', place: '神殿の奥　三つの門', layers: [gateBg(0), spiritLeft('spirit-normal')],
+    speaker: '弦の精霊', say: '門は、封じられた声でしか開きません。手持ちの弦を1本差し出すと、その弦は門に残ります。似た響きの弦もあります。よく聞き比べて。',
+    cues: [{ at: 0.4, bells: [12] }]
+  })
+]);
+// 最2：門の前（武具が門に応えたがっている）。k は門の番号、opened は開いた門の数
+export function gateBefore(art, name, opened) {
+  return Object.freeze([Object.freeze({
+    id: `final-gate-${art}`, place: `神殿の奥　${name}の門`,
+    layers: [gateBg(opened), spiritLeft('spirit-listening'), { art: `${art}-sealed`, ...END_ITEM }, { svg: `voice-${art}`, id: 'voice', x: 450, y: 250, w: 400, cls: 'voice-mark' }],
+    speaker: '弦の精霊', say: `${name}の封音が、門に応えたがっています。門の響きと同じ和音になる弦を、手持ちから。`,
+    cues: [{ at: 0.4, seal: art }]
+  })]);
+}
+// 最3・最3'：門が開く → 門の先の小部屋（武具が封印を解かれた姿で初めて話し、報酬を差し出す）。last は鎧の門（3つ目）か
+export function gateOpened(k, art, name, gateHz, last) {
+  const reward = art === 'armor' ? { art: 'scroll-closed', x: 380, y: 715, w: 520 } : { art: 'reward-edge-6', x: 470, y: 715, w: 340 };
+  const slides = [
+    Object.freeze({
+      id: `final-open-${art}`, place: `神殿の奥　${name}の門`, layers: [gateBg(k + 1)],
+      narration: `${name}の門が開きました。`, cues: [{ at: 0.3, chord: gateHz }]
+    }),
+    Object.freeze({
+      id: `final-room-${art}`, place: `${name}の門の先　小部屋`,
+      layers: [{ art: 'temple-side-chamber', x: 0, y: 0, w: 1280 }, { art: `chamber-mark-${k + 1}`, ...MARK[k] }, { art: `${art}-released`, x: 484, y: 390, w: 312, cls: 'held' }, reward],
+      speaker: `${name}の封音`, say: SEAL_WORDS[art], cues: [{ at: 0.4, pluck: gateHz[0] }]
+    })
+  ];
+  if (last) slides.push(Object.freeze({
+    id: 'final-way', place: '神殿の奥　三つの門', layers: [gateBg(3), spiritLeft('spirit-smiling')],
+    speaker: '弦の精霊', say: '3つの封印が解けて、奥への道が開きました。', cues: [{ at: 0.3, bells: [12, 6] }]
+  }));
+  return Object.freeze(slides);
+}
+// ZAP：合わない武具の声。names は足りない武具（教えない遊び方では null）
+export function zapSlide(opened, names) {
+  return Object.freeze([Object.freeze({
+    id: 'final-zap', place: '神殿の奥　三つの門', layers: [gateBg(opened), spiritLeft('spirit-confused')],
+    speaker: '弦の精霊', say: names ? `この声は、本当の声ではないようです。${names}の謎へ戻って、本当の声を探しましょう。` : 'この声は、本当の声ではないようです。本当の声を探しに戻りましょう。',
+    cues: [{ at: 0.3, chord: [HZ(9), HZ(8)] }]
+  })]);
+}
+// 最4：最後の扉と巻物
+export const DOOR_BEFORE = Object.freeze([Object.freeze({
+  id: 'final-door', place: '神殿の奥　最後の扉',
+  layers: [{ art: 'temple-final-door-closed', x: 0, y: 0, w: 1280 }, { art: 'scroll-open', x: 290, y: 560, w: 700 }, { text: '等しき二本を、直角に開け', x: 390, y: 665, w: 500, cls: 'scroll-words' }],
+  speaker: '弦の精霊', say: '巻物に、こう書いてあります。「等しき二本を、直角に開け」', cues: [{ at: 0.3, pluck: HZ(6) }]
+})]);
+// 最5〜最9：結末。song は締めくくりの曲（流れの側から渡す。仮）
+export const ENDING = Object.freeze([
+  Object.freeze({
+    id: 'end-5', place: '扉の向こう', layers: [{ art: 'temple-final-door-open', x: 0, y: 0, w: 1280 }, { art: 'root2-resonance', x: 640, y: 300, w: 400 }, spiritLeft('spirit-confused')],
+    narration: '直角に開いた2本のあいだに、整数では書けない長さの辺が生まれました。落ち着かない新入り、√2の響きです。封音たちが、少し戸惑っています。',
+    cues: [{ at: 0.3, chord: [HZ(6), HZ(6 * Math.SQRT2)] }]
+  }),
+  Object.freeze({
+    id: 'end-6', place: '扉の向こう', layers: [{ art: 'forge-legend', x: 0, y: 0, w: 1280, cls: 'dim' }, ...bells()],
+    narration: '濁りは、流れの中に置けば道しるべになる。鐘が、そろって鳴りました。',
+    cues: [{ at: 0.3, bells: [12, 9, 8, 6] }]
+  }),
+  Object.freeze({
+    id: 'end-7', place: '祭壇の部屋', layers: [night, { art: 'temple-sky-sanctuary-no-sky', x: 0, y: 0, w: 1280 }], stars: 'all',
+    narration: '封音と√2の響きが、それぞれの役目を果たします。天の歌が、ひとつずつ灯っていきます。',
+    cues: [{ at: 0.2, phrase: true }]
+  }),
+  Object.freeze({
+    id: 'end-8', place: '祭壇の部屋', layers: [night, { art: 'temple-sky-sanctuary-no-sky', x: 0, y: 0, w: 1280 }, { art: 'shadow-gods', x: 140, y: 120, w: 1000, cls: 'shade' }, { art: 'shadow-people', x: 140, y: 480, w: 1000, cls: 'shade' }], stars: 'all',
+    narration: '天の歌が鳴りわたりました。不浄とされた響きは、導きの響きになりました。',
+    cues: [{ at: 0.3, bells: [12, 8, 6] }]
+  }),
+  Object.freeze({
+    id: 'end-9', place: '遠い祭壇', layers: [{ art: 'altar-bell-distant', x: 0, y: 0, w: 1280 }],
+    narration: '遠い祭壇で、鐘の余韻が、いつもと少し違う重なり方をしました。封じられた音は、ほかにもあるといいます。',
+    cues: [{ at: 0.6, bells: [12] }, { at: 1.3, bells: [8] }, { at: 2.0, bells: [6] }]
+  })
+]);

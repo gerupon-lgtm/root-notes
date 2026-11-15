@@ -204,6 +204,29 @@
   </section>
 </main>
 
+<!-- 最終章の門と扉（段階5）。中身は src/ui/final-screen.js が差し込む -->
+<main class="riddle" id="final-screen" hidden>
+  <header class="story-top">
+    <div class="story-brand">ROOT<span>NOTES</span></div>
+    <p id="final-place"></p>
+    <button type="button" class="story-skip" id="final-title">タイトルへ</button>
+  </header>
+  <section class="riddle-layout">
+    <figure class="story-picture riddle-picture" id="final-picture"></figure>
+    <div class="riddle-side">
+      <p class="riddle-guide" id="final-guide" aria-live="polite"></p>
+      <svg class="riddle-bars final-bars" id="final-bars" role="group" aria-label="門の辺と手持ちの辺（タップで選んで鳴らす）"></svg>
+      <div class="riddle-buttons">
+        <button type="button" class="btn" id="final-listen">門の響きを聞く</button>
+        <button type="button" class="btn" id="final-mine" disabled>重ねて鳴らす</button>
+        <button type="button" class="btn primary" id="final-offer" disabled>この弦を差し出す</button>
+        <button type="button" class="btn primary" id="final-open" hidden disabled>直角に開く</button>
+        <button type="button" class="btn primary" id="final-next" hidden>扉を開く ▶</button>
+      </div>
+    </div>
+  </section>
+</main>
+
 <!-- 章の間の画面（序章・章選び・まだ中身のない場面）。中身は src/ui/flow-screen.js が差し込む -->
 <main class="interlude" id="interlude-screen" hidden>
   <div class="interlude-card" id="interlude-card"></div>

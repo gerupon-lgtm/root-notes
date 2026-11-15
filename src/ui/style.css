@@ -676,3 +676,19 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 /* 第3章の影の面：光の三角形をうっすら残す（触っても鳴らない） */
 #tri .ghost { opacity: 0.28; pointer-events: none; }
 #tri .ghost-label { fill: var(--gold); font-size: 11px; opacity: 0.8; letter-spacing: 0.08em; }
+
+/* 最終章の門と扉（段階5）。章末の謎と同じ枠組み */
+.final-bars { max-height: 260px; }
+.riddle-row.given .riddle-sel { fill: #d9bb6b14; stroke: #d9bb6b55; stroke-dasharray: 4 3; }
+.riddle-row.given .riddle-label { fill: var(--gold); }
+.riddle-row.door { opacity: 0.85; }
+.final-tag { fill: var(--mute); font-size: 11px; }
+.final-sq { fill: #d9bb6b22; stroke: #d9bb6b; stroke-width: 1.2; }
+.final-sq.hyp { fill: #86dcb622; stroke: #86dcb6; }
+.final-tri { fill: #f0d79733; stroke: #ffe7a6; stroke-width: 2.4; }
+.final-area { fill: var(--ink); font-size: 13px; font-weight: 700; }
+.riddle-picture.shake { animation: final-shake 0.4s; }
+@keyframes final-shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+/* 紙芝居の絵に重ねる文字（巻物の言葉。Codex の画面案と同じく明朝で） */
+.story-text { position: absolute; pointer-events: none; text-align: center; }
+.story-text.scroll-words { color: #3f2c1c; font-family: "Yu Mincho", "Hiragino Mincho ProN", serif; font-weight: 600; font-size: clamp(10px, 2.6vmin, 22px); letter-spacing: 0.08em; }
