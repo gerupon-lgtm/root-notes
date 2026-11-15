@@ -15,6 +15,7 @@ import { TIMBRES } from '../content/timbres.js';
 import { BEAT_FAR_ABOVE } from '../core/pitch.js';
 import { CH1_STEPS, CH1_CLEAR, CH1_FLASH, STEP_IDS, ACTIONS, FINE_BEAT, advanceStep, readNext, nextAction, plain } from '../content/tutorial.js';
 import { TutorialBook } from '../game/tutorial-book.js';
+import { RecordBook, formatSeconds } from '../game/record-book.js';
 import { artPath } from '../content/assets.js';
 import { placeResultToast } from './result-layout.js';
 
@@ -48,6 +49,10 @@ export function createMonochordScreen({ audio }) {
     fine: false, flashDone: 0
   };
   const book = new TutorialBook(localStore());
+  // 時間の記録（2026-11-15 発案者）：面に入ってから最初の操作で計り始め、合格で止める。チュートリアルは計らない。
+  // 面を移る・タイトルへ戻ると、その回は捨てる。最速だけを遊び方×面ごとに残す
+  const records = new RecordBook(localStore());
+  const timing = () => !S.tutorial;
   const stage = () => MONOCHORD_STAGES[S.i];
   const meterAllowed = () => S.mode.id === 'select' || S.mode.id === 'free';
   const showMeter = () => meterAllowed() && S.meterOn;
@@ -169,12 +174,19 @@ export function createMonochordScreen({ audio }) {
       if (st.passed) passed();
     }
     renderMeter();
+    if (S.timerStart && !S.passed) renderTime();
     drawMoving(now);
     S.raf = requestAnimationFrame(loop);
   }
   function passed() {
     const s = stage();
     S.passed = true;
+    S.newRecord = false;
+    if (S.timerStart && timing()) {
+      S.timeMs = performance.now() - S.timerStart;
+      S.newRecord = records.submit(S.mode.id, s.id, S.timeMs).updated;
+    }
+    renderTime();
     S.lit.add(s.id);
     S.onLit?.([...S.lit]); // 保存（段階7）
     // 重ねて鳴らしていた2音を、そのままゆっくり消す。合格の音は足さない
@@ -213,7 +225,7 @@ export function createMonochordScreen({ audio }) {
     const t = $('mono-toast');
     t.replaceChildren(
       el('div', { class: 'result-head' },
-        el('div', { class: 'result-title' }, el('h3', {}, head)),
+        el('div', { class: 'result-title' }, el('h3', {}, head, ...(S.newRecord && !S.ended ? [el('span', { class: 'record-badge' }, '記録更新')] : []))),
         el('button', { type: 'button', class: 'close', 'data-act': 'close', 'aria-label': '閉じる' }, '×')),
       el('div', { class: 'result-body', tabindex: '0', 'aria-label': '結果の説明' },
         el('p', { class: 'first-line' }, lines[0]),
@@ -337,6 +349,7 @@ export function createMonochordScreen({ audio }) {
   // 操作をしたら次の手順へ。案内つきなら帯と縁を更新し、そうでなければ次にする所を2回光らせる
   function reach(action) {
     if (S.passed) return;
+    if (!S.timerStart && timing()) S.timerStart = performance.now();
     // 駒やつまみを触っている間は、次の手順へ切り替えない（案内が変わって画面が動くと、指の下の駒がずれるため。2026-11-14 発案者）。
     // 指を離したときに進める
     if (action === 'move' && S.touching) { S.pendingMove = true; return; }
@@ -388,6 +401,21 @@ export function createMonochordScreen({ audio }) {
   }
 
   // ---------- 表示 ----------
+  // 時間：計っている間は「⏱ 3.2秒　最速 9.8秒」、始める前は「最速 9.8秒」（記録がなければ「最速 ―」）。チュートリアルでは出さない
+  function renderTime() {
+    const el = $('mono-time');
+    el.hidden = !timing();
+    if (el.hidden) return;
+    const best = records.best(S.mode.id, stage().id);
+    const ms = S.passed ? S.timeMs : S.timerStart ? performance.now() - S.timerStart : 0;
+    const tenth = Math.floor(ms / 100);
+    const key = `${tenth}|${best}|${S.passed}`;
+    if (key === S.shownTenth) return;
+    S.shownTenth = key;
+    const bestText = `最速 ${best === null ? '―' : formatSeconds(best)}`;
+    el.textContent = S.timerStart ? `⏱ ${formatSeconds(ms)}　${bestText}` : bestText;
+    el.classList.toggle('new', !!S.newRecord && S.passed);
+  }
   let twinkleTimer = 0;
   function twinkle() {
     const on = $('mono-stars').querySelector('.star.on');
@@ -441,11 +469,12 @@ export function createMonochordScreen({ audio }) {
     clearTimeout(S.nextTimer);
     stopDrone();
     S.i = i; S.passed = false; S.hold = 0; S.knob = 0; S.ended = false; S.step = 0; S.fine = false; S.flashDone = 0;
+    S.timerStart = 0; S.timeMs = 0; S.newRecord = false; S.shownTenth = -1;
     S.tutorial = i === 0 ? tutorial : null;
     S.r = startPosition(stage().num / stage().den, Math.random);
     $('mono-actions').hidden = false;
     $('mono-end').hidden = true;
-    renderStars(); renderButtons(); renderGuide(); drawStatic(); drawKnob();
+    renderStars(); renderButtons(); renderGuide(); drawStatic(); drawKnob(); renderTime();
     if (S.tutorial) { say(''); stepChanged(); }
     else say(meterAllowed()
       ? 'お題を聞き、弦をはじき、「重ねて鳴らす」。駒を動かして揺れが消え、2つの音が一つにまとまる所を探します（メーターも使えます）。'
@@ -540,7 +569,8 @@ export function createMonochordScreen({ audio }) {
   $('mono-guide-skip').addEventListener('click', () => {
     book.skip('ch1');
     S.tutorial = null;
-    renderGuide(); renderCoach();
+    S.shownTenth = -1;
+    renderGuide(); renderCoach(); renderTime(); // 案内をやめたら、ここから時間を計れる（最速の表示を出す）
     say('案内をスキップしました。見出しの「案内」から、いつでも見直せます。');
     const next = ACTIONS[S.flashDone];
     if (next && !S.passed) flash(CH1_FLASH[next]);

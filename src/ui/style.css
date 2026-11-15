@@ -618,10 +618,14 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 .riddle-bars { width: 100%; flex: 1 1 auto; min-height: 120px; max-height: 240px; }
 .riddle-row { cursor: pointer; }
 .riddle-string { stroke: #e8dcc0; stroke-width: 1.6; }
-.riddle-row.chosen .riddle-string { stroke: #f0d797; stroke-width: 2.6; filter: drop-shadow(0 0 4px #f0d797); }
-.riddle-row.chosen .riddle-label { fill: var(--gold); font-weight: 700; }
+.riddle-sel { fill: transparent; stroke: transparent; }
+/* 選んだ弦：行に淡い金の帯と枠、弦は太い金色、数字も金色（2026-11-15 発案者「選んだ弦が分かりづらい」） */
+.riddle-row.chosen .riddle-sel { fill: #d9bb6b2e; stroke: #f0d797; stroke-width: 1.6; }
+.riddle-row.chosen .riddle-string { stroke: #ffe7a6; stroke-width: 3.2; filter: drop-shadow(0 0 5px #f0d797); }
+.riddle-row.chosen .riddle-label { fill: #ffe7a6; font-weight: 700; }
 .riddle-label { fill: var(--ink); }
 .riddle-meter { margin: 0; font-size: 14px; color: var(--gold); }
+.riddle-meter.idle { color: var(--mute); }
 .riddle-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; }
 .riddle-buttons .btn { min-height: 54px; }
 .riddle-buttons #riddle-take, .riddle-buttons #riddle-next { grid-column: 1 / -1; }
@@ -645,3 +649,9 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
   .riddle-buttons #riddle-take, .riddle-buttons #riddle-next { grid-column: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .riddle-voice.leak { animation: none; opacity: 0.8; } }
+
+/* 第1章の時間（2026-11-15 発案者）。お題の行の右に、計っている時間と最速 */
+.mono-time { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--mute); }
+.mono-time.new { color: var(--gold); font-weight: 700; }
+/* 結果のトーストの「記録更新」の札 */
+.record-badge { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: linear-gradient(110deg, #ecd083, #c8a556); color: #18231c; font-size: 0.72rem; font-weight: 700; vertical-align: middle; letter-spacing: 0.04em; }
