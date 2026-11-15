@@ -46,6 +46,13 @@ export function build({ root = repo, output = join(root, 'dist') } = {}) {
   };
   copyTree('src');
   if (existsSync(join(root, 'public'))) copyTree('public');
+  // 試聴などの確認用ページ（public/audition/*.html）は、版のフォルダの外の audition/ に置く。
+  // アプリの資材の一覧（files）には入れないので、通信なしの保存には入らない（本体の画面ではないため）
+  const audition = join(root, 'public', 'audition');
+  if (existsSync(audition)) {
+    mkdirSync(join(output, 'audition'), { recursive: true });
+    for (const name of readdirSync(audition)) if (name.endsWith('.html')) copyFileSync(join(audition, name), join(output, 'audition', name));
+  }
 
   // アイコンは版のフォルダの外の決まった場所にも置き、マニフェストと画面はこちらを指す（AQUA 2026-11-03：
   // 古い版の画面のままホーム画面に追加すると、版つきのアイコンが見つからずインストールできないことがあった）
