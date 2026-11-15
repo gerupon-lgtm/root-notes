@@ -40,7 +40,7 @@
             <div class="title-help-body">
               <h2>響きを聴いて、かたちにする。</h2>
               <p>お題の和音を聴き、その響きになる3本の棒を選んで三角形を作ります。辺は弦になっていて、短い辺ほど高い音が鳴ります。</p>
-              <p>連続プレイは序から始まります。序のあとでフリー・ノーマル・エキスパートを選び、第1章から順に進みます。フリーは何度でも音を比べられます。</p>
+              <p>連続プレイは序章から始まります。序章のあとでフリー・ノーマル・エキスパートを選び、第1章から順に進みます。フリーは何度でも音を比べられます。</p>
               <p>選択プレイでは章を選んで遊べます。チュートリアルでは、第1章の一弦の琴を案内つきで体験できます。</p>
               <p class="title-help-close">「遊び方と概要」をもう一度押すと閉じます。</p>
             </div>
@@ -162,7 +162,26 @@
   </div>
 </div>
 
-<!-- 章の間の画面（序・章選び・まだ中身のない場面）。中身は src/ui/flow-screen.js が差し込む -->
+<!-- おはなしの紙芝居（段階6）。中身は src/ui/story-screen.js が差し込む -->
+<main class="story" id="story-screen" hidden>
+  <header class="story-top">
+    <div class="story-brand">ROOT<span>NOTES</span></div>
+    <p id="story-place"></p>
+    <button type="button" class="story-skip" id="story-skip" hidden>飛ばす</button>
+  </header>
+  <section class="story-layout" aria-label="おはなし">
+    <figure class="story-picture" id="story-picture"></figure>
+    <div class="story-reading">
+      <div class="story-words">
+        <p class="story-narration" id="story-narration"></p>
+        <div id="story-speech"><p class="story-speaker" id="story-speaker"></p><p class="story-dialogue" id="story-dialogue"></p></div>
+      </div>
+      <button type="button" class="story-next" id="story-next">つづき <span aria-hidden="true">▶</span></button>
+    </div>
+  </section>
+</main>
+
+<!-- 章の間の画面（序章・章選び・まだ中身のない場面）。中身は src/ui/flow-screen.js が差し込む -->
 <main class="interlude" id="interlude-screen" hidden>
   <div class="interlude-card" id="interlude-card"></div>
 </main>

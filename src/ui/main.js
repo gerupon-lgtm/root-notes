@@ -4,6 +4,7 @@ import { StringAudio } from '../audio/engine.js';
 import { createStageScreen } from './stage-screen.js';
 import { createMonochordScreen } from './monochord-screen.js';
 import { createFlow } from './flow-screen.js';
+import { createStoryScreen } from './story-screen.js';
 import { setupOffline } from './offline.js';
 import { artPath } from '../content/assets.js';
 
@@ -24,7 +25,8 @@ const screens = {
   title: document.getElementById('title-screen'),
   stage: document.getElementById('stage-screen'),
   mono: document.getElementById('mono-screen'),
-  interlude: document.getElementById('interlude-screen')
+  interlude: document.getElementById('interlude-screen'),
+  story: document.getElementById('story-screen')
 };
 
 if (Object.values(screens).every(Boolean)) {
@@ -35,7 +37,8 @@ if (Object.values(screens).every(Boolean)) {
   const showTitle = () => { for (const [key, el] of Object.entries(screens)) el.hidden = key !== 'title'; };
   const stage = createStageScreen({ audio, onTitle: () => { mono.stop(); showTitle(); } });
   const mono = createMonochordScreen({ audio });
-  const flow = createFlow({ audio, screens, mono, stage, onTitle: showTitle });
+  const story = createStoryScreen({ audio });
+  const flow = createFlow({ audio, screens, mono, stage, story, onTitle: showTitle });
 
   screens.title.addEventListener('click', e => {
     const b = e.target.closest('button[data-start]');

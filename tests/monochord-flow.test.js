@@ -3,7 +3,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stringHz, targetHz, beatHz, holdStep, startPosition, clampBridge } from '../src/core/monochord.js';
 import { MONOCHORD_STAGES, OPEN_HZ, BRIDGE_RANGE, PASS_BEAT, PASS_HOLD, START_OFFSET } from '../src/content/monochord.js';
-import { FLOW, firstStep, nextStep, playableChapters, PROLOGUE_SCENES } from '../src/game/flow.js';
+import { FLOW, firstStep, nextStep, playableChapters } from '../src/game/flow.js';
+import { PROLOGUE } from '../src/content/story.js';
 import { mulberry32 } from '../src/core/random.js';
 
 test('一弦の琴：1-1〜1-5 は 1/2・2/3・3/4・4/5・5/6（要件6.2）', () => {
@@ -63,5 +64,5 @@ test('流れ：連続プレイは 序 → 第1章 → 謎（盾）→ 第2章 �
   // 選択プレイで選べる章は、遊べる2つ（第1章・第2章）
   assert.deepEqual(playableChapters().map(x => x.id), ['ch1', 'ch2']);
   assert.ok(FLOW.every(x => x.title));
-  assert.equal(PROLOGUE_SCENES.length, 8); // 要件6.10 の序の8場面
+  assert.equal(PROLOGUE.length, 8); // 要件6.10 の序章の8場面
 });

@@ -169,6 +169,51 @@ export class StringAudio {
     this.timers.push(setTimeout(onEnd, (lead + score.duration + 0.4) * 1000));
   }
 
+  // おはなしの鐘（要件6.9：PRISM の鐘の音色）。PRISM src/ui/voices.js の bellVoice と同じ形：
+  // 変調の倍率は √2（倍音が整数倍に並ばない）、変調の深さ 5.2 → 0.9（時定数 0.42 秒）、
+  // 音量は 3ミリ秒で立ち上がり、0.6 秒までは時定数 0.325、そのあとは 0.18 で余韻が消える（全体 2.6 秒）。
+  // 打った瞬間の短い「カン」（PRISM は高さ2倍のピアノ 0.06 秒）は、エレピの音を短く重ねて近づける。at は今から何秒後か
+  bell(hz, { at = 0, level = 1 } = {}) {
+    if (!this.ctx) return null;
+    const ctx = this.ctx, start = this.now + 0.02 + at, peak = 0.2 * level;
+    const carrier = ctx.createOscillator(), mod = ctx.createOscillator(), depth = ctx.createGain(), amp = ctx.createGain();
+    carrier.type = mod.type = 'sine';
+    carrier.frequency.setValueAtTime(hz, start);
+    const modHz = hz * Math.SQRT2;
+    mod.frequency.setValueAtTime(modHz, start);
+    depth.gain.setValueAtTime(modHz * 5.2, start);
+    depth.gain.setTargetAtTime(modHz * 0.9, start, 0.42);
+    const bodyEnd = 0.6, body = peak * Math.exp(-(bodyEnd - 0.003) / 0.325);
+    amp.gain.setValueAtTime(0, start);
+    amp.gain.linearRampToValueAtTime(peak, start + 0.003);
+    amp.gain.setTargetAtTime(0, start + 0.003, 0.325);
+    amp.gain.setValueAtTime(body, start + bodyEnd);
+    amp.gain.setTargetAtTime(0, start + bodyEnd, 0.18);
+    amp.gain.setValueAtTime(body * Math.exp(-(2.54 - bodyEnd) / 0.18), start + 2.54);
+    amp.gain.linearRampToValueAtTime(0, start + 2.6);
+    mod.connect(depth); depth.connect(carrier.frequency); carrier.connect(amp); amp.connect(this.input);
+    const end = start + 2.62;
+    for (const o of [carrier, mod]) { o.start(start); o.stop(end); }
+    const hit = this.#voice(hz * 2, start, { timbre: { carrier: 'sine', ratio: 3, index: 0.9, indexSustain: 0.025, modDecay: 0.18, attack: 0.006, decay: 0.8, sustain: 0.035, release: 0.02, gain: 0.12 }, duration: 0.04, level, family: this.others });
+    const handle = {
+      hz, start, end, stopped: false,
+      stop: (fade = STOP_FADE) => {
+        if (handle.stopped) return;
+        handle.stopped = true;
+        const now = ctx.currentTime;
+        amp.gain.cancelScheduledValues(now);
+        amp.gain.setValueAtTime(amp.gain.value, now);
+        amp.gain.linearRampToValueAtTime(0, now + fade);
+        for (const o of [carrier, mod]) { try { o.stop(now + fade + 0.01); } catch { /* もう止まっている */ } }
+        hit.stop(fade);
+        this.others.delete(handle);
+      }
+    };
+    carrier.onended = () => { this.others.delete(handle); for (const n of [carrier, mod, depth, amp]) { try { n.disconnect(); } catch { /* 外れている */ } } };
+    this.others.add(handle);
+    return handle;
+  }
+
   stopAll() {
     for (const v of [...this.plucks, ...this.others]) v.stop();
     this.timers.forEach(clearTimeout);

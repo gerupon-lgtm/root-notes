@@ -2,7 +2,7 @@
 // 連続プレイは序から最終章まで順に進む。中身がまだない場面（placeholder）は、仮の1画面で通り抜ける。
 // 選択プレイは、遊べる章（playable）を選んで、その章の面を選ぶ。
 export const FLOW = Object.freeze([
-  { id: 'prologue', kind: 'story', title: '序', place: '鍛冶場（伝承の時代）→ 星空（今）' },
+  { id: 'prologue', kind: 'story', title: '序章', place: '鍛冶場（伝承の時代）→ 星空（今）' },
   { id: 'ch1', kind: 'monochord', title: '第1章 一弦の琴', place: '鍛冶場の跡', playable: true },
   { id: 'riddle-shield', kind: 'placeholder', title: '第1章の終わり：謎（盾）', note: '装備から漏れる声と同じ高さの弦を選ぶ謎は、段階5で作ります。' },
   { id: 'ch2', kind: 'triangle', title: '第2章 三角形で和音', place: '星空', playable: true },
@@ -21,15 +21,4 @@ export function nextStep(id) {
   return FLOW[i + 1] ?? null;
 }
 export const playableChapters = () => FLOW.filter(x => x.playable);
-
-// 序の8場面の見出し（要件6.10）。絵とセリフは段階6で作るまで、見出しだけを並べる
-export const PROLOGUE_SCENES = Object.freeze([
-  '昔、鍛冶場でハンマーが鐘を打っていたと伝えられる',
-  '2つずつ重ねると、澄んだ響きが生まれた',
-  '9と8を重ねたときだけ、響きが濁った',
-  '教団はそれを「不浄の響き」と呼び、装備に封じて散らした',
-  '長い時が流れた。打たれた鐘たちは、遠い祭壇で星の光に鳴らされているという',
-  '天の歌が欠け、星の巡りが鈍っている',
-  '弦の精霊が現れ、封じられた音を探してほしいと頼む',
-  'まず、澄んだ響きを思い出すところから'
-]);
+// 序章の8場面（絵・語り・音）は src/content/story.js の PROLOGUE（段階6）
