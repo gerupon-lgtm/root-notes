@@ -1,7 +1,7 @@
 // おはなしの紙芝居の画面（段階6）。形は FLOAT の scene() と Codex の画面案（物語素材 v0.7.0 preview）：
 // 上（横向きは左）に 4:3 の絵、下（横向きは右）に語り・話す人・セリフ・「つづき ▶」。2回目からは「飛ばす」。
 // 絵は 1280×960 の座標で重ね、％で置くので、画面の大きさが変わっても位置がずれない。絵をタップすると、その場面の音をもう一度鳴らす。
-import { storyArt, BELL_HZ, SKY_STARS, GONE_STARS } from '../content/story.js';
+import { storyArt, BELL_HZ, SKY_STARS, GONE_STARS, SPARKLE_STARS } from '../content/story.js';
 import { TIMBRES } from '../content/timbres.js';
 
 const W = 1280, H = 960;
@@ -12,12 +12,25 @@ export function createStoryScreen({ audio }) {
   const picture = $('story-picture'), place = $('story-place'), narration = $('story-narration');
   const speech = $('story-speech'), speaker = $('story-speaker'), dialogue = $('story-dialogue');
   const next = $('story-next'), skip = $('story-skip');
-  let slides = [], index = 0, opts = null, timers = [];
+  let slides = [], index = 0, opts = null, timers = [], sparkTimers = [];
+  const clearSparks = () => { sparkTimers.forEach(clearTimeout); sparkTimers = []; };
+  // 星を1つ、不定期にきらめかせ続ける（1.8〜5.5秒おき）
+  function sparkle(star) {
+    const wait = 1800 + Math.random() * 3700;
+    sparkTimers.push(setTimeout(() => {
+      star.classList.remove('sparkle');
+      void star.offsetWidth;
+      star.classList.add('sparkle');
+      sparkle(star);
+    }, wait));
+  }
 
   const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
   const stopSound = () => { clearTimers(); audio.stopAll(); };
 
   function draw(slide) {
+    clearSparks();
+    const sparks = [];
     const parts = slide.layers.map(l => {
       const img = document.createElement('img');
       img.src = storyArt(l.art);
@@ -31,12 +44,15 @@ export function createStoryScreen({ audio }) {
     if (slide.stars) {
       SKY_STARS.forEach((s, i) => {
         const star = document.createElement('span');
-        star.className = `story-star${slide.stars === 'broken' && GONE_STARS.includes(i) ? ' gone' : ''}`;
-        Object.assign(star.style, { left: pct(s.x, W), top: pct(s.y, H), animationDelay: `${(i % 5) * 0.6}s` });
+        const gone = slide.stars === 'broken' && GONE_STARS.includes(i);
+        star.className = `story-star${gone ? ' gone' : ''}`;
+        Object.assign(star.style, { left: pct(s.x, W), top: pct(s.y, H) });
+        if (!gone && SPARKLE_STARS.includes(i)) sparks.push(star);
         parts.splice(1, 0, star);
       });
     }
     picture.replaceChildren(...parts);
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) sparks.forEach(sparkle);
   }
 
   // 光らせる（鐘が鳴るあいだ）
@@ -97,7 +113,7 @@ export function createStoryScreen({ audio }) {
     show(0);
     next.focus({ preventScroll: true });
   }
-  function stop() { stopSound(); opts = null; }
+  function stop() { stopSound(); clearSparks(); opts = null; }
 
   return { play, stop };
 }

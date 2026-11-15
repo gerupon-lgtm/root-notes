@@ -21,7 +21,7 @@ function stringLine(k, p, q, color) {
   return g;
 }
 
-const hitLine = (k, p, q) => svg('line', { class: 'hit', 'data-k': k, x1: p[0], y1: p[1], x2: q[0], y2: q[1], stroke: 'transparent', 'stroke-width': 34, 'stroke-linecap': 'round' });
+const hitLine = (k, p, q, width = 34) => svg('line', { class: 'hit', 'data-k': k, x1: p[0], y1: p[1], x2: q[0], y2: q[1], stroke: 'transparent', 'stroke-width': width, 'stroke-linecap': 'round' });
 
 export function drawEmpty(root, text) {
   clear(root);
@@ -39,7 +39,7 @@ export function drawOpen(root, sides) {
     const sp = [p[0] + 8, y - 9], sq = [q[0] - 8, y - 9];
     root.append(woodBar(p, q, root), stringLine(k, sp, sq, side.color), part('string-pin', sp, PIN, '#caa25a'), part('string-pin', sq, PIN, '#caa25a'));
     root.append(svg('text', { x: q[0] + 12, y: y + 5, fill: side.color, class: 'tri-label' }, formatLength(side.length)));
-    root.append(hitLine(k, sp, sq));
+    root.append(hitLine(k, p, q, 30), hitLine(k, sp, sq)); // 木の棒でも鳴る（2026-11-15 発案者）
   });
 }
 
@@ -91,6 +91,13 @@ export function drawClosed(root, sides, { hint = false } = {}) {
     });
     g.append(svg('text', { x: W / 2, y: 14, 'text-anchor': 'middle', class: 'tap-text' }, '辺に触れると音が鳴ります'));
     root.append(g);
+  }
+  // 当たり：弦だけでなく木枠でも鳴る（2026-11-15 発案者「辺に触れたときの範囲が狭い。枠でも鳴るように」）。
+  // 枠の当たりを先に、弦の当たりを後に重ねるので、弦の近くでは弦が優先される。枠の当たりは角の金具の手前で止める
+  for (const [p, q, side] of segs) {
+    const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1, cut = Math.min(corner * 0.5, L * 0.2);
+    const ux = (q[0] - p[0]) / L, uy = (q[1] - p[1]) / L;
+    root.append(hitLine(side.k, [p[0] + ux * cut, p[1] + uy * cut], [q[0] - ux * cut, q[1] - uy * cut], frame + 26));
   }
   for (const [p, q, side] of strings) root.append(hitLine(side.k, p, q));
 }

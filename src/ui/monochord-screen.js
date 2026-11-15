@@ -29,7 +29,10 @@ const X0 = 30, X1 = 290, Y = 92; // 弦の左端・右端・高さ（SVG の単�
 const GRIP_DY = 86, GRIP_SIZE = 24;
 // 合格したら、揺れの消えた星の音と弦の音を一度だけ鳴らし、結果のトーストを出す。次の面へは「次の星へ」を押したときだけ進む
 // （2026-11-14 発案者：第2章と同じ「トースト表示して、次へ進む形」。旧：2.6秒で自動で次の面へ）
-const PASS_CHORD_SECONDS = 1.8;
+// 合格したとき、重ねて鳴らしていた2音を消す長さ（秒）
+const PASS_FADE_SECONDS = 1.6;
+// 案内の手順が変わってから、触る所を光らせるまでの待ち（読む時間。ミリ秒）
+const GUIDE_READ_MS = 1500;
 
 export function createMonochordScreen({ audio }) {
   const $ = id => document.getElementById(id);
@@ -158,7 +161,7 @@ export function createMonochordScreen({ audio }) {
     S.last = now;
     // 案内：揺れが遅くなってきたら、つまみの仕上げの案内に切り替える（一度切り替えたら戻さない。文が行き来しないように）
     if (S.tutorial && !S.passed && !S.fine && S.drone && STEP_IDS[S.step] === 'move' && beat() < FINE_BEAT) {
-      S.fine = true; renderGuide(); renderCoach();
+      S.fine = true; stepChanged();
     }
     if (!S.passed) {
       const st = holdStep({ hold: S.hold, passed: S.passed }, { beat: beat(), dt, droning: !!S.drone });
@@ -174,10 +177,11 @@ export function createMonochordScreen({ audio }) {
     S.passed = true;
     S.lit.add(s.id);
     S.onLit?.([...S.lit]); // 保存（段階7）
-    // 重ねた音を止め、合った2音を一度だけ鳴らす
-    const both = [target(), current()];
-    stopDrone();
-    audio.chord(both, { timbre: TIMBRE, duration: PASS_CHORD_SECONDS, strum: 0, level: 0.7 });
+    // 重ねて鳴らしていた2音を、そのままゆっくり消す。合格の音は足さない
+    // （2026-11-15 発案者「クリアしたときに音が重なって聞こえる。追加の音は不要」。前は止めてから2音を鳴らし直していた）
+    if (S.drone) for (const v of S.drone) v?.stop(PASS_FADE_SECONDS);
+    S.drone = null; S.hold = 0;
+    renderButtons();
     renderStars(); drawStatic(); twinkle();
     say(`合った！ 弦の ${s.num}/${s.den}。`, 'ok');
     clearTimeout(S.nextTimer);
@@ -342,8 +346,20 @@ export function createMonochordScreen({ audio }) {
     if (flashNext) S.flashDone = done + 1;
     const before = S.step;
     S.step = advanceStep(S.step, action);
-    if (S.tutorial) { if (S.step !== before) { renderGuide(); renderCoach(); } }
+    if (S.tutorial) { if (S.step !== before) stepChanged(); }
     else if (flashNext) { const next = nextAction(action); if (next) flash(CH1_FLASH[next]); }
+  }
+  // 案内の手順が変わったとき：帯を光らせ、読む時間をおいてから、次に触る所を光らせる（2026-11-15 発案者）
+  let cueTimer = 0;
+  function stepChanged() {
+    renderGuide(); renderCoach();
+    const bar = $('mono-guide');
+    bar.classList.remove('flash-card');
+    void bar.offsetWidth;
+    if (!reduceMotion()) bar.classList.add('flash-card');
+    clearTimeout(cueTimer);
+    const targets = stepCopy().targets;
+    if (targets.length) cueTimer = setTimeout(() => { if (guiding()) flash(targets); }, GUIDE_READ_MS);
   }
   let flashTimer = 0;
   function flash(ids) {
@@ -430,7 +446,7 @@ export function createMonochordScreen({ audio }) {
     $('mono-actions').hidden = false;
     $('mono-end').hidden = true;
     renderStars(); renderButtons(); renderGuide(); drawStatic(); drawKnob();
-    if (S.tutorial) say('');
+    if (S.tutorial) { say(''); stepChanged(); }
     else say(meterAllowed()
       ? 'お題を聞き、弦をはじき、「重ねて鳴らす」。駒を動かして揺れが消え、2つの音が一つにまとまる所を探します（メーターも使えます）。'
       : 'お題を聞き、弦をはじき、「重ねて鳴らす」。駒を動かして揺れが消え、2つの音が一つにまとまる所を、耳で探します。');
@@ -472,9 +488,11 @@ export function createMonochordScreen({ audio }) {
   // ◀▶：押している間、少しずつ動く（0.35秒で連続に）
   function holdButton(btn, step) {
     let t = 0, iv = 0;
-    const end = () => { clearTimeout(t); clearInterval(iv); };
+    // 押している間は色を変える（pointerdown で既定の動きを止めると :active が付かない端末があるため。2026-11-15 発案者「押した感じがない」）
+    const end = () => { clearTimeout(t); clearInterval(iv); btn.classList.remove('pressing'); };
     btn.addEventListener('pointerdown', e => {
       e.preventDefault();
+      btn.classList.add('pressing');
       // 指が少しずれても押し続けられるように、離すまで受け取る
       try { btn.setPointerCapture(e.pointerId); } catch { /* 受け取れない端末 */ }
       setR(S.r + step); moved();
@@ -531,7 +549,7 @@ export function createMonochordScreen({ audio }) {
   $('mono-guide-next').addEventListener('click', () => {
     if (!S.tutorial || S.passed) return;
     S.step = readNext(S.step);
-    renderGuide(); renderCoach();
+    stepChanged();
   });
   $('mono-guide-title').addEventListener('click', () => { stop(); S.onTitle(); });
   $('mono-toast').addEventListener('click', e => {

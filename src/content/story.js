@@ -28,12 +28,14 @@ const hammer = { art: 'hammer', x: 70, y: 760, w: 194 };
 const night = { art: 'stars-night-empty', x: 0, y: 0, w: 1280 };
 const ring = (at, ...ns) => ({ at, bells: ns });
 
-// 天の歌の星（コードで描く。星のない夜空に重ねる）。gone は欠けている星（序章6）
+// 天の歌の星（コードで描く。星のない夜空に重ねる）。gone は欠けている星（序章6）。
+// きらめくのは2〜3個だけで、間隔は不定期（2026-11-15 発案者「星が大きい。全部ではなく2〜3個がキラキラ」）
 export const SKY_STARS = Object.freeze([
   [150, 210], [250, 140], [370, 190], [470, 110], [580, 160], [690, 95], [800, 150], [910, 105], [1020, 170], [1130, 130],
   [310, 300], [530, 270], [760, 260], [980, 290]
 ].map(([x, y]) => Object.freeze({ x, y })));
 export const GONE_STARS = Object.freeze([3, 6, 8, 11]);
+export const SPARKLE_STARS = Object.freeze([1, 7, 12]);
 
 export const PROLOGUE = Object.freeze([
   {
@@ -51,7 +53,7 @@ export const PROLOGUE = Object.freeze([
   {
     id: 'p3', place: '伝承の時代　鍛冶場',
     layers: [forge, { art: 'shadow-order', x: 180, y: 270, w: 920, cls: 'shade' }, ...bells([12, 6])],
-    narration: 'ただ、9と8を重ねたときだけ、響きが濁ったのです。',
+    narration: 'ただ、大きさの近い2つの鐘を重ねたときだけ、響きが濁ったのです。',
     cues: [ring(0.4, 9, 8), ring(2.6, 9, 8)]
   },
   {
@@ -86,7 +88,8 @@ export const PROLOGUE = Object.freeze([
   },
   {
     id: 'p7', place: '今　星空',
-    layers: [night, { art: 'spirit-normal', x: 770, y: 250, w: 330 }], stars: 'broken',
+    // 精霊は右へ手を差し出す絵なので、左に置いて画面の中を向かせる（2026-11-15 発案者「向いている方向がおかしい」）
+    layers: [night, { art: 'spirit-normal', x: 170, y: 250, w: 330 }], stars: 'broken',
     speaker: '弦の精霊', say: 'わたしは弦の精霊。封じられた音を、一緒に探してくれますか。',
     cues: [{ at: 0.3, pluck: 349.23 }]
   },
