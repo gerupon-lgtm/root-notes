@@ -52,7 +52,8 @@ export class StringAudio {
       if (!ctx) return false;
       this.ctx = ctx;
       const master = ctx.createGain();
-      master.gain.value = 0.9;
+      master.gain.value = this.muted ? 0 : 0.9;
+      this.master = master;
       const lowpass = ctx.createBiquadFilter();
       lowpass.type = 'lowpass';
       lowpass.frequency.value = 9000;
@@ -68,6 +69,12 @@ export class StringAudio {
   }
 
   get ready() { return !!this.ctx; }
+  // 消音（全画面共通。2026-11-15 発案者）。出口の手前で音量を0にする。鳴っている音も予約した音も、消音中は聞こえない
+  setMuted(muted) {
+    this.muted = !!muted;
+    if (this.master) this.master.gain.setTargetAtTime(this.muted ? 0 : 0.9, this.ctx.currentTime, 0.01);
+    if (this.muted) this.stopAll();
+  }
   get now() { return this.ctx ? this.ctx.currentTime : 0; }
 
   // オルガンの波形（倍音1〜8を足したもの）。一度作ったら使い回す
@@ -345,6 +352,30 @@ export class StringAudio {
     carrier.onended = () => { this.others.delete(handle); for (const n of nodes) { try { n.disconnect(); } catch { /* 外れている */ } } };
     this.others.add(handle);
     return handle;
+  }
+
+  // 第3章の鏡写しの説明「光の響き」：4・5・6 回のような刻みのパルスを、同じ割合で速めていき、最後に和音にする
+  // （Codex 試作 v0.5.0 の accelerate と同じ。後半は聞き取りを助ける同じ周期の正弦波を重ねる）。ticks：刻みの数、factor：最後の倍率
+  mirrorPulses(ticks, factor, { duration = 4 } = {}) {
+    if (!this.ctx) return;
+    const c = this.ctx, t = c.currentTime + 0.06, end = t + duration + 0.92;
+    for (const n of ticks) {
+      const length = Math.round(c.sampleRate / n), buf = c.createBuffer(1, length, c.sampleRate), d = buf.getChannelData(0), pulse = Math.round(c.sampleRate * 0.012);
+      const mean = (pulse * 0.375) / length;
+      for (let i = 0; i < length; i++) d[i] = (i < pulse ? Math.sin((Math.PI * i) / (pulse - 1)) ** 4 : 0) - mean;
+      const src = c.createBufferSource(), g = c.createGain();
+      src.buffer = buf; src.loop = true;
+      src.playbackRate.setValueAtTime(1, t); src.playbackRate.exponentialRampToValueAtTime(factor, t + duration);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.11, t + 0.04); g.gain.setValueAtTime(0.11, t + duration + 0.65); g.gain.linearRampToValueAtTime(0, t + duration + 0.9);
+      const o = c.createOscillator(), og = c.createGain();
+      o.frequency.setValueAtTime(n, t); o.frequency.exponentialRampToValueAtTime(n * factor, t + duration);
+      og.gain.setValueAtTime(0, t); og.gain.setValueAtTime(0, t + duration * 0.6); og.gain.linearRampToValueAtTime(0.045, t + duration); og.gain.setValueAtTime(0.045, t + duration + 0.65); og.gain.linearRampToValueAtTime(0, t + duration + 0.9);
+      src.connect(g); g.connect(this.input); o.connect(og); og.connect(this.input);
+      src.start(t); src.stop(end); o.start(t); o.stop(end);
+      const handle = { stopped: false, stop: () => { if (handle.stopped) return; handle.stopped = true; const now = c.currentTime; for (const x of [g, og]) { x.gain.cancelScheduledValues(now); x.gain.setValueAtTime(x.gain.value, now); x.gain.linearRampToValueAtTime(0, now + 0.03); } try { src.stop(now + 0.05); o.stop(now + 0.05); } catch { /* 止まっている */ } this.others.delete(handle); } };
+      o.onended = () => { this.others.delete(handle); for (const x of [src, g, o, og]) { try { x.disconnect(); } catch { /* 外れている */ } } };
+      this.others.add(handle);
+    }
   }
 
   stopAll() {

@@ -23,7 +23,7 @@ const LEVEL_IDS = ['free', 'normal', 'expert'];
 const levelNote = m => (m.lives === Infinity ? '制限なし。和音もメーターも自由' : `失敗${m.lives}回まで・メーター${m.meterCount}回`);
 function localStore() { try { return globalThis.localStorage ?? null; } catch { return null; } }
 
-export function createFlow({ audio, screens, mono, stage, story, riddle, final, onTitle }) {
+export function createFlow({ audio, screens, mono, stage, story, riddle, final, mirror, onTitle }) {
   const card = document.getElementById('interlude-card');
   let mode = 'free';
   // 序を見たかの記録（2回目からは飛ばせる。要件6.10）。案内の記録と同じ場所に 'prologue' として残す
@@ -46,7 +46,13 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
   const show = name => {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
   };
-  const toTitle = () => { audio.stopAll(); mono.stop(); story.stop(); riddle.stop(); final.stop(); show('title'); onTitle(); };
+  const toTitle = () => { audio.stopAll(); mono.stop(); story.stop(); riddle.stop(); final.stop(); mirror.stop(); show('title'); onTitle(); };
+  // 第3章「光の響きから影の琴へ」（鏡写しの説明）。毎回出し、2回目からは「飛ばす」。終わったら遊ぶ画面へ戻る
+  const showMirror = (pair, done) => {
+    const seen = !book.shouldAuto('mirror');
+    show('mirror');
+    mirror.play(pair, { canSkip: seen, endLabel: '星へもどる', onDone: () => { book.complete('mirror'); show('stage'); done(); } });
+  };
 
   // 仮の画面を組み立てる。buttons：[文言, 動き, 主ボタンか, 一言（小さく添える）]
   function interlude({ eyebrow = '', title, lines = [], list = null, buttons, stack = false }) {
@@ -125,7 +131,7 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
       const id = step.id;
       show('stage');
       stage.start(mode, {
-        chapter: id, onChapterEnd: next, restore: run?.[id] ?? null, found: progress.found(),
+        chapter: id, onChapterEnd: next, restore: run?.[id] ?? null, found: progress.found(), onMirror: showMirror,
         onChange: p => {
           progress.addFound(p.found);
           if (!run) return;
@@ -243,7 +249,7 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
     } else {
       show('stage');
       stage.start(mode, {
-        chapter: id, onChapterEnd: null, lit: progress.selectLit(id), found: progress.found(),
+        chapter: id, onChapterEnd: null, lit: progress.selectLit(id), found: progress.found(), onMirror: showMirror,
         onChange: p => { progress.addFound(p.found); progress.addSelectLit(id, [...p.lit]); }
       });
     }

@@ -692,3 +692,46 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 /* 紙芝居の絵に重ねる文字（巻物の言葉。Codex の画面案と同じく明朝で） */
 .story-text { position: absolute; pointer-events: none; text-align: center; }
 .story-text.scroll-words { color: #3f2c1c; font-family: "Yu Mincho", "Hiragino Mincho ProN", serif; font-weight: 600; font-size: clamp(10px, 2.6vmin, 22px); letter-spacing: 0.08em; }
+
+/* 共通の消音アイコン（全画面のヘッダの右上の端。2026-11-15 発案者） */
+.mute-btn { flex: none; width: 38px; height: 38px; padding: 8px; border-radius: 11px; background: #092d26c9; border: 1px solid #809077; color: #e6d6ae; cursor: pointer; }
+.mute-btn svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.mute-btn[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+@media (orientation: landscape) and (max-height: 420px) { .mute-btn { width: 32px; height: 32px; padding: 6px; } }
+
+/* 第3章「光の響きから影の琴へ」：紙芝居の画面と同じ枠組み */
+.mirror-picture { cursor: default; }
+.mirror-picture .mirror-bg { left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+#mirror-stage { position: absolute; inset: 0; width: 100%; height: 100%; }
+#mirror-stage text { font-family: var(--body); }
+.mirror-reading { gap: 10px; }
+.mirror-say { display: flex; gap: 10px; min-height: 0; overflow-y: auto; }
+.mirror-spirit { flex: none; width: 64px; height: 86px; object-fit: contain; align-self: flex-start; }
+.mirror-words { min-width: 0; }
+.mirror-words .story-speaker { margin: 0 0 4px; }
+.mirror-title { margin: 0 0 6px; font-size: 18px; font-weight: 650; color: #f1e0b9; line-height: 1.5; }
+.mirror-text { font-size: 17px; }
+.mirror-hint { margin: 8px 0 0; font-size: 14px; line-height: 1.6; color: #a9c2ae; }
+.mirror-compare { display: flex; gap: 8px; margin-top: 10px; }
+.mirror-compare .btn { min-height: 44px; }
+.mirror-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.mirror-steps button { min-height: 36px; padding: 2px; border: 1px solid #617260; border-radius: 8px; background: #062b25b8; color: var(--mute); font: inherit; font-size: 11px; }
+.mirror-steps button[aria-current="step"] { border-color: var(--gold); color: var(--gold); }
+.mirror-controls { display: grid; grid-template-columns: 1fr 80px; gap: 8px; margin-top: auto; }
+.mirror-controls .story-next { margin-top: 0; }
+.mirror-controls .mirror-stop { min-height: 54px; }
+@media (orientation: landscape) {
+  .mirror-spirit { width: 52px; height: 70px; }
+  .mirror-title { font-size: 16px; margin-bottom: 4px; }
+  .mirror-text { font-size: 15px; line-height: 1.6; }
+  .mirror-hint { font-size: 12px; margin-top: 4px; }
+  .mirror-controls .mirror-stop { min-height: 48px; }
+}
+@media (orientation: landscape) and (max-height: 360px) {
+  .mirror-spirit { display: none; }
+  .mirror-title { font-size: 14px; }
+  .mirror-text { font-size: 13px; line-height: 1.5; }
+  .mirror-hint { font-size: 11px; }
+  .mirror-steps button { min-height: 28px; font-size: 10px; }
+  .mirror-controls .mirror-stop { min-height: 44px; }
+}

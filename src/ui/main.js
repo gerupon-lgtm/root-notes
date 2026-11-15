@@ -7,6 +7,8 @@ import { createFlow } from './flow-screen.js';
 import { createStoryScreen } from './story-screen.js';
 import { createRiddleScreen } from './riddle-screen.js';
 import { createFinalScreen } from './final-screen.js';
+import { createMirrorScreen } from './mirror-screen.js';
+import { storyArt } from '../content/story.js';
 import { setupOffline } from './offline.js';
 import { artPath } from '../content/assets.js';
 
@@ -30,7 +32,8 @@ const screens = {
   interlude: document.getElementById('interlude-screen'),
   story: document.getElementById('story-screen'),
   riddle: document.getElementById('riddle-screen'),
-  final: document.getElementById('final-screen')
+  final: document.getElementById('final-screen'),
+  mirror: document.getElementById('mirror-screen')
 };
 
 if (Object.values(screens).every(Boolean)) {
@@ -44,7 +47,28 @@ if (Object.values(screens).every(Boolean)) {
   const story = createStoryScreen({ audio });
   const riddle = createRiddleScreen({ audio });
   const final = createFinalScreen({ audio });
-  const flow = createFlow({ audio, screens, mono, stage, story, riddle, final, onTitle: showTitle });
+  const mirror = createMirrorScreen({ audio });
+  document.getElementById('mirror-bg').src = storyArt('temple-entrance-corridor');
+  const flow = createFlow({ audio, screens, mono, stage, story, riddle, final, mirror, onTitle: showTitle });
+
+  // 共通の消音（全画面のヘッダの右上の端。どの画面で押しても同じ状態。端末に記録する。2026-11-15 発案者）
+  const SOUND_KEY = 'root-notes-sound-v1';
+  let muted = false;
+  try { muted = localStorage.getItem(SOUND_KEY) === 'off'; } catch { /* 記録できない端末 */ }
+  const icon = off => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4Z"/>${off ? '<path d="m16 9 5 6m0-6-5 6"/>' : '<path d="M16 8q5 4 0 8 M18 5q8 7 0 14"/>'}</svg>`;
+  const renderMute = () => {
+    const label = muted ? '音を出す' : '音を消す';
+    for (const b of document.querySelectorAll('.mute-btn')) { b.innerHTML = icon(muted); b.setAttribute('aria-label', label); b.title = label; b.setAttribute('aria-pressed', String(muted)); }
+  };
+  audio.setMuted(muted);
+  renderMute();
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.mute-btn')) return;
+    muted = !muted;
+    audio.setMuted(muted);
+    try { localStorage.setItem(SOUND_KEY, muted ? 'off' : 'on'); } catch { /* 記録できない端末 */ }
+    renderMute();
+  });
 
   screens.title.addEventListener('click', e => {
     const b = e.target.closest('button[data-start]');

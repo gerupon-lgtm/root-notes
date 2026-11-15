@@ -258,8 +258,9 @@ export function createStageScreen({ audio, onTitle }) {
     for (const b of document.querySelectorAll('[data-tap-mode]')) b.classList.toggle('on', b.dataset.tapMode === s.tapMode);
     $('carry-off').classList.toggle('on', !s.carryOver);
     $('carry-on').classList.toggle('on', s.carryOver);
+    // 「長調と短調の鏡写し」は、見つけていれば説明を読み返せる（2026-11-15 発案者）
     $('found').replaceChildren(...Object.entries(DISCOVERY_TEXT).map(([id, d]) => p.found.has(id)
-      ? el('li', { class: 'got' }, el('b', {}, d.title), d.text)
+      ? el('li', { class: 'got' }, el('b', {}, d.title), d.text, ...(id === 'mirror' && s.onMirror ? [el('button', { type: 'button', class: 'chip mirror-open', 'data-mirror': '1' }, '説明を見る')] : []))
       : el('li', {}, el('b', {}, '？？？'), 'まだ見つかっていない')));
     $('meter-setting').hidden = p.mode.meter !== 'toggle';
     $('meter-on').classList.toggle('on', p.meterToggle);
@@ -399,6 +400,12 @@ export function createStageScreen({ audio, onTitle }) {
     if (p.finished || p.awaitingNext) guide('b-answer'); // 「最初から」「次の星へ」
     else if (kind === 'wrong') guide('b-target'); // お題を聞き直して比べる
   }
+  // 鏡写しの説明に渡す数字：第3章の1組目の光と影（なければハ長調の例 10・12・15 → 12・15・18）
+  function mirrorPair(p) {
+    const light = p?.run?.stages?.[0], shadow = p?.run?.stages?.[1];
+    if (light?.side === 'light' && shadow?.side === 'shadow') return { light: light.target.map(l => l.n), shadow: shadow.target.map(l => l.n), K: light.K };
+    return { light: [10, 12, 15], shadow: [12, 15, 18], K: 261.6255653005986 * 15 };
+  }
   function goNext() {
     const p = play();
     closeResult();
@@ -418,7 +425,17 @@ export function createStageScreen({ audio, onTitle }) {
   $('result-toast').addEventListener('click', e => {
     const act = e.target.closest('button')?.dataset.act;
     if (!act) return;
-    if (act === 'next') goNext();
+    if (act === 'next') {
+      // 第3章：1組目の光と影（星1・星2）を解いたら、「光の響きから影の琴へ」を出す（毎回。2回目からは飛ばせる。2026-11-15 発案者）
+      const p = play();
+      if (s.chapter === 'ch3' && p.index === 1 && p.lit.has(1) && s.onMirror) {
+        closeResult(); audio.stopAll();
+        p.found.add('mirror'); notify();
+        s.onMirror(mirrorPair(p), () => goNext());
+        return;
+      }
+      goNext();
+    }
     else if (act === 'replay') { closeResult(); replay(); return; }
     else if (act === 'restart') { closeResult(); start(play().mode.id); }
     else if (act === 'title') { closeResult(); audio.stopAll(); onTitle(); }
@@ -453,6 +470,8 @@ export function createStageScreen({ audio, onTitle }) {
   // 画面の中からの始め直し（遊び方の切り替え・最初から）は options を渡さず、今の流れと保存先を保つ
   function start(modeId, options) {
     if (options) {
+      // onMirror(数字, 終わったら)：鏡写しの説明を出す（流れの側）。第3章と巻物から
+      s.onMirror = options.onMirror ?? null;
       // chapter：'ch2'（三角形で和音）か 'ch3'（長調と短調。光と影の組）。画面の中からの始め直しでは保つ
       s.chapter = options.chapter ?? 'ch2';
       s.onChapterEnd = options.onChapterEnd ?? null;
@@ -684,6 +703,11 @@ export function createStageScreen({ audio, onTitle }) {
   });
   $('song-timbres').addEventListener('click', e => { const b = e.target.closest('[data-song-timbre]'); if (b) { s.songTimbre = b.dataset.songTimbre; renderSheet(); } });
   $('tap-modes').addEventListener('click', e => { const b = e.target.closest('[data-tap-mode]'); if (b) { s.tapMode = b.dataset.tapMode; s.focus = null; s.lastTap = null; renderSheet(); renderSticks(); } });
+  $('found').addEventListener('click', e => {
+    if (!e.target.closest('[data-mirror]') || !s.onMirror) return;
+    $('sheet').hidden = true; audio.stopAll();
+    s.onMirror(mirrorPair(s.chapter === 'ch3' ? play() : null), () => {});
+  });
   $('carry-off').addEventListener('click', () => { s.carryOver = false; renderSheet(); });
   $('carry-on').addEventListener('click', () => { s.carryOver = true; renderSheet(); });
   $('meter-on').addEventListener('click', () => { play().setMeterToggle(true); renderAll(); renderSheet(); });

@@ -82,6 +82,7 @@
     <div class="play-logo" aria-label="ROOT NOTES"><svg viewBox="0 0 1000 440" aria-hidden="true"><text class="root" x="500" y="260">ROOT</text><text class="notes" x="500" y="420">NOTES</text></svg></div>
     <div class="play-heading"><h1 class="brand">第2章 三角形で和音</h1><button type="button" class="chip" id="mode-chip" aria-label="遊び方を変える"></button></div>
     <button type="button" class="icon" id="menu-button" aria-label="メニュー（遊び方・曲・発見の巻物）">☰</button>
+    <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false" title="音を消す"></button>
   </header>
   <nav class="stars" id="stars" aria-label="8小節の星"></nav>
   <div class="sub"><span id="where"></span><span id="lives" aria-label="失敗の残り"></span></div>
@@ -113,6 +114,7 @@
     <div class="mono-heading"><h1 class="brand">第1章 一弦の琴</h1><span class="chip" id="mono-mode"></span></div>
     <button type="button" class="chip" id="mono-guide-open" aria-label="案内（チュートリアル）をもう一度見る">案内</button>
     <button type="button" class="chip" id="mono-title">タイトルへ</button>
+    <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false" title="音を消す"></button>
   </header>
   <nav class="stars five" id="mono-stars" aria-label="第1章の5つの星"></nav>
   <div class="sub"><span id="mono-where"></span><span class="mono-time" id="mono-time" hidden></span><span id="mono-count"></span></div>
@@ -168,6 +170,7 @@
     <div class="story-brand">ROOT<span>NOTES</span></div>
     <p id="story-place"></p>
     <button type="button" class="story-skip" id="story-skip" hidden>飛ばす</button>
+    <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false" title="音を消す"></button>
   </header>
   <section class="story-layout" aria-label="おはなし">
     <figure class="story-picture" id="story-picture"></figure>
@@ -187,6 +190,7 @@
     <div class="story-brand">ROOT<span>NOTES</span></div>
     <p id="riddle-place"></p>
     <button type="button" class="story-skip" id="riddle-title">タイトルへ</button>
+    <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false" title="音を消す"></button>
   </header>
   <section class="riddle-layout">
     <figure class="story-picture riddle-picture" id="riddle-picture"></figure>
@@ -210,6 +214,7 @@
     <div class="story-brand">ROOT<span>NOTES</span></div>
     <p id="final-place"></p>
     <button type="button" class="story-skip" id="final-title">タイトルへ</button>
+    <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false" title="音を消す"></button>
   </header>
   <section class="riddle-layout">
     <figure class="story-picture riddle-picture" id="final-picture"></figure>
@@ -222,6 +227,37 @@
         <button type="button" class="btn primary" id="final-offer" disabled>この弦を差し出す</button>
         <button type="button" class="btn primary" id="final-open" hidden disabled>直角に開く</button>
         <button type="button" class="btn primary" id="final-next" hidden>扉を開く ▶</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 第3章「光の響きから影の琴へ」（鏡写しの説明）。中身は src/ui/mirror-screen.js が差し込む -->
+<main class="story mirror" id="mirror-screen" hidden>
+  <header class="story-top">
+    <div class="story-brand">ROOT<span>NOTES</span></div>
+    <p id="mirror-place"></p>
+    <button type="button" class="story-skip" id="mirror-skip" hidden>飛ばす</button>
+    <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false" title="音を消す"></button>
+  </header>
+  <section class="story-layout">
+    <figure class="story-picture mirror-picture" id="mirror-picture"><img class="story-layer mirror-bg" id="mirror-bg" alt=""><svg id="mirror-stage" viewBox="0 0 480 360" role="img"></svg></figure>
+    <div class="story-reading mirror-reading">
+      <div class="mirror-say">
+        <img class="mirror-spirit" id="mirror-spirit" alt="弦の精霊">
+        <div class="mirror-words">
+          <p class="story-speaker">弦の精霊</p>
+          <p class="mirror-title" id="mirror-title"></p>
+          <p class="story-dialogue mirror-text" id="mirror-text"></p>
+          <p class="mirror-hint" id="mirror-hint"></p>
+          <div class="mirror-compare" id="mirror-compare" hidden><button type="button" class="btn" id="mirror-light">光を聴く</button><button type="button" class="btn" id="mirror-shadow">影を聴く</button></div>
+        </div>
+      </div>
+      <nav class="mirror-steps" id="mirror-steps" aria-label="場面を選ぶ"></nav>
+      <div class="mirror-controls">
+        <button type="button" class="story-next" id="mirror-start">響きをたどる <span aria-hidden="true">▶</span></button>
+        <button type="button" class="story-next" id="mirror-next" hidden>星へもどる <span aria-hidden="true">▶</span></button>
+        <button type="button" class="btn mirror-stop" id="mirror-stop" disabled>停止</button>
       </div>
     </div>
   </section>
