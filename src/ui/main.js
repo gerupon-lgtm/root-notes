@@ -60,12 +60,15 @@ if (Object.values(screens).every(Boolean)) {
   const renderMute = () => {
     const label = muted ? '音を出す' : '音を消す';
     for (const b of document.querySelectorAll('.mute-btn')) { b.innerHTML = icon(muted); b.setAttribute('aria-label', label); b.title = label; b.setAttribute('aria-pressed', String(muted)); }
+    // メニューの「音」（鳴らす／消す）も同じ状態を見せる
+    for (const b of document.querySelectorAll('[data-sound]')) b.classList.toggle('on', (b.dataset.sound === 'off') === muted);
   };
   audio.setMuted(muted);
   renderMute();
   document.addEventListener('click', e => {
-    if (!e.target.closest('.mute-btn')) return;
-    muted = !muted;
+    const pick = e.target.closest('[data-sound]');
+    if (!pick && !e.target.closest('.mute-btn')) return;
+    muted = pick ? pick.dataset.sound === 'off' : !muted;
     audio.setMuted(muted);
     try { localStorage.setItem(SOUND_KEY, muted ? 'off' : 'on'); } catch { /* 記録できない端末 */ }
     renderMute();
@@ -74,6 +77,17 @@ if (Object.values(screens).every(Boolean)) {
   // タイトルのボタンを押したら、少し待ってから最初の画面（序章・第1章など）を始める（PRISM の LAUNCH_DELAY_MS と同じ 0.25秒。2026-11-15 発案者）。
   // 待つ間に重ねて押されても、1回だけ始める
   let launching = false;
+  // 遊ぶ画面以外のメニュー（☰）：音とタイトルへだけ（2026-11-15 発案者）。遊ぶ画面は今までどおり自分のメニュー
+  const mini = document.getElementById('mini-sheet');
+  document.getElementById('mini-version').textContent = `v${APP_VERSION}`;
+  document.getElementById('mini-copyright').textContent = COPYRIGHT;
+  const closeMini = () => { mini.hidden = true; };
+  document.addEventListener('click', e => { if (e.target.closest('.menu-btn')) { renderMute(); mini.hidden = false; } });
+  document.getElementById('mini-sheet-back').addEventListener('click', closeMini);
+  document.getElementById('mini-close').addEventListener('click', closeMini);
+  document.getElementById('mini-title').addEventListener('click', () => { closeMini(); flow.toTitle(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMini(); });
+
   screens.title.addEventListener('click', e => {
     const b = e.target.closest('button[data-start]');
     if (!b || launching) return;

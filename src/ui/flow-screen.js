@@ -303,5 +303,5 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
     if (saved) offerResume(saved, fresh); else fresh();
   }
 
-  return { start, steps: FLOW };
+  return { start, toTitle, steps: FLOW };
 }

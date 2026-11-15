@@ -704,6 +704,9 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 .mute-btn { flex: none; width: 38px; height: 38px; padding: 8px; border-radius: 11px; background: #092d26c9; border: 1px solid #809077; color: #e6d6ae; cursor: pointer; }
 .mute-btn svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; display: block; }
 .mute-btn[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+/* 遊ぶ画面以外のメニュー（☰）。消音のボタンと同じ形で、その右に置く */
+.menu-btn { flex: none; width: 38px; height: 38px; padding: 0; border-radius: 11px; background: #092d26c9; border: 1px solid #809077; color: #e6d6ae; font-size: 20px; line-height: 1; cursor: pointer; }
+@media (orientation: landscape) and (max-height: 420px) { .menu-btn { width: 32px; height: 32px; font-size: 17px; } }
 @media (orientation: landscape) and (max-height: 420px) { .mute-btn { width: 32px; height: 32px; padding: 6px; } }
 
 /* 第3章「光の響きから影の琴へ」：紙芝居の画面と同じ枠組み */
