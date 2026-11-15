@@ -7,7 +7,7 @@ export const FLOW = Object.freeze([
   { id: 'riddle-shield', kind: 'riddle', riddle: 'shield', title: '第1章の終わり：謎（盾）' },
   { id: 'ch2', kind: 'triangle', title: '第2章 三角形で和音', place: '星空', playable: true },
   { id: 'riddle-sword', kind: 'riddle', riddle: 'sword', title: '第2章の終わり：謎（剣）' },
-  { id: 'ch3', kind: 'placeholder', title: '第3章 長調と短調', note: '夜の神殿。中身は段階5で作ります。' },
+  { id: 'ch3', kind: 'triangle', title: '第3章 長調と短調', place: '夜の神殿', playable: true },
   { id: 'riddle-armor', kind: 'riddle', riddle: 'armor', title: '第3章の終わり：謎（鎧）' },
   { id: 'final', kind: 'placeholder', title: '最終章 門と扉', note: '門の課題と「直角に開く」は段階5で作ります。' }
 ].map(x => Object.freeze(x)));

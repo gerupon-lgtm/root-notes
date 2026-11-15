@@ -17,11 +17,12 @@ export function modeOf(id) {
 }
 
 // 遊び方から、ステージを作る条件を決める。選択プレイは固定、連続プレイは乱数で進行とキーと種を選ぶ（要件6.5）
-export function runSpecFor(modeId, random) {
+// progression：決まった曲の作り方を使うとき（第3章の光と影 'mirror'）。null なら第2章の進行から選ぶ
+export function runSpecFor(modeId, random, progression = null) {
   const mode = modeOf(modeId);
-  if (!mode.continuous) return { ...SELECT_PLAY, decoys: mode.decoys };
+  if (!mode.continuous) return { ...SELECT_PLAY, ...(progression ? { progression } : {}), decoys: mode.decoys };
   return {
-    progression: PROGRESSIONS[Math.floor(random() * PROGRESSIONS.length)].id,
+    progression: progression ?? PROGRESSIONS[Math.floor(random() * PROGRESSIONS.length)].id,
     key: Math.floor(random() * 12),
     seed: Math.floor(random() * 2 ** 31),
     decoys: mode.decoys
@@ -46,8 +47,8 @@ export class Play {
     this.complete = false; // 連続プレイで8つの星を灯し終えた
   }
 
-  static start(modeId, random = Math.random) {
-    return new Play(modeId, buildRun(runSpecFor(modeId, random)));
+  static start(modeId, random = Math.random, progression = null) {
+    return new Play(modeId, buildRun(runSpecFor(modeId, random, progression)));
   }
 
   // 保存する形（段階7。src/game/progress.js）。曲は進行・キー・種・おとりの本数から作り直せるので、その4つだけを残す。

@@ -32,13 +32,14 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle
   const progress = new ProgressBook(localStore());
   let run = null;
   const saveRun = () => { if (run) progress.saveContinuous(run); };
-  // 第2章の終わりで、その連続プレイの曲を8小節通しでもう一度鳴らす（なければ鳴らさない。2026-11-15 発案者：最後の4小節から変更）
-  const lastPhrase = () => {
-    const spec = run?.ch2?.spec;
+  // 章の終わり（第2章・第3章）で、その連続プレイの曲を8小節通しでもう一度鳴らす（なければ鳴らさない。2026-11-15 発案者：最後の4小節から変更）
+  const songOf = chapter => () => {
+    const spec = run?.[chapter]?.spec;
     if (!spec) return;
     const stages = buildRun(spec).stages;
     audio.playScore(buildScore(stages, 0, stages.length - 1), { chordTimbre: TIMBRES[SONG_TIMBRE], bassTimbre: TIMBRES[BASS_TIMBRE] });
   };
+
 
   const show = name => {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
@@ -88,7 +89,7 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle
       const seen = !book.shouldAuto('prologue');
       const after = () => { book.complete('prologue'); if (chooseAfterPrologue) chooseLevel(begin); else begin(); };
       // 第1章に入るときに、新しい連続プレイの続きを作る
-      const begin = () => { run = { mode, step: 'ch1', ch1: [], ch2: null, artifacts: {} }; next(); };
+      const begin = () => { run = { mode, step: 'ch1', ch1: [], ch2: null, ch3: null, artifacts: {} }; next(); };
       // 紙芝居（段階6）。最後の「はじめる」か、2回目からの「飛ばす」で次へ
       show('story');
       story.play(PROLOGUE, { title: step.title, canSkip: seen, endLabel: 'はじめる', onDone: after });
@@ -105,20 +106,22 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle
       };
       const toRiddle = () => { show('riddle'); riddle.start(R, { meter: mode === 'free', onTitle: toTitle, onDone: after }); };
       show('story');
-      story.play(endBefore(step.riddle, R.name), { title, canSkip: seen, endLabel: '謎へ', onDone: toRiddle, phrase: lastPhrase });
+      story.play(endBefore(step.riddle, R.name), { title, canSkip: seen, endLabel: '謎へ', onDone: toRiddle, phrase: songOf(step.riddle === 'armor' ? 'ch3' : 'ch2') });
     } else if (step.kind === 'monochord') {
       show('mono');
       mono.start(mode, { onDone: next, onTitle: toTitle, lit: run?.ch1 ?? [], onLit: lit => { if (run) { run.ch1 = lit; saveRun(); } } });
     } else if (step.kind === 'triangle') {
+      // 三角形の章（第2章・第3章）。続きは章ごとに run.ch2・run.ch3 に残す
+      const id = step.id;
       show('stage');
       stage.start(mode, {
-        onChapterEnd: next, restore: run?.ch2 ?? null, found: progress.found(),
+        chapter: id, onChapterEnd: next, restore: run?.[id] ?? null, found: progress.found(),
         onChange: p => {
           progress.addFound(p.found);
           if (!run) return;
           // ゲームオーバーで連続プレイの続きは終わり（「最初から」で新しい曲を始めると、また保存する）
           if (p.over) { progress.clearContinuous(); return; }
-          run.ch2 = p.snapshot(); run.step = 'ch2'; saveRun();
+          run[id] = p.snapshot(); run.step = id; saveRun();
         }
       });
     } else {
@@ -155,8 +158,8 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle
     } else {
       show('stage');
       stage.start(mode, {
-        onChapterEnd: null, lit: progress.selectLit('ch2'), found: progress.found(),
-        onChange: p => { progress.addFound(p.found); progress.addSelectLit('ch2', [...p.lit]); }
+        chapter: id, onChapterEnd: null, lit: progress.selectLit(id), found: progress.found(),
+        onChange: p => { progress.addFound(p.found); progress.addSelectLit(id, [...p.lit]); }
       });
     }
   }
@@ -166,8 +169,10 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle
     const where = stepById(saved.step);
     const detail = [MODES[saved.mode].name, where?.title ?? ''];
     if (saved.step === 'ch1') detail.push(`${saved.ch1.length} / ${MONOCHORD_STAGES.length}`);
-    if (saved.ch2 && saved.step === 'ch2') detail.push(`星 ${saved.ch2.lit.length} / ${BARS}`);
-    if (saved.ch2?.livesLeft != null) detail.push(`失敗あと${saved.ch2.livesLeft}回`);
+    const tri = saved[saved.step];
+    if (tri && (saved.step === 'ch2' || saved.step === 'ch3')) detail.push(`星 ${tri.lit.length} / ${BARS}`);
+    const lives = (saved.ch3 ?? saved.ch2)?.livesLeft;
+    if (lives != null) detail.push(`失敗あと${lives}回`);
     interlude({
       eyebrow: '連続プレイ', title: '続きがあります', lines: [detail.filter(Boolean).join('・')],
       buttons: [

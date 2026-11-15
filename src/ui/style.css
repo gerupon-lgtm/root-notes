@@ -672,3 +672,7 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 .story-layer.voice-mark.leak { animation: riddle-leak 2.2s ease-out; }
 .story-layer.held { filter: drop-shadow(0 0 14px #f0d797aa); }
 @media (prefers-reduced-motion: reduce) { .story-star.lit { animation: none; opacity: 1; } .story-layer.voice-mark.leak { animation: none; opacity: 0.8; } }
+
+/* 第3章の影の面：光の三角形をうっすら残す（触っても鳴らない） */
+#tri .ghost { opacity: 0.28; pointer-events: none; }
+#tri .ghost-label { fill: var(--gold); font-size: 11px; opacity: 0.8; letter-spacing: 0.08em; }

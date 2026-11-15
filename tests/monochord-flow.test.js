@@ -61,8 +61,8 @@ test('流れ：連続プレイは 序 → 第1章 → 謎（盾）→ 第2章 �
   assert.deepEqual(ids, ['prologue', 'ch1', 'riddle-shield', 'ch2', 'riddle-sword', 'ch3', 'riddle-armor', 'final']);
   assert.equal(nextStep('final'), null);
   assert.throws(() => nextStep('nope'));
-  // 選択プレイで選べる章は、遊べる2つ（第1章・第2章）
-  assert.deepEqual(playableChapters().map(x => x.id), ['ch1', 'ch2']);
+  // 選択プレイで選べる章は、遊べる3つ（第1章・第2章・第3章）
+  assert.deepEqual(playableChapters().map(x => x.id), ['ch1', 'ch2', 'ch3']);
   assert.ok(FLOW.every(x => x.title));
   assert.equal(PROLOGUE.length, 8); // 要件6.10 の序章の8場面
 });

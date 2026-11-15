@@ -110,7 +110,7 @@ const spiritLeft = art => ({ art, x: 120, y: 290, w: 300 });
 export const CHAPTER_END = Object.freeze({
   shield: Object.freeze({ chapter: '第1章', place: '鍛冶場の跡', background: 'forge-ruins', stars: 5, close: '一弦の琴で、澄んだ響きを思い出しました。', sound: 'ratios' }),
   sword: Object.freeze({ chapter: '第2章', place: '星空', background: 'stars-night-empty', stars: 8, close: '3本の弦が、ひとつの響きになりました。星が灯っていきます。', sound: 'phrase' }),
-  armor: Object.freeze({ chapter: '第3章', place: '夜の神殿', background: 'temple-entrance-corridor', stars: 0, close: '明るい響きと影の響き。神殿に、ふたつの響きがそろいました。', sound: null })
+  armor: Object.freeze({ chapter: '第3章', place: '夜の神殿', background: 'temple-entrance-corridor', stars: 8, close: '明るい響きと影の響き。神殿に、ふたつの響きがそろいました。', sound: 'phrase' })
 });
 // 第1章の5つの比（弦全体 196Hz の 2・3/2・4/3・5/4・6/5 倍）
 const OPEN = 196;

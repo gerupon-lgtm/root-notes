@@ -2,7 +2,7 @@
 // 進行・キー・種・おとりの本数から、8小節（8つの星）のステージを作る。
 // 各小節：和音に合う純正な三角形を選び、最低音（最長辺）が平均律の音になるように K を決め、おとりの棒を足す。
 import { len, closes, compareLength, sameLengths, sortLengths, lengthValue } from './length.js';
-import { TRIADS } from './chord.js';
+import { TRIADS, chordOf } from './chord.js';
 import { parseChord, degreePc, midiToHz, chordName } from './harmony.js';
 import { pureTriangles } from './voicing.js';
 import { mulberry32, shuffle, pickOne } from './random.js';
@@ -118,6 +118,7 @@ function chooseSticks(target, count, rng) {
 }
 
 export function buildRun({ progression, key, seed, decoys }) {
+  if (progression === MIRROR.id) return buildMirrorRun({ key, seed, decoys });
   const prog = PROGRESSIONS.find(p => p.id === progression);
   if (!prog) throw new Error(`進行「${progression}」がありません。`);
   if (!Number.isInteger(key) || key < 0 || key > 11) throw new Error(`キーは0〜11で指定してください：${key}`);
@@ -166,4 +167,88 @@ export function buildRun({ progression, key, seed, decoys }) {
     return Object.freeze({ bar, label: entry.display ?? entry.label, chordName: chordName(entry.label, key), chord, bassDegree, bassShift, target: voicing.target, inversion: voicing.inversion, lowMidi, rootMidi, rootLength, topMidi, K, tuneCents, bassMidi, bassCents, sticks, order });
   });
   return Object.freeze({ progression: Object.freeze({ id: prog.id, name: prog.name, mode: prog.mode ?? 'major' }), key, seed, decoys, stages: Object.freeze(stages) });
+}
+
+// ---------- 第3章「長調と短調」：光と影の組（2026-11-15 発案者：A案） ----------
+// 2面で1組。光＝長調の三角形、影＝光の三角形の「周波数の比」をそのまま辺の比にした三角形（鏡写し）。
+// 長さと音の高さは反比例するので、鏡写しの三角形は短調になる。基準の音 K を光と同じにすると、影は光の平行調の短調
+// （例 ハ長調 10・12・15 → イ短調 12・15・18）になり、2本は同じ棒（同じ高さ）のまま、1本を替えるだけで明るい響きが影になる。
+// 曲は「光 → その平行調の影」を4回：I → VIm → IV → IIm → V → IIIm → I → VIm（8小節）
+export const MIRROR = Object.freeze({ id: 'mirror', name: '光と影', pairs: Object.freeze([['I', 'VIm'], ['IV', 'IIm'], ['V', 'IIIm'], ['I', 'VIm']]) });
+
+// 長さの組 ns（整数）の鏡写しの候補すべて：c ÷ n が整数で、元の組と2本を共有するもの（棒の範囲の中）。
+// 1つの組に2つあることがある（例 10・12・15 → 8・10・12（3度上の短調）と 12・15・18（平行調））。どれを使うかは呼ぶ側で決める
+export function mirrorLengths(ns) {
+  const { minLength, maxLength } = STAGE_RULES, out = [];
+  for (let c = 1; c <= maxLength * maxLength; c++) {
+    const m = ns.map(n => c / n);
+    if (!m.every(x => Number.isInteger(x) && x >= minLength && x <= maxLength)) continue;
+    if (m.filter(x => ns.includes(x)).length === 2) out.push(m.sort((a, b) => a - b));
+  }
+  return out;
+}
+// 鏡写しのうち、短調で、根音が平行調（影の度数）になるもの。K は光と同じ。なければ null
+function relativeMirror(lightTarget, K, wantPc) {
+  for (const m of mirrorLengths(lightTarget.map(l => l.n))) {
+    const target = Object.freeze(m.map(n => len(n)));
+    if (!closes(target)) continue; // 三角形にならない鏡写し（例 6・9・15）は使わない
+    const info = chordOf(target);
+    if (info?.quality !== 'minor') continue;
+    const sorted = sortLengths(target), longest = sorted[2];
+    const semis = sorted.map(l => Math.round(12 * Math.log2(lengthValue(longest) / lengthValue(l))));
+    const rootRel = (12 - TRIADS.minor[info.inversion]) % 12;
+    const rootLength = sorted[semis.findIndex(x => x % 12 === rootRel)];
+    const rootHz = K / lengthValue(rootLength);
+    if (((nearestMidi(rootHz) % 12) + 12) % 12 === wantPc) return { target, info, sorted, rootLength, rootHz };
+  }
+  return null;
+}
+
+const centsOf = r => 1200 * Math.log2(r);
+const nearestMidi = hz => Math.round(69 + 12 * Math.log2(hz / 440));
+
+function buildMirrorRun({ key, seed, decoys }) {
+  if (!Number.isInteger(key) || key < 0 || key > 11) throw new Error(`キーは0〜11で指定してください：${key}`);
+  const rng = mulberry32(seed);
+  const stages = [];
+  const finish = (bar, label, chord, target, placed, bassFor, extra) => {
+    const sticks = chooseSticks(target, decoys, rng);
+    const answerAt = target.map(t => sticks.findIndex(x => x.n === t.n));
+    const together = ord => { const pos = answerAt.map(i => ord.indexOf(i)).sort((x, y) => x - y); return pos[2] - pos[0] === 2; };
+    let shuffled = shuffle(sticks.map((_, i) => i), rng);
+    for (let tries = 0; tries < 30 && together(shuffled); tries++) shuffled = shuffle(shuffled, rng);
+    const bassPc = (degreePc(key, chord.degree) + (chord.shift ?? 0) + 12) % 12;
+    const bassMidi = midiInRange(bassPc, STAGE_RULES.bassMidi);
+    const bassCents = bassFor ? bassFor(bassMidi) : 0;
+    return Object.freeze({ bar, label, chordName: chordName(label, key), chord, bassDegree: chord.degree, bassShift: chord.shift ?? 0, target, ...placed, bassMidi, bassCents, sticks, order: Object.freeze(shuffled), ...extra });
+  };
+  MIRROR.pairs.forEach(([lightLabel, shadowLabel], i) => {
+    const light = Object.freeze(parseChord(lightLabel)), shadow = Object.freeze(parseChord(shadowLabel));
+    // 光：長調の三角形のうち、鏡写しが棒の範囲にあり、どちらもトップノートが上限を超えないもの
+    const shadowPc = degreePc(key, shadow.degree);
+    const options = pureTriangles().filter(v => {
+      if (v.quality !== light.quality) return false;
+      const pl = placeVoicing({ key, chord: light, voicing: v });
+      if (pl.topMidi > STAGE_RULES.maxTopMidi) return false;
+      const m = relativeMirror(v.target, pl.K, shadowPc);
+      return m !== null && nearestMidi(pl.K / lengthValue(m.sorted[0])) <= STAGE_RULES.maxTopMidi; // 影のトップノートも上限まで
+    });
+    if (!options.length) throw new Error(`${lightLabel} の光と影の三角形がありません。`);
+    const voicing = pickOne(options, rng);
+    const placed = placeVoicing({ key, chord: light, voicing });
+    const lightTarget = voicing.target;
+    stages.push(finish(i * 2, lightLabel, light, lightTarget,
+      { inversion: voicing.inversion, lowMidi: placed.lowMidi, rootMidi: placed.rootMidi, rootLength: placed.rootLength, topMidi: placed.topMidi, K: placed.K, tuneCents: 0 },
+      null, { side: 'light' }));
+    // 影：同じ K で鏡写しの長さ。根音（短調の根音）は純正律で積んだ高さなので、平均律から少しずれる。ベースはその根音にちょうど合わせる
+    const K = placed.K;
+    const { target: shadowTarget, info, sorted, rootLength, rootHz } = relativeMirror(lightTarget, K, shadowPc);
+    const longest = sorted[2];
+    const rootMidi = nearestMidi(rootHz);
+    stages.push(finish(i * 2 + 1, shadowLabel, shadow, shadowTarget,
+      { inversion: info.inversion, lowMidi: nearestMidi(K / lengthValue(longest)), rootMidi, rootLength, topMidi: nearestMidi(K / lengthValue(sorted[0])), K, tuneCents: centsOf(rootHz / midiToHz(rootMidi)) },
+      bassMidi => { const c = centsOf(rootHz / midiToHz(bassMidi)); return c - 1200 * Math.round(c / 1200); },
+      { side: 'shadow', mirrorOf: i * 2 }));
+  });
+  return Object.freeze({ progression: Object.freeze({ id: MIRROR.id, name: MIRROR.name, mode: 'major' }), key, seed, decoys, stages: Object.freeze(stages) });
 }

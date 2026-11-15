@@ -127,9 +127,27 @@ export function createStageScreen({ audio, onTitle }) {
 
   function sidesOf(p) { return p.selectedLengths.map(length => ({ length, color: lenColor(length) })); }
 
+  // 影の面（第3章）：まだ3本選んでいないとき、光の面の三角形をうっすら残して見せる（2本は同じ棒だと気づけるように。2026-11-15 発案者）
+  function drawGhost(p, text) {
+    const light = p.run.stages[p.stage.mirrorOf];
+    drawClosed(svgRoot, light.target.map(length => ({ length, color: lenColor(length) })), { hint: false });
+    const ns = 'http://www.w3.org/2000/svg', g = document.createElementNS(ns, 'g');
+    g.setAttribute('class', 'ghost');
+    for (const el of [...svgRoot.children]) if (el.tagName !== 'defs') g.append(el);
+    svgRoot.append(g);
+    for (const [y, t, cls] of [[16, text, 'tri-hint'], [32, '（うっすら見えるのは、前の光の三角形）', 'ghost-label']]) {
+      const x = document.createElementNS(ns, 'text');
+      x.setAttribute('x', 160); x.setAttribute('y', y); x.setAttribute('text-anchor', 'middle'); x.setAttribute('class', cls);
+      x.textContent = t;
+      svgRoot.append(x);
+    }
+  }
+
   function renderBoard() {
     const p = play();
     if (!p.ready) {
+      const text = p.selected.length ? `あと${3 - p.selected.length}本選んでください` : 'お題を聞いて、下の棒を3本選んでください';
+      if (p.stage.side === 'shadow') { drawGhost(p, text); return; }
       drawEmpty(svgRoot, p.selected.length ? `あと${3 - p.selected.length}本選んでください` : 'お題を聞いて、下の棒を3本選んでください');
       return;
     }
@@ -435,11 +453,15 @@ export function createStageScreen({ audio, onTitle }) {
   // 画面の中からの始め直し（遊び方の切り替え・最初から）は options を渡さず、今の流れと保存先を保つ
   function start(modeId, options) {
     if (options) {
+      // chapter：'ch2'（三角形で和音）か 'ch3'（長調と短調。光と影の組）。画面の中からの始め直しでは保つ
+      s.chapter = options.chapter ?? 'ch2';
       s.onChapterEnd = options.onChapterEnd ?? null;
       s.onChange = options.onChange ?? null;
       s.known = new Set(options.found ?? []);
     }
     s.known ??= new Set();
+    s.chapter ??= 'ch2';
+    document.querySelector('#stage-screen .play-heading .brand').textContent = s.chapter === 'ch3' ? '第3章 長調と短調' : '第2章 三角形で和音';
     audio.stopAll();
     // 確認用：?check&prog=進行の記号 で、連続プレイをその進行で始める（実機で進行を試すため）
     const forced = s.check ? new URLSearchParams(location.search).get('prog') : null;
@@ -449,7 +471,7 @@ export function createStageScreen({ audio, onTitle }) {
     }
     s.play = restored ?? (forced && MODES[modeId].continuous && PROGRESSIONS.some(x => x.id === forced)
       ? new Play(modeId, buildRun({ ...runSpecFor(modeId, Math.random), progression: forced }))
-      : Play.start(modeId));
+      : Play.start(modeId, Math.random, s.chapter === 'ch3' ? 'mirror' : null));
     if (!restored && options?.lit) for (const b of options.lit) s.play.lit.add(b);
     // 今までに見つけた発見は、巻物に載ったまま（新しく見つけたものだけ知らせる）
     s.play.found = new Set(s.known);
