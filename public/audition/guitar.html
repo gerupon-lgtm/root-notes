@@ -31,6 +31,7 @@
   <p>どちらも FM（周波数変調）で作っています。候補は2つ：「FM だけ」と「FM に倍音を加えたもの」（倍音を足して、少し明るく豊かにしたもの）。</p>
   <div class="hold" id="hold"><span>減り始め：</span></div>
   <div class="hold" id="hard"><span>硬さ：</span></div>
+  <div class="hold" id="low"><span>低音：</span></div>
   <div class="hold" id="vol"><span>大きさ（アプリの中）：</span></div>
   <p class="note">「大きさ」は、音を重ねたあと・出口の安全装置より前で全体を小さくします（スマホの音量とは別）。0.6倍・0.4倍で「ソ・レ・ソ」の2音目からの歪みが消えるかを確かめる用です。</p>
   <p class="note">「重ねて（揺れ1回/秒）」は、第1章の「重ねて鳴らす」と謎の「重ねて聞く」用です。ここだけは消えずに鳴り続け、392Hz と 393Hz を重ねて、1秒に1回の揺れを 4秒聞かせます。</p>
@@ -78,6 +79,9 @@ const HARD = {
 let hard = 'mid';
 // アプリの中の大きさ（安全装置より前）。2026-11-15「中音域が歪む」の確かめ用
 let vol = 1;
+// 低音の抑え方（2026-11-15 発案者「低音域を少し抑えてほしい」）。body：胴の響き（220Hz）の持ち上げ、shelf：低い側を下げる量（dB）と境目
+const LOW = { now: { body: 5, shelf: 0, at: 250 }, little: { body: 2, shelf: -3, at: 250 }, more: { body: 0, shelf: -6, at: 300 } };
+let low = 'little';
 function pluckNoise(t, h = HARD[hard]) {
   const c = audio(), n = Math.floor(c.sampleRate * h.noiseLen), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
   for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.25));
@@ -177,12 +181,14 @@ function fmGut(hz, t, { hold = 0.35, life = LIFE, level = 0.24, harmonics = fals
     m3.connect(d3); d3.connect(car.frequency); oscs.push(m3);
   }
   lp.type = 'lowpass'; lp.frequency.value = Math.min(9000, hz * h.hiCut * (harmonics ? 1.4 : 1)); lp.Q.value = 0.5;
-  body.type = 'peaking'; body.frequency.value = 220; body.Q.value = 0.9; body.gain.value = 5;
+  const L = LOW[low];
+  body.type = 'peaking'; body.frequency.value = 220; body.Q.value = 0.9; body.gain.value = L.body;
+  const shelf = c.createBiquadFilter(); shelf.type = 'lowshelf'; shelf.frequency.value = L.at; shelf.gain.value = L.shelf;
   // はじいた瞬間の山（punch 倍から、25ミリ秒の時定数でふだんの大きさへ）。ピッキングの「カッ」という手ごたえ
   const pg = c.createGain();
   pg.gain.setValueAtTime(h.punch, t);
   pg.gain.setTargetAtTime(1, t + 0.004, 0.025);
-  car.connect(lp); lp.connect(body); body.connect(pg); pg.connect(g); g.connect(out);
+  car.connect(lp); lp.connect(body); body.connect(shelf); shelf.connect(pg); pg.connect(g); g.connect(out);
   if (sustain) {
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.004);
     g.gain.setTargetAtTime(level * 0.6, t + 0.004, 0.3);
@@ -205,7 +211,7 @@ function organVoice(hz, t, { life = LIFE, level = 0.14 } = {}) {
 
 // 減り始めの長さ（上の切り替えで選ぶ。2つの候補の両方に効く）
 const HOLDS = [0.2, 0.35, 0.5];
-let hold = 0.35;
+let hold = 0.5;
 const holdRow = document.getElementById('hold');
 for (const h of HOLDS) {
   const b = document.createElement('button'); b.type = 'button'; b.textContent = `${h}秒`;
@@ -214,6 +220,13 @@ for (const h of HOLDS) {
   holdRow.append(b);
 }
 // 硬さ（上の切り替え。2つの候補の両方に効く）。「やわらかい」は前回の音
+const lowRow = document.getElementById('low');
+for (const [key, label] of [['now', '今のまま'], ['little', '少し抑える'], ['more', 'もっと抑える']]) {
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+  b.className = key === low ? 'on' : '';
+  b.addEventListener('click', () => { low = key; for (const x of lowRow.querySelectorAll('button')) x.classList.toggle('on', x === b); });
+  lowRow.append(b);
+}
 const volRow = document.getElementById('vol');
 for (const [v, label] of [[1, '今のまま'], [0.6, '0.6倍'], [0.4, '0.4倍']]) {
   const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
