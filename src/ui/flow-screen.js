@@ -8,7 +8,7 @@ import { PROLOGUE, endBefore, endAfter, FINAL_INTRO, gateBefore, gateOpened, zap
 import { GATES, DECOY_BY_CHAPTER, FINAL_K } from '../content/final.js';
 import { FinalPlay } from '../game/final-play.js';
 import { riddleHz } from '../content/riddles.js';
-import { buildRun } from '../core/stage-gen.js';
+import { buildRun, closingStage } from '../core/stage-gen.js';
 import { buildScore } from '../game/song.js';
 import { TIMBRES, SONG_TIMBRE, BASS_TIMBRE } from '../content/timbres.js';
 import { RIDDLES } from '../content/riddles.js';
@@ -17,6 +17,7 @@ import { TutorialBook } from '../game/tutorial-book.js';
 import { ProgressBook } from '../game/progress.js';
 import { BARS } from '../content/progressions.js';
 import { MONOCHORD_STAGES } from '../content/monochord.js';
+import { LAUNCH_DELAY_MS } from './timing.js';
 
 // 連続プレイの遊び方（FLOAT の levels() と同じく、名前と一言）。一言は MODES の値から作る
 const LEVEL_IDS = ['free', 'normal', 'expert'];
@@ -38,8 +39,9 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
   const songOf = chapter => () => {
     const spec = run?.[chapter]?.spec;
     if (!spec) return;
-    const stages = buildRun(spec).stages;
-    audio.playScore(buildScore(stages, 0, stages.length - 1), { chordTimbre: TIMBRES[SONG_TIMBRE], bassTimbre: TIMBRES[BASS_TIMBRE] });
+    // 8小節のあと、9小節目にキーの主和音を全音符で鳴らして締める（2026-11-15 発案者）
+    const built = buildRun(spec), stages = built.stages;
+    audio.playScore(buildScore(stages, 0, stages.length - 1, { ending: closingStage(built) }), { chordTimbre: TIMBRES[SONG_TIMBRE], bassTimbre: TIMBRES[BASS_TIMBRE] });
   };
 
 
@@ -68,11 +70,13 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
     }
     // stack：選ぶボタンを縦に1列、同じ大きさで並べる（遊び方を選ぶ。2026-11-15 発案者）
     const row = el('div', stack ? 'interlude-buttons stack' : 'interlude-buttons');
+    // 押したあと次の画面まで少し待つ（LAUNCH_DELAY_MS）ことがあるので、1つの画面で押せるのは1回だけ
+    let pressed = false;
     for (const [text, act, primary, note] of buttons) {
       const b = el('button', primary ? 'btn primary' : 'btn', text);
       b.type = 'button';
       if (note) b.append(el('small', '', note));
-      b.addEventListener('click', act);
+      b.addEventListener('click', () => { if (pressed) return; pressed = true; act(); });
       row.append(b);
     }
     parts.push(row);
@@ -180,7 +184,7 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
       onZap: miss => zap(step, play, miss),
       onDoor: () => {
         show('story');
-        story.play(ENDING, { title: '結末', endLabel: 'おわり', phrase: songOf('ch2'), onDone: () => { if (run) { progress.clearContinuous(); run = null; } finishedAll(); } });
+        story.play(ENDING, { title: '結末', endLabel: 'エンディング作成中', phrase: songOf('ch2'), onDone: () => { if (run) { progress.clearContinuous(); run = null; } finishedAll(); } });
       }
     });
   }
@@ -217,7 +221,7 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
   // 最後まで通したとき
   function finishedAll() {
     audio.stopAll();
-    interlude({ eyebrow: 'ROOT NOTES', title: 'おしまい', lines: ['最後まで遊んでくれて、ありがとうございました。'], buttons: [['タイトルへ', toTitle, true]] });
+    interlude({ eyebrow: 'ROOT NOTES', title: 'エンディング作成中', lines: ['最後まで遊んでくれて、ありがとうございました。'], buttons: [['タイトルへ', toTitle, true]] });
   }
 
   // 連続プレイ：遊び方を選ぶ（FLOAT の levels() と同じ形：説明文と、名前に一言を添えた3つのボタン）
@@ -267,8 +271,8 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
     interlude({
       eyebrow: '連続プレイ', title: '続きがあります', lines: [detail.filter(Boolean).join('・')],
       buttons: [
-        ['続きから ▶', () => { run = saved; mode = saved.mode; chooseAfterPrologue = false; go(where ?? firstStep()); }, true],
-        ['最初から', () => { progress.clearContinuous(); run = null; fresh(); }, false, '今の続きは消えます'],
+        ['続きから ▶', () => { run = saved; mode = saved.mode; chooseAfterPrologue = false; setTimeout(() => go(where ?? firstStep()), LAUNCH_DELAY_MS); }, true],
+        ['最初から', () => { progress.clearContinuous(); run = null; setTimeout(fresh, LAUNCH_DELAY_MS); }, false, '今の続きは消えます'],
         ['タイトルへ', toTitle]
       ],
       stack: true // 遊び方を選ぶ画面と同じ並び（縦は1列・同じ大きさ、横は横並び。2026-11-15 発案者）

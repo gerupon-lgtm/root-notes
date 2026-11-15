@@ -16,7 +16,9 @@ export function createFinalScreen({ audio }) {
   const $ = id => document.getElementById(id);
   const picture = $('final-picture'), bars = $('final-bars'), guide = $('final-guide');
   const listen = $('final-listen'), mine = $('final-mine'), offer = $('final-offer'), open = $('final-open'), next = $('final-next');
-  let P = null, opts = null, chosen = [], mode = 'free', after = null;
+  let P = null, opts = null, chosen = [], mode = 'free', after = null, busy = false, waitTimer = 0;
+  // 差し出した和音を鳴らし終えてから次の場面へ移るまでの待ち（和音 1.6秒＋判定のあとの待ち 0.3秒。2026-11-15 発案者「音がブツっと切れる」）
+  const OFFER_RING_MS = 1900;
 
   const canHearMine = () => mode === 'free' || mode === 'select';
   function picture1(art) {
@@ -57,7 +59,7 @@ export function createFinalScreen({ audio }) {
       ...P.hand.map((h, k) => ({ n: h.n, label: h.door ? '扉用' : h.tag, door: h.door, k }))
     ];
     drawRows(rows);
-    listen.hidden = false; mine.hidden = !canHearMine(); offer.hidden = false; open.hidden = true; next.hidden = true;
+    listen.hidden = false; listen.disabled = false; mine.hidden = !canHearMine(); offer.hidden = false; open.hidden = true; next.hidden = true;
     render();
   }
   const gateChord = g => [...g.given, g.answer].map(hz);
@@ -72,7 +74,7 @@ export function createFinalScreen({ audio }) {
   function showDoor() {
     chosen = [];
     picture1('temple-final-door-closed');
-    guide.textContent = '最後の扉：巻物の言葉「等しき二本を、直角に開け」。同じ長さの2本を選んで、直角に開こう。';
+    guide.textContent = '最後の扉：巻物の言葉「ひとしき二本を、直角に開け」。同じ長さの2本を選んで、直角に開こう。';
     drawRows(P.hand.map((h, k) => ({ n: h.n, label: h.door ? '扉用' : h.tag, door: h.door, k })));
     listen.hidden = true; mine.hidden = true; offer.hidden = true; open.hidden = false; next.hidden = true;
     render();
@@ -97,9 +99,11 @@ export function createFinalScreen({ audio }) {
     bars.setAttribute('viewBox', '0 0 320 260');
   }
 
+  // 揺れ終わったら「揺れ」の印を外す（付けたままだと、画面を出し直したときにもう一度揺れる。遊ぶ画面と同じ直し方）
+  picture.addEventListener('animationend', () => picture.classList.remove('shake'));
   bars.addEventListener('pointerdown', e => {
     const row = e.target.closest('.riddle-row');
-    if (!row || !P || row.classList.contains('given')) return;
+    if (!row || !P || busy || row.classList.contains('given')) return;
     const k = Number(row.dataset.k);
     if (k < 0) return;
     if (P.atDoor) chosen = chosen.includes(k) ? chosen.filter(x => x !== k) : [...chosen, k].slice(-2);
@@ -113,14 +117,20 @@ export function createFinalScreen({ audio }) {
     audio.stopAll(); audio.chord([...P.current.given, P.hand[chosen[0]].n].map(hz), { timbre: TIMBRES.epiano, duration: 2 });
   });
   offer.addEventListener('click', () => {
-    if (chosen.length !== 1) return;
+    if (chosen.length !== 1 || busy) return;
     audio.stopAll();
     const g = P.current, r = P.offer(chosen[0]);
     audio.chord([...g.given, r.used.n].map(hz), { timbre: TIMBRES.epiano, duration: 1.6 });
-    if (r.result === 'open') { opts.onGateOpen(r); return; }
-    if (r.zap.length) { opts.onZap(r.zap); return; }
+    // 門が開く・ZAP のときは、和音を鳴らし終えてから紙芝居へ移る（紙芝居は始めに音を止めるため、すぐ移ると音が切れていた）
+    const then = r.result === 'open' ? () => opts?.onGateOpen(r) : r.zap.length ? () => opts?.onZap(r.zap) : null;
+    if (then) {
+      busy = true; listen.disabled = mine.disabled = offer.disabled = true;
+      guide.textContent = r.result === 'open' ? '門が、響きに応えています……' : '門の響きが、乱れています……';
+      waitTimer = setTimeout(() => { busy = false; then(); }, OFFER_RING_MS);
+      return;
+    }
     guide.textContent = `門は応えません。長さ ${r.used.n} の弦は、門に残りました。もう一度、門の響きを聞いてみよう。`;
-    picture.classList.remove('shake'); void picture.offsetWidth; picture.classList.add('shake');
+    picture.classList.remove('shake'); void picture.offsetWidth; picture.classList.add('shake'); // 揺れ終わったら外す（下の animationend）
     showGateRows();
   });
   function showGateRows() {
@@ -133,7 +143,7 @@ export function createFinalScreen({ audio }) {
     const [i, j] = chosen, n = P.hand[i].n;
     audio.stopAll();
     if (!P.openDoor(i, j)) {
-      guide.textContent = '扉は動きません。同じ長さの2本を選ぼう（巻物「等しき二本を」）。';
+      guide.textContent = '扉は動きません。同じ長さの2本を選ぼう（巻物「ひとしき二本を」）。';
       audio.chord([P.hand[i].n, P.hand[j].n].map(hz), { timbre: TIMBRES.epiano, duration: 1 });
       return;
     }
@@ -152,6 +162,6 @@ export function createFinalScreen({ audio }) {
     $('final-place').textContent = '最終章　神殿の奥';
     if (P.atDoor) showDoor(); else showGate();
   }
-  function stop() { audio.stopAll(); opts = null; }
+  function stop() { clearTimeout(waitTimer); busy = false; audio.stopAll(); opts = null; }
   return { start, stop };
 }

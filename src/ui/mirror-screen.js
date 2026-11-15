@@ -4,6 +4,24 @@
 import { MIRROR_STAGES, MIRROR_SHADOW_SIDE, mirrorModel } from '../content/mirror-explain.js';
 import { storyArt } from '../content/story.js';
 import { TIMBRES } from '../content/timbres.js';
+import { drawClosed } from './triangle-view.js';
+import { svg } from './svg.js';
+import { len } from '../core/length.js';
+
+// 影の琴（最後の場面）：棒が三角形に集まったあと、第2章と同じ三角形の表示（木枠・金具・弦・辺の長さ）へフェードで変える
+// （2026-11-15 発案者）。第2章の絵（320×210）を TRI_SCALE 倍にして、この画面（480×360）の中に置く。棒はその三角形の木枠の位置へ集まる
+const TRI_W = 320, TRI_SCALE = 1.15, TRI_X = 240 - (TRI_W / 2) * TRI_SCALE, TRI_Y = 280 - 188 * TRI_SCALE;
+// drawClosed と同じ置き方（最長辺を底辺、幅 250・高さ 150 に収める、底辺の高さ 188）で、3つの角をこの画面の座標で返す
+function closedCorners(lengths) {
+  const [a, b, c] = [...lengths].sort((x, y) => x - y);
+  const x = (b * b + c * c - a * a) / (2 * c), y = Math.sqrt(Math.max(0, b * b - x * x));
+  const minX = Math.min(0, x), maxX = Math.max(c, x);
+  const sc = Math.min(250 / (maxX - minX), 150 / Math.max(y, 1e-6));
+  const ox = TRI_W / 2 - ((minX + maxX) / 2) * sc, oy = 188;
+  const at = (px, py) => ({ x: TRI_X + px * TRI_SCALE, y: TRI_Y + py * TRI_SCALE });
+  // A・B は底辺（長さ c）、C は頂点。辺 BC が a、CA が b
+  return { a, b, c, A: at(ox, oy), B: at(ox + c * sc, oy), C: at(ox + x * sc, oy - y * sc) };
+}
 
 const YS = [105, 185, 265];
 const clamp = x => Math.min(1, Math.max(0, x));
@@ -29,7 +47,20 @@ export function createMirrorScreen({ audio }) {
     return { count, active, on };
   }
 
+  // 第2章と同じ三角形の表示（影の琴の弦）。場面ごとに1回だけ組み立てて、描き直しのたびに重ねる
+  let triView = null, triFor = null, fade = 0;
+  function closedView() {
+    if (triView && triFor === m) return triView;
+    const box = svg('svg', { id: 'mirror-tri', x: TRI_X, y: TRI_Y, width: TRI_W * TRI_SCALE, height: 210 * TRI_SCALE, viewBox: `0 0 ${TRI_W} 210`, overflow: 'visible', class: 'mirror-tri' });
+    drawClosed(box, rows.map((r, k) => ({ length: len(r.target.length), color: r.color, k })));
+    const fill = box.querySelector('#tri-fill'); // 遊ぶ画面の三角形と同じ名前にしない（色は style.css の .mirror-tri-fill）
+    fill?.removeAttribute('id'); fill?.setAttribute('class', 'mirror-tri-fill');
+    triView = box; triFor = m;
+    return box;
+  }
+
   function render() {
+    fade = 0;
     const st = MIRROR_STAGES[phase], t = (progress * st.duration) / 1000;
     const comparison = phase === 3, isShadow = comparison && side === 1;
     const heading = phase === 0 ? '星の響き' : phase === 1 ? '光の響き' : phase === 2 ? '星のかけらを弦へ' : comparison ? (isShadow ? '弦の長さの比' : '音の高さの比') : '影の琴';
@@ -63,20 +94,22 @@ export function createMirrorScreen({ audio }) {
       });
       s += txt(240, 338, phase === 2 ? 'かけらの数を、そのまま長さに' : `${rows.map(r => r.target.note).join('・')}　— 影の響き`, 18, '#b8ccbb', 'middle');
     } else {
-      const [a, b, c] = rows.map(r => r.target.length).sort((x, y) => x - y), u = W / m.unit;
-      const x = (a * a + b * b - c * c) / (2 * b), y = Math.sqrt(Math.max(0, a * a - x * x));
-      const A = { x: 154, y: 276 }, B = { x: 154 + b * u, y: 276 }, C = { x: 154 + x * u, y: 276 - y * u };
-      const mix = calm() ? (progress > 0.5 ? 1 : 0) : ease(clamp((progress - 0.12) / 0.62));
+      const { a, b, A, B, C } = closedCorners(rows.map(r => r.target.length));
+      const mix = calm() ? (progress > 0.5 ? 1 : 0) : ease(clamp((progress - 0.12) / 0.5));
+      // 集まりきったら、第2章の三角形の表示へフェードで変える（動きを減らす設定では、すぐ変える）
+      fade = calm() ? (progress > 0.5 ? 1 : 0) : ease(clamp((progress - 0.66) / 0.18));
+      s += `<g opacity="${1 - fade}">`;
       s += `<path d="M${A.x} ${A.y} L${B.x} ${B.y} L${C.x} ${C.y} Z" fill="#d8c8ed" opacity="${0.13 * mix}"/>`;
       rows.forEach((r, i) => {
-        const ends = r.target.length === a ? [A, C] : r.target.length === b ? [A, B] : [B, C], lerp = (p, q) => p + (q - p) * mix;
+        const ends = r.target.length === a ? [B, C] : r.target.length === b ? [C, A] : [A, B], lerp = (p, q) => p + (q - p) * mix;
         const x1 = lerp(145, ends[0].x), x2 = lerp(145 + r.ticks * W, ends[1].x), y1 = lerp(YS[i], ends[0].y), y2 = lerp(YS[i], ends[1].y);
         s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#b38b54" stroke-width="11" stroke-linecap="round"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${r.color}" stroke-width="3"/>`;
-        if (mix > 0.7) s += txt((x1 + x2) / 2 + 9, (y1 + y2) / 2 - 13, `${r.target.length} ${r.target.note}`, 19, r.color);
       });
+      s += '</g>';
       s += txt(240, 338, `${rows.map(r => r.target.note).join('・')}　— 影の響き`, 21, '#e4cd94', 'middle');
     }
     stageSvg.innerHTML = s;
+    if (phase === 4 && fade > 0) { const tri = closedView(); tri.setAttribute('opacity', fade); stageSvg.append(tri); }
     stageSvg.setAttribute('aria-label', heading);
     $('mirror-place').textContent = `光から影へ　${phase + 1} / 5${comparison ? `・${side === 0 ? '光' : '影'}` : ''}`;
     $('mirror-spirit').src = storyArt(phase === 1 ? 'spirit-listening' : phase === 4 ? 'spirit-smiling' : 'spirit-normal');

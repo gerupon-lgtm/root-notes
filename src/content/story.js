@@ -209,19 +209,20 @@ export function zapSlide(opened, names) {
 // 最4：最後の扉と巻物
 export const DOOR_BEFORE = Object.freeze([Object.freeze({
   id: 'final-door', place: '神殿の奥　最後の扉',
-  layers: [{ art: 'temple-final-door-closed', x: 0, y: 0, w: 1280 }, { art: 'scroll-open', x: 290, y: 560, w: 700 }, { text: '等しき二本を、直角に開け', x: 390, y: 665, w: 500, cls: 'scroll-words' }],
-  speaker: '弦の精霊', say: '巻物に、こう書いてあります。「等しき二本を、直角に開け」', cues: [{ at: 0.3, pluck: HZ(6) }]
+  layers: [{ art: 'temple-final-door-closed', x: 0, y: 0, w: 1280 }, { art: 'scroll-open', x: 290, y: 560, w: 700 }, { text: 'ひとしき二本を、\n直角に開け', x: 390, y: 638, w: 500, cls: 'scroll-words' }],
+  speaker: '弦の精霊', say: '巻物に、こう書いてあります。「ひとしき二本を、直角に開け」', cues: [{ at: 0.3, pluck: HZ(6) }]
 })]);
 // 最5〜最9：結末。song は締めくくりの曲（流れの側から渡す。仮）
 export const ENDING = Object.freeze([
   Object.freeze({
-    id: 'end-5', place: '扉の向こう', layers: [{ art: 'temple-final-door-open', x: 0, y: 0, w: 1280 }, { art: 'root2-resonance', x: 640, y: 300, w: 400 }, spiritLeft('spirit-confused')],
-    narration: '直角に開いた2本のあいだに、整数では書けない長さの辺が生まれました。落ち着かない新入り、√2の響きです。封音たちが、少し戸惑っています。',
-    cues: [{ at: 0.3, chord: [HZ(6), HZ(6 * Math.SQRT2)] }]
+    id: 'end-5', place: '扉の向こう', layers: [{ art: 'temple-final-door-open', x: 0, y: 0, w: 1280 }, { art: 'root2-resonance', x: 560, y: 240, w: 560, id: 'root2' }, spiritLeft('spirit-confused')],
+    narration: '直角に開いた2本のあいだに、整数では書けない長さの辺が生まれました。落ち着かない新入り「√2の響き」です。封音たちが少し戸惑っています。',
+    // √2の響きの絵は、和音が鳴っているあいだ光らせる（2026-11-15 発案者）
+    cues: [{ at: 0.3, chord: [HZ(6), HZ(6 * Math.SQRT2)], resonate: 'root2' }]
   }),
   Object.freeze({
     id: 'end-6', place: '扉の向こう', layers: [{ art: 'forge-legend', x: 0, y: 0, w: 1280, cls: 'dim' }, ...bells()],
-    narration: '濁りは、流れの中に置けば道しるべになる。鐘が、そろって鳴りました。',
+    narration: '「濁りは流れの中に置けば道しるべになる。」\n鐘たちがそろって鳴りました。',
     cues: [{ at: 0.3, bells: [12, 9, 8, 6] }]
   }),
   Object.freeze({

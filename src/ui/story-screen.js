@@ -101,6 +101,11 @@ export function createStoryScreen({ audio }) {
       // その章のフレーズ（第2章の終わり。曲を作る仕組みは流れの側から渡してもらう）
       if (cue.phrase && opts.phrase) timers.push(setTimeout(() => opts.phrase(), cue.at * 1000));
       if (cue.chord) timers.push(setTimeout(() => audio.chord(cue.chord, { timbre: TIMBRES.epiano, duration: 2.6 }), cue.at * 1000));
+      // resonate：和音が鳴っているあいだ（2.6秒）、その絵を光らせる（結末 最5 の√2の響き）
+      if (cue.resonate) timers.push(setTimeout(() => {
+        const el = picture.querySelector(`[data-id="${cue.resonate}"]`);
+        el?.classList.remove('resonating'); void el?.offsetWidth; el?.classList.add('resonating');
+      }, cue.at * 1000));
       // 精霊の声：5セントずらした2本を重ねて、グラスハープのゆらぎを出す
       if (cue.voice) timers.push(setTimeout(() => audio.chord([cue.voice, cue.voice * 2 ** (5 / 1200)], { timbre: TIMBRES.glass, duration: 1.3, strum: 0, level: 0.55 }), cue.at * 1000));
       if (cue.pluck) timers.push(setTimeout(() => audio.pluckGut(cue.pluck), cue.at * 1000));

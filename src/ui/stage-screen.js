@@ -1,7 +1,7 @@
 // 遊ぶ画面（段階3）。決まりは src/game/play.js、音は src/audio/engine.js、描画は triangle-view.js に任せ、
 // ここは画面の部品と操作をつなぐだけにする（docs/design/段階3_三角形ステージの画面.md）
 import { Play, stageTimbre, runSpecFor } from '../game/play.js';
-import { buildRun } from '../core/stage-gen.js';
+import { buildRun, closingStage } from '../core/stage-gen.js';
 import { PROGRESSIONS } from '../content/progressions.js';
 import { buildScore } from '../game/song.js';
 import { MODES, MODE_ORDER } from '../content/modes.js';
@@ -20,6 +20,7 @@ import { staffColumn } from '../game/notation.js';
 import { APP_VERSION, COPYRIGHT } from '../version.js';
 import { triangleHint } from '../content/tutorial.js';
 import { placeResultToast } from './result-layout.js';
+import { RESULT_DELAY_MS, AFTER_TOAST_MS } from './timing.js';
 
 const $ = id => document.getElementById(id);
 const ROWS = ['低', '中', '高'];
@@ -63,6 +64,9 @@ export function createStageScreen({ audio, onTitle }) {
     void app.offsetWidth;
     app.classList.add('shake');
   }
+  // 揺れ終わったら「揺れ」の印を外す。付けたままだと、画面をいったん隠して（紙芝居・光から影へ）また出したときに、
+  // ブラウザが動きを最初から再生し直し、面の始まりに画面が揺れていた（2026-11-15 発案者の報告：第3章の面の始まり）
+  $('stage-screen').addEventListener('animationend', e => { if (e.target.id === 'stage-screen') e.target.classList.remove('shake'); });
   function glow(hzs) {
     const fill = $('tri-fill');
     if (!fill) return;
@@ -321,10 +325,14 @@ export function createStageScreen({ audio, onTitle }) {
     const labels = p.run.stages.slice(from, to + 1).map(x => x.label);
     s.lastMusic = { from, to, title };
     showStaff(from, to);
-    audio.playScore(buildScore(p.run.stages, from, to, { carryOver: s.carryOver }), {
+    // 8小節の1曲は、9小節目にキーの主和音を全音符で鳴らして締める（2026-11-15 発案者。4小節のフレーズには付けない）
+    const ending = from === 0 && to === BARS - 1 ? closingStage(p.run) : null;
+    audio.playScore(buildScore(p.run.stages, from, to, { carryOver: s.carryOver, ending }), {
       chordTimbre: TIMBRES[s.songTimbre],
       bassTimbre: TIMBRES[BASS_TIMBRE],
       onBar: bar => {
+        // 9小節目（締め）：星・譜面・文の「今鳴っている所」の印を消しておく
+        if (bar > to) { s.playingBar = -1; renderStars(); markStaff($('staff'), -1); $('msg').replaceChildren(`♪ ${title}　`, ...labels.flatMap((l, j) => [j ? ' → ' : '', l])); return; }
         s.playingBar = bar;
         renderStars();
         markStaff($('staff'), bar - from);
@@ -379,7 +387,7 @@ export function createStageScreen({ audio, onTitle }) {
       el('div', { class: 'result-body', tabindex: '0', 'aria-label': '結果の説明' },
         el('p', { class: 'first-line' }, body[0]),
         ...body.slice(1).map(line => el('p', { class: 'sub-line' }, line))),
-      // 進むボタンと「タイトルへ」の組（章の終わり・新しい曲・ゲームオーバー）は、進むボタンを上に大きく、「タイトルへ」を下に縦に並べる
+      // 進むボタンと「タイトルへ」の組（章の終わり・新しい曲・ゲームオーバー）は縦に並べ、進むボタンを一番下に大きく置く（style.css の stack）
       // （第1章のトーストとそろえる。2026-11-15 発案者「進む導線が優先的に見えるように」）
       el('div', { class: buttons.at(-1)[0] === 'title' ? 'result-actions stack' : 'result-actions' }, ...buttons.map(([act, text, primary]) => el('button', { type: 'button', class: primary ? 'btn primary' : 'btn', 'data-act': act }, text))));
     t.hidden = false;
@@ -422,6 +430,11 @@ export function createStageScreen({ audio, onTitle }) {
     renderAll();
     notify();
   }
+  // トーストを閉じてから、少し待って次の動きへ移る（面を始めるまでの待ちと同じ。2026-11-15 発案者）。待つ間は操作を止めておく
+  function afterToast(fn) {
+    s.busy = true; renderAll();
+    setTimeout(() => { s.busy = false; fn(); }, AFTER_TOAST_MS);
+  }
   $('result-toast').addEventListener('click', e => {
     const act = e.target.closest('button')?.dataset.act;
     if (!act) return;
@@ -431,15 +444,17 @@ export function createStageScreen({ audio, onTitle }) {
       if (s.chapter === 'ch3' && p.index === 1 && p.lit.has(1) && s.onMirror) {
         closeResult(); audio.stopAll();
         p.found.add('mirror'); notify();
-        s.onMirror(mirrorPair(p), () => goNext());
+        afterToast(() => s.onMirror(mirrorPair(p), () => goNext()));
         return;
       }
-      goNext();
+      closeResult();
+      afterToast(goNext);
+      return;
     }
     else if (act === 'replay') { closeResult(); replay(); return; }
-    else if (act === 'restart') { closeResult(); start(play().mode.id); }
+    else if (act === 'restart') { closeResult(); afterToast(() => start(play().mode.id)); return; }
     else if (act === 'title') { closeResult(); audio.stopAll(); onTitle(); }
-    else if (act === 'chapter-next') { closeResult(); audio.stopAll(); s.onChapterEnd?.(); return; }
+    else if (act === 'chapter-next') { closeResult(); audio.stopAll(); afterToast(() => s.onChapterEnd?.()); return; }
     else closeResult({ guideNext: true });
     renderAll();
   });
@@ -451,7 +466,8 @@ export function createStageScreen({ audio, onTitle }) {
 
   function afterCorrect(result) {
     const p = play();
-    const done = () => { s.busy = false; renderAll(); showResult('correct', result); };
+    // 曲を流し終えてから（流さないときはすぐ）、少し待ってトーストを出す（判定のあとの待ち。2026-11-15 発案者）
+    const done = () => { s.busy = true; renderAll(); setTimeout(() => { s.busy = false; renderAll(); showResult('correct', result); }, RESULT_DELAY_MS); };
     if (result.music?.kind === 'song') playMusic(0, BARS - 1, songTitle(), done);
     else if (result.music?.kind === 'phrase') playMusic(result.music.from, result.music.to, `キー ${keyText()}`, done);
     else done();
@@ -669,14 +685,15 @@ export function createStageScreen({ audio, onTitle }) {
       renderAll();
       glow(mine());
       // フレーズや1曲がそろったら和音の余韻のあとに流し、終わってから結果を出す。そうでなければ少し聞かせてから出す
-      setTimeout(() => afterCorrect(r), r.music ? 2200 : 900);
+      // 星だけのときは、和音を鳴らしたまま 0.3秒でトーストを出す（前は 0.9秒。2026-11-15 発案者「0.3秒ぐらい」。すべてのトーストでそろえる）
+      setTimeout(() => afterCorrect(r), r.music ? 2200 : 0);
       return;
     }
     audio.chord(mine(), { timbre: timbre(), duration: 1.0 });
     shake();
     s.msg = r.gameOver ? null : { text: '違う響きです。', kind: 'warn' };
     renderAll();
-    setTimeout(() => showResult('wrong', r), 600);
+    setTimeout(() => showResult('wrong', r), RESULT_DELAY_MS);
   });
 
   // ---------- 引き出し ----------

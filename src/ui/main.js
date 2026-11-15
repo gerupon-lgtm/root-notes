@@ -11,6 +11,7 @@ import { createMirrorScreen } from './mirror-screen.js';
 import { storyArt } from '../content/story.js';
 import { setupOffline } from './offline.js';
 import { artPath } from '../content/assets.js';
+import { LAUNCH_DELAY_MS } from './timing.js';
 
 const put = (id, text) => {
   const element = document.getElementById(id);
@@ -70,11 +71,15 @@ if (Object.values(screens).every(Boolean)) {
     renderMute();
   });
 
+  // タイトルのボタンを押したら、少し待ってから最初の画面（序章・第1章など）を始める（PRISM の LAUNCH_DELAY_MS と同じ 0.25秒。2026-11-15 発案者）。
+  // 待つ間に重ねて押されても、1回だけ始める
+  let launching = false;
   screens.title.addEventListener('click', e => {
     const b = e.target.closest('button[data-start]');
-    if (!b) return;
+    if (!b || launching) return;
     audio.unlock();
-    flow.start(b.dataset.start);
+    launching = true;
+    setTimeout(() => { launching = false; flow.start(b.dataset.start); }, LAUNCH_DELAY_MS);
   });
 }
 

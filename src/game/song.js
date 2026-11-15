@@ -11,7 +11,9 @@ const STRUM = 0.035, CUT_STRUM = 0.02;
 export const SCORE_LEVEL = 0.8;
 
 // carryOver：和音を次の小節まで伸ばして余韻を重ねる（要件6.5【要確認】。聞き比べ用の切り替え）
-export function buildScore(stages, from, to, { carryOver = false } = {}) {
+// ending：9小節目に全音符で鳴らす締めの和音（stage-gen.js の closingStage の形 { target, K, bassMidi, bassCents }）。
+//   8小節の1曲のときだけ渡す（4小節のフレーズには付けない）。小節の番号は to + 1 で、画面の「今鳴っている所」はどこも光らない
+export function buildScore(stages, from, to, { carryOver = false, ending = null } = {}) {
   const notes = [];
   for (let bar = from; bar <= to; bar++) {
     const stage = stages[bar], start = (bar - from) * BAR_SECONDS;
@@ -24,6 +26,14 @@ export function buildScore(stages, from, to, { carryOver = false } = {}) {
       notes.push({ bar, part: 'cut', time: start + BAR_SECONDS * 0.5 + k * CUT_STRUM, hz, duration: BAR_SECONDS * 0.4, gain: 0.04 * SCORE_LEVEL });
     });
   }
-  const bars = to - from + 1;
+  if (ending) {
+    const bar = to + 1, start = (bar - from) * BAR_SECONDS;
+    const bass = midiToHz(ending.bassMidi) * 2 ** ((ending.bassCents ?? 0) / 1200);
+    notes.push({ bar, part: 'bass', time: start, hz: bass, duration: BAR_SECONDS * 1.4, gain: 0.11 * SCORE_LEVEL });
+    frequencies(ending.target, ending.K).forEach((hz, k) => {
+      notes.push({ bar, part: 'chord', time: start + k * STRUM, hz, duration: BAR_SECONDS * 1.4, gain: 0.06 * SCORE_LEVEL });
+    });
+  }
+  const bars = to - from + 1 + (ending ? 1 : 0);
   return { bars, duration: bars * BAR_SECONDS, notes };
 }

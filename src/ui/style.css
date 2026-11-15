@@ -161,6 +161,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #tri { flex: 1; min-height: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
 #tri-fill { fill: var(--gold); fill-opacity: 0.06; transition: fill-opacity 0.6s ease; }
 #tri-fill.lit { fill-opacity: 0.5; }
+.mirror-tri-fill { fill: var(--gold); fill-opacity: 0.06; }
 .tri-hint { fill: var(--mute); font-size: 13px; }
 .tri-label { font-size: 15px; font-weight: 700; pointer-events: none; paint-order: stroke; stroke: var(--night); stroke-width: 3.5px; stroke-linejoin: round; }
 .tri-vertex { fill: var(--ink); pointer-events: none; }
@@ -237,8 +238,8 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .result-toast p { margin: 0; font-size: 0.9rem; color: var(--ink); line-height: 1.5; }
 .result-actions { display: flex; gap: 8px; }
 .result-actions .btn { min-height: 54px; font-size: 0.95rem; }
-/* 章の終わり：進むボタンを上に、「タイトルへ」を下に縦に並べる */
-.result-actions.stack { flex-direction: column; }
+/* 進むボタンと「タイトルへ」の組は縦に並べ、進むボタンを一番下（親指の近く）に置く（2026-11-15 発案者。すべてのトーストでそろえる） */
+.result-actions.stack { flex-direction: column-reverse; }
 .result-actions.stack .btn { flex: none; width: 100%; }
 .result-actions.stack .btn:not(.primary) { min-height: 40px; font-size: 0.85rem; }
 @keyframes toast-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -528,6 +529,9 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 .story-layer.dim { opacity: 0.28; filter: saturate(0.6); }
 .story-layer.shade { opacity: 0.45; }
 .story-layer.ringing { animation: story-ring 1.4s ease-out; }
+/* 鳴っているあいだ光る（結末 最5 の√2の響き。和音 2.6秒に合わせ、揺れるように強弱をつけて消える） */
+.story-layer.resonating { animation: story-resonate 2.6s ease-out; }
+@keyframes story-resonate { 0% { filter: drop-shadow(0 0 0 #cfe6ff); } 12% { filter: drop-shadow(0 0 22px #cfe6ff) brightness(1.3); } 35% { filter: drop-shadow(0 0 12px #cfe6ff) brightness(1.12); } 55% { filter: drop-shadow(0 0 20px #cfe6ff) brightness(1.24); } 100% { filter: drop-shadow(0 0 0 #cfe6ff); } }
 @keyframes story-ring { 0% { filter: drop-shadow(0 0 0 #ffe6a0); } 18% { filter: drop-shadow(0 0 18px #ffe6a0) brightness(1.18); } 100% { filter: drop-shadow(0 0 0 #ffe6a0); } }
 /* 封印の術で浮かぶ武具（序章4。2026-11-15 発案者「浮かせて試す」） */
 .story-layer.float { filter: drop-shadow(0 0 12px #b9d7ff88) drop-shadow(0 0 4px #e9d18f); animation: story-float 3.2s ease-in-out infinite; }
@@ -548,7 +552,7 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 @keyframes story-sparkle-ray-v { 0% { opacity: 0; transform: rotate(90deg) scaleX(0.2); } 30% { opacity: 1; } 100% { opacity: 0; transform: rotate(90deg) scaleX(1); } }
 .story-reading { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; padding: 16px 4px 0; border-top: 1px solid var(--line); }
 .story-words { min-width: 0; overflow-y: auto; }
-.story-narration { margin: 0; font-size: 18px; line-height: 1.8; color: var(--ink); }
+.story-narration { margin: 0; font-size: 18px; line-height: 1.8; color: var(--ink); white-space: pre-line; }
 .story-speaker { margin: 14px 0 6px; font-size: 15px; font-weight: 650; color: var(--gold); }
 .story-narration[hidden] + #story-speech .story-speaker { margin-top: 0; }
 .story-dialogue { margin: 0; font-size: 19px; line-height: 1.8; }
@@ -691,7 +695,10 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 @keyframes final-shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
 /* 紙芝居の絵に重ねる文字（巻物の言葉。Codex の画面案と同じく明朝で） */
 .story-text { position: absolute; pointer-events: none; text-align: center; }
-.story-text.scroll-words { color: #3f2c1c; font-family: "Yu Mincho", "Hiragino Mincho ProN", serif; font-weight: 600; font-size: clamp(10px, 2.6vmin, 22px); letter-spacing: 0.08em; }
+.story-text { white-space: pre-line; }
+/* 巻物の言葉：読めるように大きく太く（2026-11-15 発案者「小さい・細い」） */
+.story-picture:has(.scroll-words) { container-type: inline-size; }
+.story-text.scroll-words { white-space: pre; color: #2e1d10; font-family: "Yu Mincho", "Hiragino Mincho ProN", serif; font-weight: 800; font-size: 4cqw; line-height: 1.4; letter-spacing: 0.06em; text-shadow: 0 0 1px #2e1d1066; }
 
 /* 共通の消音アイコン（全画面のヘッダの右上の端。2026-11-15 発案者） */
 .mute-btn { flex: none; width: 38px; height: 38px; padding: 8px; border-radius: 11px; background: #092d26c9; border: 1px solid #809077; color: #e6d6ae; cursor: pointer; }
@@ -714,10 +721,11 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 .mirror-hint { margin: 8px 0 0; font-size: 14px; line-height: 1.6; color: #a9c2ae; }
 .mirror-compare { display: flex; gap: 8px; margin-top: 10px; }
 .mirror-compare .btn { min-height: 44px; }
-.mirror-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+/* 場面を選ぶボタンは、下のボタン（響きをたどる・停止）のすぐ上に寄せる（2026-11-15 発案者） */
+.mirror-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: auto; }
 .mirror-steps button { min-height: 36px; padding: 2px; border: 1px solid #617260; border-radius: 8px; background: #062b25b8; color: var(--mute); font: inherit; font-size: 11px; }
 .mirror-steps button[aria-current="step"] { border-color: var(--gold); color: var(--gold); }
-.mirror-controls { display: grid; grid-template-columns: 1fr 80px; gap: 8px; margin-top: auto; }
+.mirror-controls { display: grid; grid-template-columns: 1fr 80px; gap: 8px; }
 .mirror-controls .story-next { margin-top: 0; }
 .mirror-controls .mirror-stop { min-height: 54px; }
 @media (orientation: landscape) {

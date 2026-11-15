@@ -252,3 +252,20 @@ function buildMirrorRun({ key, seed, decoys }) {
   });
   return Object.freeze({ progression: Object.freeze({ id: MIRROR.id, name: MIRROR.name, mode: 'major' }), key, seed, decoys, stages: Object.freeze(stages) });
 }
+
+// ---------- 9小節目の締め（2026-11-15 発案者：8小節の演奏のあとは、すべてキーの主和音で締める） ----------
+// 長調の進行は I、短調で表示する進行（平行調の II–V–I）は Im（長調の度数では VIm）。
+// 進行の中に、その和音の三角形をベースが根音で鳴らす小節があれば、その小節をそのまま使う（同じ三角形・同じ基準の音・同じベース）。
+// なければ（王道進行・II–V–I など）、今の決まり（根音を平均律、和音の中を純正律）で新しく三角形を選ぶ。種から決まるので、毎回同じになる
+export function closingStage(run) {
+  const tonic = Object.freeze(parseChord(run.progression.mode === 'minor' ? 'VIm' : 'I'));
+  const same = run.stages.find(st => st.chord.degree === tonic.degree && st.chord.quality === tonic.quality && !(st.chord.shift ?? 0)
+    && st.bassDegree === tonic.degree && !(st.bassShift ?? 0) && !st.tuneCents);
+  if (same) return Object.freeze({ target: same.target, K: same.K, bassMidi: same.bassMidi, bassCents: same.bassCents ?? 0 });
+  const options = pureTriangles().filter(v => v.quality === tonic.quality && placeVoicing({ key: run.key, chord: tonic, voicing: v }).topMidi <= STAGE_RULES.maxTopMidi);
+  if (!options.length) throw new Error('主和音の三角形がありません。');
+  const voicing = pickOne(options, mulberry32((run.seed ?? 0) + 9));
+  const placed = placeVoicing({ key: run.key, chord: tonic, voicing });
+  const bassMidi = midiInRange(degreePc(run.key, tonic.degree), STAGE_RULES.bassMidi);
+  return Object.freeze({ target: voicing.target, K: placed.K, bassMidi, bassCents: 0 });
+}

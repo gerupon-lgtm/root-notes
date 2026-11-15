@@ -17,6 +17,7 @@ import { TutorialBook } from '../game/tutorial-book.js';
 import { RecordBook, formatSeconds } from '../game/record-book.js';
 import { artPath } from '../content/assets.js';
 import { placeResultToast } from './result-layout.js';
+import { RESULT_DELAY_MS, AFTER_TOAST_MS } from './timing.js';
 
 // 端末の保存場所（使えない端末では null。案内の記録は保存できなくても遊べる）
 function localStore() { try { return globalThis.localStorage ?? null; } catch { return null; } }
@@ -198,7 +199,8 @@ export function createMonochordScreen({ audio }) {
     clearTimeout(S.nextTimer);
     // 案内つきの練習：帯は「チュートリアルクリア！」の表示だけにし、「次へ」はトーストにそろえる（2026-11-14 発案者）
     if (S.tutorial) { book.complete('ch1'); renderGuide(); renderCoach(); }
-    showToast();
+    // 合格の判定のあと、少し待ってからトーストを出す（2026-11-15 発案者「0.3秒ぐらい」。第2・3章とそろえる）
+    S.nextTimer = setTimeout(showToast, RESULT_DELAY_MS);
   }
   // 結果のトースト。buttons は [動き, 文言, 主ボタンか]
   function showToast() {
@@ -229,7 +231,7 @@ export function createMonochordScreen({ audio }) {
       el('div', { class: 'result-body', tabindex: '0', 'aria-label': '結果の説明' },
         el('p', { class: 'first-line' }, lines[0]),
         ...lines.slice(1).map(line => el('p', { class: 'sub-line' }, line))),
-      // 進むボタンと「タイトルへ」の組（章の終わり・チュートリアルの続き）は、進むボタンを上に大きく、「タイトルへ」を下に縦に並べる
+      // 進むボタンと「タイトルへ」の組（章の終わり・チュートリアルの続き）は縦に並べ、進むボタンを一番下に大きく置く（style.css の stack）
       // （進む導線を先に見せる。第2章のトーストも同じ。2026-11-15 発案者）
       el('div', { class: buttons.at(-1)[0] === 'title' ? 'result-actions stack' : 'result-actions' }, ...buttons.map(([act, text, primary]) => el('button', { type: 'button', class: primary ? 'btn primary' : 'btn', 'data-act': act }, text))));
     t.hidden = false;
@@ -588,12 +590,16 @@ export function createMonochordScreen({ audio }) {
     if (!act) return;
     if (act === 'close') { hideToast(); return; }
     if (act === 'title') { hideToast(); stop(); S.onTitle(); return; }
-    if (act === 'done') { hideToast(); stop(); S.onDone(); return; }
+    // 進むボタン：トーストを閉じてから、少し待って次の動きへ（面を始めるまでの待ちと同じ。2026-11-15 発案者）
+    if (act === 'done') { hideToast(); stop(); setTimeout(() => S.onDone(), AFTER_TOAST_MS); return; }
     if (act === 'next') {
       hideToast();
       S.tutorial = null;
-      const next = nextUnlit();
-      if (next < 0) chapterEnd(); else goStage(next);
+      clearTimeout(S.nextTimer);
+      S.nextTimer = setTimeout(() => {
+        const next = nextUnlit();
+        if (next < 0) chapterEnd(); else goStage(next);
+      }, AFTER_TOAST_MS);
     }
   });
   addEventListener('resize', placeToast);
