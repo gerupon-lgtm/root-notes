@@ -585,3 +585,21 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 #mono-screen .btn.nudge { border-color: #b69b60; color: var(--ink); }
 #mono-screen .btn.nudge.pressing { background: #d9bb6b; color: #18231c; border-color: #f0d797; }
 @media (prefers-reduced-motion: reduce) { .mono-guide.flash-card { animation: none; } }
+
+/* 遊び方を選ぶ：モードのボタンを縦に1列、同じ大きさで大きく（2026-11-15 発案者）。「タイトルへ」は最後に小さめ */
+.interlude-buttons.stack { grid-template-columns: 1fr; gap: 10px; }
+.interlude-buttons.stack .btn { min-height: 76px; font-size: 1.15rem; }
+.interlude-buttons.stack .btn small { font-size: 0.82rem; margin-top: 4px; }
+.interlude-buttons.stack .btn:last-child { min-height: 48px; font-size: 0.95rem; }
+/* 横向き：3つのモードを横に同じ大きさで並べ、「タイトルへ」は下に。スクロールせずに収める */
+@media (orientation: landscape) {
+  .interlude-card:has(.interlude-buttons.stack) { width: min(760px, 100%); }
+  .interlude-buttons.stack { grid-template-columns: repeat(3, 1fr); }
+  .interlude-buttons.stack .btn:last-child { grid-column: 1 / -1; }
+}
+@media (orientation: landscape) and (max-height: 460px) {
+  .interlude-card:has(.interlude-buttons.stack) { padding: 12px 16px; gap: 6px; }
+  .interlude-buttons.stack { gap: 6px; }
+  .interlude-buttons.stack .btn { min-height: 64px; font-size: 1rem; }
+  .interlude-buttons.stack .btn:last-child { min-height: 38px; }
+}

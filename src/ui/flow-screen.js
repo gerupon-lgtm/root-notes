@@ -34,7 +34,7 @@ export function createFlow({ audio, screens, mono, stage, story, onTitle }) {
   const toTitle = () => { audio.stopAll(); mono.stop(); story.stop(); show('title'); onTitle(); };
 
   // 仮の画面を組み立てる。buttons：[文言, 動き, 主ボタンか, 一言（小さく添える）]
-  function interlude({ eyebrow = '', title, lines = [], list = null, buttons }) {
+  function interlude({ eyebrow = '', title, lines = [], list = null, buttons, stack = false }) {
     const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text) x.textContent = text; return x; };
     const parts = [];
     if (eyebrow) parts.push(el('p', 'interlude-eyebrow', eyebrow));
@@ -45,7 +45,8 @@ export function createFlow({ audio, screens, mono, stage, story, onTitle }) {
       for (const item of list) ol.append(el('li', '', item));
       parts.push(ol);
     }
-    const row = el('div', 'interlude-buttons');
+    // stack：選ぶボタンを縦に1列、同じ大きさで並べる（遊び方を選ぶ。2026-11-15 発案者）
+    const row = el('div', stack ? 'interlude-buttons stack' : 'interlude-buttons');
     for (const [text, act, primary, note] of buttons) {
       const b = el('button', primary ? 'btn primary' : 'btn', text);
       b.type = 'button';
@@ -105,7 +106,8 @@ export function createFlow({ audio, screens, mono, stage, story, onTitle }) {
     interlude({
       eyebrow: '連続プレイ', title: '遊び方を選ぶ',
       lines: ['第1章から順に進みます。ノーマルとエキスパートでは、回答するまで自分の和音は鳴らせず、失敗とメーターの回数に上限があります。'],
-      buttons: [...LEVEL_IDS.map(id => [MODES[id].name, () => { mode = id; then(); }, id === 'free', levelNote(MODES[id])]), ['タイトルへ', toTitle]]
+      buttons: [...LEVEL_IDS.map(id => [MODES[id].name, () => { mode = id; then(); }, id === 'free', levelNote(MODES[id])]), ['タイトルへ', toTitle]],
+      stack: true
     });
   }
 
