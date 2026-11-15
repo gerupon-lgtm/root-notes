@@ -27,9 +27,10 @@
 <body>
 <main>
   <h1>弦の音の試聴（ROOT NOTES）</h1>
-  <p>ガット弦（羊の腸の弦。古い竪琴やリュートの音）の方向です。指ではじいたやわらかいアタックがあり、少しの間そのまま鳴ってから自然に減っていき、1.1秒ぐらいで聞こえなくなります。ほかの高さも同じくらいの長さで消えます。</p>
+  <p>ガット弦（羊の腸の弦。古い竪琴やリュートの音）の方向です。はじいた瞬間のアタックがあり、少しの間そのまま鳴ってから自然に減っていき、1.1秒ぐらいで聞こえなくなります。ほかの高さも同じくらいの長さで消えます。</p>
   <p>どちらも FM（周波数変調）で作っています。候補は2つ：「FM だけ」と「FM に倍音を加えたもの」（倍音を足して、少し明るく豊かにしたもの）。</p>
   <div class="hold" id="hold"><span>減り始め：</span></div>
+  <div class="hold" id="hard"><span>硬さ：</span></div>
   <p class="note">「重ねて（揺れ1回/秒）」は、第1章の「重ねて鳴らす」と謎の「重ねて聞く」用です。ここだけは消えずに鳴り続け、392Hz と 393Hz を重ねて、1秒に1回の揺れを 4秒聞かせます。</p>
   <div id="list"></div>
 </main>
@@ -65,12 +66,19 @@ function envelope(g, t, peak, hold, life = LIFE) {
   g.gain.linearRampToValueAtTime(peak * 0.9, t + hold);
   g.gain.setTargetAtTime(0, t + hold, tau);
 }
-// 指ではじいた音の頭：短くやわらかい雑音（高すぎない帯域）
-function pluckNoise(t, level = 0.07) {
-  const c = audio(), n = Math.floor(c.sampleRate * 0.018), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
-  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.2));
+// はじいた音の頭（ピッキング）：とても短い雑音。硬さ HARD[hard] で、大きさ・高さ・短さを変える
+// （2026-11-15 発案者「ピッキングの感じがない。もう少し硬めの音に」）
+const HARD = {
+  soft: { noise: 0.07, band: 1500, q: 0.7, noiseLen: 0.018, hit: 2.2, hitTau: 0.06, body: 0.7, hiCut: 6, harm: 0.55, punch: 1 },
+  mid: { noise: 0.2, band: 3200, q: 0.9, noiseLen: 0.012, hit: 4.5, hitTau: 0.03, body: 0.95, hiCut: 9, harm: 0.8, punch: 1.7 },
+  hard: { noise: 0.32, band: 4200, q: 1.1, noiseLen: 0.009, hit: 7, hitTau: 0.022, body: 1.2, hiCut: 12, harm: 1.0, punch: 2.3 }
+};
+let hard = 'mid';
+function pluckNoise(t, h = HARD[hard]) {
+  const c = audio(), n = Math.floor(c.sampleRate * h.noiseLen), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.25));
   const src = c.createBufferSource(), bp = c.createBiquadFilter(), g = c.createGain();
-  src.buffer = buf; bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 0.7; g.gain.value = level;
+  src.buffer = buf; bp.type = 'bandpass'; bp.frequency.value = h.band; bp.Q.value = h.q; g.gain.value = h.noise;
   src.connect(bp); bp.connect(g); g.connect(out); src.start(t);
 }
 // ガット弦の波形を計算で作る
@@ -149,23 +157,28 @@ function fmGut(hz, t, { hold = 0.35, life = LIFE, level = 0.24, harmonics = fals
   const lp = c.createBiquadFilter(), body = c.createBiquadFilter(), g = c.createGain();
   car.type = m1.type = 'sine';
   car.frequency.value = hz; m1.frequency.value = hz;
-  // 変調の深さ：はじいた瞬間 2.2 → すぐ 0.7（時定数 0.06 秒）→ 減り始めからさらに 0.35 へ（音が小さくなるほど丸くなる）
-  d1.gain.setValueAtTime(hz * 2.2, t);
-  d1.gain.setTargetAtTime(hz * 0.7, t, 0.06);
-  if (!sustain) d1.gain.setTargetAtTime(hz * 0.35, t + hold, 0.25);
+  // 変調の深さ：はじいた瞬間 hit → すぐ body（時定数 hitTau）→ 減り始めから半分へ（音が小さくなるほど丸くなる）。硬いほど hit・body が大きい
+  const h = HARD[hard];
+  d1.gain.setValueAtTime(hz * h.hit, t);
+  d1.gain.setTargetAtTime(hz * h.body, t, h.hitTau);
+  if (!sustain) d1.gain.setTargetAtTime(hz * h.body * 0.5, t + hold, 0.25);
   m1.connect(d1); d1.connect(car.frequency);
   const oscs = [car, m1];
   if (harmonics) {
     const m3 = c.createOscillator(), d3 = c.createGain();
     m3.type = 'sine'; m3.frequency.value = hz * 3;
-    d3.gain.setValueAtTime(hz * 3 * 0.55, t);
+    d3.gain.setValueAtTime(hz * 3 * h.harm, t);
     d3.gain.setTargetAtTime(hz * 3 * 0.22, t, 0.08);
     if (!sustain) d3.gain.setTargetAtTime(hz * 3 * 0.06, t + hold, 0.2);
     m3.connect(d3); d3.connect(car.frequency); oscs.push(m3);
   }
-  lp.type = 'lowpass'; lp.frequency.value = Math.min(7000, hz * (harmonics ? 9 : 6)); lp.Q.value = 0.5;
+  lp.type = 'lowpass'; lp.frequency.value = Math.min(9000, hz * h.hiCut * (harmonics ? 1.4 : 1)); lp.Q.value = 0.5;
   body.type = 'peaking'; body.frequency.value = 220; body.Q.value = 0.9; body.gain.value = 5;
-  car.connect(lp); lp.connect(body); body.connect(g); g.connect(out);
+  // はじいた瞬間の山（punch 倍から、25ミリ秒の時定数でふだんの大きさへ）。ピッキングの「カッ」という手ごたえ
+  const pg = c.createGain();
+  pg.gain.setValueAtTime(h.punch, t);
+  pg.gain.setTargetAtTime(1, t + 0.004, 0.025);
+  car.connect(lp); lp.connect(body); body.connect(pg); pg.connect(g); g.connect(out);
   if (sustain) {
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.004);
     g.gain.setTargetAtTime(level * 0.6, t + 0.004, 0.3);
@@ -196,8 +209,16 @@ for (const h of HOLDS) {
   b.addEventListener('click', () => { hold = h; for (const x of holdRow.querySelectorAll('button')) x.classList.toggle('on', x === b); });
   holdRow.append(b);
 }
+// 硬さ（上の切り替え。2つの候補の両方に効く）。「やわらかい」は前回の音
+const hardRow = document.getElementById('hard');
+for (const [key, label] of [['soft', 'やわらかい（前回）'], ['mid', '硬め'], ['hard', 'もっと硬め']]) {
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+  b.className = key === hard ? 'on' : '';
+  b.addEventListener('click', () => { hard = key; for (const x of hardRow.querySelectorAll('button')) x.classList.toggle('on', x === b); });
+  hardRow.append(b);
+}
 const CANDIDATES = [
-  { name: 'F：ガット弦（FM だけ）', note: 'こもった、やわらかい音', play: (hz, t) => fmGut(hz, t, { hold }), sustain: (hz, t) => fmGut(hz, t, { sustain: true, length: 4, level: 0.16 }) },
+  { name: 'F：ガット弦（FM だけ）', note: '倍音の少ない、温かい音', play: (hz, t) => fmGut(hz, t, { hold }), sustain: (hz, t) => fmGut(hz, t, { sustain: true, length: 4, level: 0.16 }) },
   { name: 'F＋：ガット弦（FM に倍音を加えたもの）', note: '少し明るく、豊かな音', play: (hz, t) => fmGut(hz, t, { hold, harmonics: true }), sustain: (hz, t) => fmGut(hz, t, { sustain: true, harmonics: true, length: 4, level: 0.16 }) },
   { name: '今の音：オルガン', note: '比べる用', play: (hz, t) => organVoice(hz, t), sustain: (hz, t) => organVoice(hz, t, { life: 4 }) }
 ];
