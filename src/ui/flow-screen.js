@@ -13,7 +13,7 @@ import { RIDDLES } from '../content/riddles.js';
 import { MODES } from '../content/modes.js';
 import { TutorialBook } from '../game/tutorial-book.js';
 import { ProgressBook } from '../game/progress.js';
-import { BARS, PHRASE } from '../content/progressions.js';
+import { BARS } from '../content/progressions.js';
 import { MONOCHORD_STAGES } from '../content/monochord.js';
 
 // 連続プレイの遊び方（FLOAT の levels() と同じく、名前と一言）。一言は MODES の値から作る
@@ -32,12 +32,12 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle
   const progress = new ProgressBook(localStore());
   let run = null;
   const saveRun = () => { if (run) progress.saveContinuous(run); };
-  // 第2章の終わりで、最後の4小節のフレーズをもう一度鳴らす（その連続プレイの曲。なければ鳴らさない）
+  // 第2章の終わりで、その連続プレイの曲を8小節通しでもう一度鳴らす（なければ鳴らさない。2026-11-15 発案者：最後の4小節から変更）
   const lastPhrase = () => {
     const spec = run?.ch2?.spec;
     if (!spec) return;
     const stages = buildRun(spec).stages;
-    audio.playScore(buildScore(stages, stages.length - PHRASE, stages.length - 1), { chordTimbre: TIMBRES[SONG_TIMBRE], bassTimbre: TIMBRES[BASS_TIMBRE] });
+    audio.playScore(buildScore(stages, 0, stages.length - 1), { chordTimbre: TIMBRES[SONG_TIMBRE], bassTimbre: TIMBRES[BASS_TIMBRE] });
   };
 
   const show = name => {
