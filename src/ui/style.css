@@ -595,6 +595,8 @@ span.chip { display: inline-flex; align-items: center; cursor: default; }
 @media (orientation: landscape) {
   .interlude-card:has(.interlude-buttons.stack) { width: min(760px, 100%); }
   .interlude-buttons.stack { grid-template-columns: repeat(3, 1fr); }
+  /* 選ぶボタンが2つ（続きから・最初から）＋「タイトルへ」のときは2列 */
+  .interlude-buttons.stack:has(> :nth-child(3):last-child) { grid-template-columns: repeat(2, 1fr); }
   .interlude-buttons.stack .btn:last-child { grid-column: 1 / -1; }
 }
 @media (orientation: landscape) and (max-height: 460px) {

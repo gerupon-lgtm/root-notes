@@ -156,7 +156,8 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, onTitle
         ['続きから ▶', () => { run = saved; mode = saved.mode; chooseAfterPrologue = false; go(where ?? firstStep()); }, true],
         ['最初から', () => { progress.clearContinuous(); run = null; fresh(); }, false, '今の続きは消えます'],
         ['タイトルへ', toTitle]
-      ]
+      ],
+      stack: true // 遊び方を選ぶ画面と同じ並び（縦は1列・同じ大きさ、横は横並び。2026-11-15 発案者）
     });
   }
 
