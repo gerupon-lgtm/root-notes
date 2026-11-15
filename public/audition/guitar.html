@@ -31,6 +31,8 @@
   <p>どちらも FM（周波数変調）で作っています。候補は2つ：「FM だけ」と「FM に倍音を加えたもの」（倍音を足して、少し明るく豊かにしたもの）。</p>
   <div class="hold" id="hold"><span>減り始め：</span></div>
   <div class="hold" id="hard"><span>硬さ：</span></div>
+  <div class="hold" id="vol"><span>大きさ（アプリの中）：</span></div>
+  <p class="note">「大きさ」は、音を重ねたあと・出口の安全装置より前で全体を小さくします（スマホの音量とは別）。0.6倍・0.4倍で「ソ・レ・ソ」の2音目からの歪みが消えるかを確かめる用です。</p>
   <p class="note">「重ねて（揺れ1回/秒）」は、第1章の「重ねて鳴らす」と謎の「重ねて聞く」用です。ここだけは消えずに鳴り続け、392Hz と 393Hz を重ねて、1秒に1回の揺れを 4秒聞かせます。</p>
   <div id="list"></div>
 </main>
@@ -46,7 +48,7 @@ let ctx = null, out = null;
 function audio() {
   if (!ctx) {
     ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 0.03 });
-    out = ctx.createGain(); out.gain.value = 0.9;
+    out = ctx.createGain(); out.gain.value = 0.9 * vol;
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -3; comp.knee.value = 0; comp.ratio.value = 20; comp.attack.value = 0.002; comp.release.value = 0.1;
     out.connect(comp); comp.connect(ctx.destination);
@@ -74,6 +76,8 @@ const HARD = {
   hard: { noise: 0.32, band: 4200, q: 1.1, noiseLen: 0.009, hit: 7, hitTau: 0.022, body: 1.2, hiCut: 12, harm: 1.0, punch: 2.3 }
 };
 let hard = 'mid';
+// アプリの中の大きさ（安全装置より前）。2026-11-15「中音域が歪む」の確かめ用
+let vol = 1;
 function pluckNoise(t, h = HARD[hard]) {
   const c = audio(), n = Math.floor(c.sampleRate * h.noiseLen), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
   for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.25));
@@ -210,6 +214,13 @@ for (const h of HOLDS) {
   holdRow.append(b);
 }
 // 硬さ（上の切り替え。2つの候補の両方に効く）。「やわらかい」は前回の音
+const volRow = document.getElementById('vol');
+for (const [v, label] of [[1, '今のまま'], [0.6, '0.6倍'], [0.4, '0.4倍']]) {
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+  b.className = v === vol ? 'on' : '';
+  b.addEventListener('click', () => { vol = v; if (out) out.gain.value = 0.9 * vol; for (const x of volRow.querySelectorAll('button')) x.classList.toggle('on', x === b); });
+  volRow.append(b);
+}
 const hardRow = document.getElementById('hard');
 for (const [key, label] of [['soft', 'やわらかい（前回）'], ['mid', '硬め'], ['hard', 'もっと硬め']]) {
   const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
