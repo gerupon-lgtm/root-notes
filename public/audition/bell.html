@@ -23,7 +23,7 @@
 <main>
   <h1>鐘の音の試聴（ROOT NOTES）</h1>
   <p>序章と結末で鳴る鐘（大きさ 12・9・8・6 ＝ ファ・シ♭・ド・高いファ）の候補です。今の鐘は PRISM と同じ作り（揺らす側の高さが √2 倍の FM）で、整数倍に並ばない倍音が多く、重ねると濁って聞こえます。</p>
-  <p>候補はどれも、複雑な倍音を控えて、澄んで聞こえる方向にしています。鳴り方（打った瞬間の立ち上がりと、2.6秒の余韻）はすべて同じにして、音色だけを比べられるようにしています。</p>
+  <p>K1（澄んだ鐘）に、打った瞬間のキラッとした音を足した候補を、強さ3段階で並べています。キラッは高い倍音（4・6・9倍）だけを使うので、重ねても濁りません。比べるために、足す前の K1 と今の鐘も置いています。</p>
   <div id="list"></div>
 </main>
 <script>
@@ -62,6 +62,23 @@ function strike(hz, t, level) {
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.06 * level, t + 0.004); g.gain.setTargetAtTime(0, t + 0.004, 0.02);
   o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.2);
 }
+// キラッとしたアタック（2026-11-15 発案者「K1 でアタックにキラッとしたアタックを追加」）：
+// 打った瞬間だけ、高い倍音（4・6・9倍。どれも整数倍なので濁らない）を短く鳴らし、ごく短い高い雑音を重ねる。高い倍音ほど早く消える。amount で強さ
+function sparkle(hz, t, level, amount) {
+  const c = audio();
+  for (const [n, amp, tau] of [[4, 0.07, 0.05], [6, 0.05, 0.035], [9, 0.035, 0.022]]) {
+    if (hz * n > 12000) continue;
+    const o = c.createOscillator(), g = c.createGain();
+    o.frequency.value = hz * n;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(amp * amount * level, t + 0.002); g.gain.setTargetAtTime(0, t + 0.002, tau);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.4);
+  }
+  const n = Math.floor(c.sampleRate * 0.012), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.2));
+  const src = c.createBufferSource(), hp = c.createBiquadFilter(), g = c.createGain();
+  src.buffer = buf; hp.type = 'highpass'; hp.frequency.value = 6000; g.gain.value = 0.05 * amount * level;
+  src.connect(hp); hp.connect(g); g.connect(out); src.start(t);
+}
 // FM の鐘。ratio：揺らす側の高さ（何倍か）、i0 → i1：揺らす深さ（はじめ → 余韻。時定数 0.42 秒）
 function fmBell(hz, t, { ratio, i0, i1, level = 1 }) {
   const c = audio(), car = c.createOscillator(), mod = c.createOscillator(), dep = c.createGain(), g = c.createGain();
@@ -87,9 +104,10 @@ function chime(hz, t, { level = 1 }) {
 }
 
 const CANDIDATES = [
+  { name: 'K1＋キラッ（弱）', note: 'K1 に、打った瞬間のキラッとした音を少し', play: (hz, t, level) => { fmBell(hz, t, { ratio: 1, i0: 1.4, i1: 0.12, level }); sparkle(hz, t, level, 0.6); } },
+  { name: 'K1＋キラッ（中）', note: 'キラッを中くらい', play: (hz, t, level) => { fmBell(hz, t, { ratio: 1, i0: 1.4, i1: 0.12, level }); sparkle(hz, t, level, 1); } },
+  { name: 'K1＋キラッ（強）', note: 'キラッを強め', play: (hz, t, level) => { fmBell(hz, t, { ratio: 1, i0: 1.4, i1: 0.12, level }); sparkle(hz, t, level, 1.6); } },
   { name: 'K1：澄んだ鐘', note: '整数倍の倍音だけの FM。基音がはっきり', play: (hz, t, level) => fmBell(hz, t, { ratio: 1, i0: 1.4, i1: 0.12, level }) },
-  { name: 'K2：チャイム', note: '倍音を少しだけ重ね、余韻は基音だけ。いちばん澄んだ音', play: (hz, t, level) => chime(hz, t, { level }) },
-  { name: 'K3：やわらかい鐘', note: '今の鐘（√2）の響きを少しだけ残し、揺らす深さを浅く', play: (hz, t, level) => fmBell(hz, t, { ratio: Math.SQRT2, i0: 1.6, i1: 0.1, level }) },
   { name: '今の鐘（PRISM と同じ）', note: '比べる用', play: (hz, t, level) => fmBell(hz, t, { ratio: Math.SQRT2, i0: 5.2, i1: 0.9, level }) }
 ];
 // ボタン：[文言, [[鐘, 何秒後], ...]]
@@ -118,7 +136,7 @@ for (const cand of CANDIDATES) {
   sec.append(row);
   list.append(sec);
 }
-window.audition = { fmBell, chime, BELL, setOut: (c, o) => { ctx = c; out = o; } };
+window.audition = { fmBell, chime, sparkle, BELL, setOut: (c, o) => { ctx = c; out = o; } };
 </script>
 </body>
 </html>
