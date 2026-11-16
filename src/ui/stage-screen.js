@@ -159,10 +159,14 @@ export function createStageScreen({ audio, onTitle }) {
     else drawClosed(svgRoot, sidesOf(p), { hint: !s.edgeTried });
   }
 
+  // 8つの星がそろい、章の流れ（連続プレイ・選択プレイ）の先があるとき
+  const toChapterEnd = p => p.complete && !p.over && !!s.onChapterEnd;
   function defaultMessage() {
     const p = play();
     if (p.over) return { text: '失敗の上限に達しました。ゲームオーバー。「最初から」で新しい曲に挑戦できます。', kind: 'warn' };
-    if (p.complete) return { text: `1曲できあがり：${songTitle()}。「最初から」で新しい曲に挑戦できます。`, kind: 'ok' };
+    if (p.complete) return s.onChapterEnd
+      ? { text: `1曲できあがり：${songTitle()}。「${s.endLabel.replace(/\s*▶$/, '')}」で先へ進みます。`, kind: 'ok' }
+      : { text: `1曲できあがり：${songTitle()}。「最初から」で新しい曲に挑戦できます。`, kind: 'ok' };
     if (!p.ready) return { text: '', kind: '' };
     if (!p.closed) {
       const [a, b, c] = sortLengths(p.selectedLengths).map(lengthValue);
@@ -228,7 +232,8 @@ export function createStageScreen({ audio, onTitle }) {
     meter.innerHTML = p.meterShown ? 'メーター<br>表示中' : Number.isFinite(p.meterLeft) ? `メーター<br>残り${p.meterLeft}` : 'メーター';
     meter.classList.toggle('dim', p.meterShown || p.meterLeft <= 0 || !p.closed);
     const answer = $('b-answer');
-    answer.textContent = p.finished ? '最初から' : p.awaitingNext ? '次の星へ' : '回答する';
+    // 章の流れの中で8つの星がそろったら、下のボタンは章の終わりへ進む（「最初から」にすると、続きから戻ったとき先へ進めなかった）
+    answer.textContent = p.finished ? (toChapterEnd(p) ? s.endLabel : '最初から') : p.awaitingNext ? '次の星へ' : '回答する';
     for (const id of ['b-target', 'b-chord', 'b-compare', 'b-meter']) $(id).disabled = s.busy;
     // 回答する：三角形ができたときだけ押せる（2026-11-14 発案者）
     answer.disabled = s.busy || !(p.finished || p.awaitingNext || p.closed);
@@ -519,6 +524,8 @@ export function createStageScreen({ audio, onTitle }) {
     startCue();
     renderAll();
     notify();
+    // 続きから戻ったとき、もう8つの星がそろっていれば、章の終わりのトーストを出す（第1章の章の終わりと同じ。2026-11-16 発案者の報告）
+    if (restored && toChapterEnd(s.play)) showResult('correct', { music: { kind: 'song', from: 0, to: BARS - 1 } });
   }
 
   // 選んでいる棒は、タップから3秒で外す（同じ棒をもう一度タップしたら数え直す）。残り1秒から色を薄くする
@@ -673,6 +680,7 @@ export function createStageScreen({ audio, onTitle }) {
   $('b-answer').addEventListener('click', () => {
     if (s.busy) return;
     const p = play();
+    if (p.finished && toChapterEnd(p)) { closeResult(); audio.stopAll(); s.onChapterEnd(); return; }
     if (p.finished) { start(p.mode.id); return; }
     if (p.awaitingNext) { goNext(); return; }
     const r = p.answer();
