@@ -357,8 +357,8 @@ export class StringAudio {
   // 第3章の鏡写しの説明「光の響き」：4・5・6 回のような刻みのパルスを、同じ割合で速めていき、最後に和音にする
   // （Codex 試作 v0.5.0 の accelerate と同じ。後半は聞き取りを助ける同じ周期の正弦波を重ねる）。ticks：刻みの数、factor：最後の倍率
   // hold：和音になってから、そのまま鳴らす長さ。release：そのあと消えるまでの長さ
-  // （2026-11-17 発案者「パルスが上がったあとの和音の長さを伸ばして」。前は 0.65秒鳴らして 0.25秒で消していた）
-  mirrorPulses(ticks, factor, { duration = 4, hold = 3.5, release = 1.5 } = {}) {
+  // （2026-11-17 発案者：1秒鳴らして 0.25秒で消す。前は 0.65秒。3.5秒＋1.5秒も試したが長すぎた）
+  mirrorPulses(ticks, factor, { duration = 4, hold = 1, release = 0.25 } = {}) {
     if (!this.ctx) return;
     const c = this.ctx, t = c.currentTime + 0.06, top = t + duration + hold, end = top + release + 0.02;
     for (const n of ticks) {
