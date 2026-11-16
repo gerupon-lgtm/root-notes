@@ -24,6 +24,9 @@ function closedCorners(lengths) {
 }
 
 const YS = [105, 185, 265];
+// 横の並び（2026-11-17 発案者「ファ♯の星と波が接している」「ファ♯の字とかけらが近い」で見直し）。
+// 星 → 名前 → 波 → 数（右寄せ）、星 → 音名 → かけら → 個数（右寄せ）。名前とかけらの間をあける
+const STAR_X = 60, NAME_X = 94, WAVE_X = 232, NUM_X = 448, PIECE_X = 172;
 const clamp = x => Math.min(1, Math.max(0, x));
 const ease = x => x * x * (3 - 2 * x);
 const txt = (x, y, v, size = 21, color = '#f2e9d8', anchor = 'start') => `<text x="${x}" y="${y}" font-size="${size}" fill="${color}" text-anchor="${anchor}">${v}</text>`;
@@ -68,14 +71,14 @@ export function createMirrorScreen({ audio }) {
     s += '<rect width="480" height="360" fill="#031d1a" opacity=".62"/>';
     s += txt(240, 32, heading, 24, '#e5ce94', 'middle');
     if (comparison) s += txt(240, 62, m.ticks.join('：'), 23, '#e5ce94', 'middle');
-    const W = Math.min(33, 230 / Math.max(...m.ticks)); // かけら1つの幅（数が多いときは詰める）
+    const W = Math.min(33, 220 / Math.max(...m.ticks)); // かけら1つの幅（数が多いときは詰める。右の個数と重ならない幅）
     if (phase <= 1 || (comparison && !isShadow)) {
       rows.forEach((r, i) => {
         const mo = moment(i, t), selected = phase !== 1 && mo.active, on = phase === 1 || calm() ? true : mo.on;
         if (selected) s += mark(i, YS[i]);
-        s += star(65, YS[i], r.color, on, i) + txt(102, YS[i] + 7, `${r.note}の星`, 22, r.color);
-        s += txt(340, YS[i] + 8, phase === 0 ? `${mo.count} / ${r.ticks}` : r.ticks, 27, r.color);
-        if (phase === 1) s += `<path d="M210 ${YS[i]} q12 -14 24 0 t24 0 t24 0" fill="none" stroke="${r.color}" stroke-width="2"/>`;
+        s += star(STAR_X, YS[i], r.color, on, i) + txt(NAME_X, YS[i] + 7, `${r.note}の星`, 21, r.color);
+        s += txt(NUM_X, YS[i] + 9, phase === 0 ? `${mo.count} / ${r.ticks}` : r.ticks, 27, r.color, 'end');
+        if (phase === 1) s += `<path d="M${WAVE_X} ${YS[i]} q12 -14 24 0 t24 0 t24 0" fill="none" stroke="${r.color}" stroke-width="2"/>`;
       });
       s += txt(240, 338, phase === 0 ? '一つずつ、同じ1秒間で' : phase === 1 ? '同じ刻みの比から、光の響きへ' : `${rows.map(r => r.note).join('・')}　— 光の響き`, 18, '#b8ccbb', 'middle');
     } else if (phase === 2 || isShadow) {
@@ -83,13 +86,13 @@ export function createMirrorScreen({ audio }) {
         const mo = moment(i, t), n = phase === 2 ? mo.count : r.ticks, y = YS[i];
         if (mo.active) s += mark(i, y);
         if (phase === 2) {
-          s += star(60, y, r.color, calm() || mo.on, i) + txt(90, y + 6, r.note, 20, r.color);
-          for (let k = 0; k < n; k++) s += `<rect class="piece" x="${145 + k * W}" y="${y - 9}" width="${W - 3}" height="18" rx="3" fill="url(#mirror-wood)" stroke="${r.color}"/>`;
-          s += txt(435, y + 7, `${n}個`, 18, r.color);
+          s += star(STAR_X, y, r.color, calm() || mo.on, i) + txt(NAME_X, y + 7, r.note, 20, r.color);
+          for (let k = 0; k < n; k++) s += `<rect class="piece" x="${PIECE_X + k * W}" y="${y - 9}" width="${W - 3}" height="18" rx="3" fill="url(#mirror-wood)" stroke="${r.color}"/>`;
+          s += txt(NUM_X, y + 7, `${n}個`, 18, r.color, 'end');
         } else {
-          s += txt(50, y + 7, r.ticks, 27, r.color);
+          s += txt(STAR_X, y + 9, r.ticks, 27, r.color, 'middle');
           s += `<line x1="105" y1="${y}" x2="${105 + r.ticks * W}" y2="${y}" stroke="#b38b54" stroke-width="10" stroke-linecap="round"/><line x1="105" y1="${y}" x2="${105 + r.ticks * W}" y2="${y}" stroke="${r.color}" stroke-width="2"/>`;
-          s += txt(370, y - 8, r.target.note, 24, r.color) + txt(370, y + 18, `長さ${r.target.length}`, 15, '#bdcfbd');
+          s += txt(NUM_X, y - 6, r.target.note, 22, r.color, 'end') + txt(NUM_X, y + 18, `長さ${r.target.length}`, 15, '#bdcfbd', 'end');
         }
       });
       s += txt(240, 338, phase === 2 ? 'かけらの数を、そのまま長さに' : `${rows.map(r => r.target.note).join('・')}　— 影の響き`, 18, '#b8ccbb', 'middle');
@@ -102,7 +105,7 @@ export function createMirrorScreen({ audio }) {
       s += `<path d="M${A.x} ${A.y} L${B.x} ${B.y} L${C.x} ${C.y} Z" fill="#d8c8ed" opacity="${0.13 * mix}"/>`;
       rows.forEach((r, i) => {
         const ends = r.target.length === a ? [B, C] : r.target.length === b ? [C, A] : [A, B], lerp = (p, q) => p + (q - p) * mix;
-        const x1 = lerp(145, ends[0].x), x2 = lerp(145 + r.ticks * W, ends[1].x), y1 = lerp(YS[i], ends[0].y), y2 = lerp(YS[i], ends[1].y);
+        const x1 = lerp(PIECE_X, ends[0].x), x2 = lerp(PIECE_X + r.ticks * W, ends[1].x), y1 = lerp(YS[i], ends[0].y), y2 = lerp(YS[i], ends[1].y);
         s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#b38b54" stroke-width="11" stroke-linecap="round"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${r.color}" stroke-width="3"/>`;
       });
       s += '</g>';
@@ -125,7 +128,17 @@ export function createMirrorScreen({ audio }) {
     stopBtn.disabled = !running;
   }
 
-  function stopRun() { running = false; runId++; cancelAnimationFrame(raf); audio.stopAll(); }
+  function stopRun() { running = false; runId++; cancelAnimationFrame(raf); clearTimeout(fadeWait); fadeWait = 0; audio.stopAll(); }
+  // 次の場面へ移るとき・止めるときは、鳴っている音をブツっと切らずに消してから（2026-11-17 発案者）。消えるまで操作を受け付けない
+  let fadeWait = 0;
+  const FADE_SECONDS = 0.5;
+  function fadeThen(fn) {
+    if (fadeWait) return;
+    running = false; runId++; cancelAnimationFrame(raf);
+    const ms = audio.fadeOutAll(FADE_SECONDS);
+    if (!ms) { fn(); return; }
+    fadeWait = setTimeout(() => { fadeWait = 0; fn(); }, ms);
+  }
   function schedule() {
     audio.stopAll();
     const sustain = (hz, at) => audio.chord([hz], { timbre: TIMBRES.glass, delay: 0.06 + at, duration: 1, strum: 0, level: 0.7 });
@@ -137,26 +150,30 @@ export function createMirrorScreen({ audio }) {
     if (!running || id !== runId) return;
     progress = clamp((now - phaseStart) / MIRROR_STAGES[phase].duration);
     render();
-    if (progress >= 1) { running = false; audio.stopAll(); render(); return; }
+    // 場面の動きが終わっても、音は止めずに鳴り終わるまで残す（光の響きの和音を長く聞かせる。2026-11-17 発案者）
+    if (progress >= 1) { running = false; render(); return; }
     raf = requestAnimationFrame(tm => frame(tm, id));
   }
   function startRun() {
     let next = phase, nextSide = side;
     if (!running && progress >= 1) { if (phase === 3 && side === 0) nextSide = 1; else { next = Math.min(4, phase + 1); nextSide = 0; } }
+    fadeThen(() => begin(next, nextSide));
+  }
+  function begin(next, nextSide) {
     stopRun();
     const id = runId;
     phase = next; side = nextSide; progress = 0; running = true; phaseStart = performance.now() + 60;
     schedule(); render();
     raf = requestAnimationFrame(tm => frame(tm, id));
   }
-  function seek(n) { stopRun(); phase = n; side = 0; progress = 0; render(); }
+  function seek(n) { fadeThen(() => { stopRun(); phase = n; side = 0; progress = 0; render(); }); }
 
   startBtn.addEventListener('click', () => { if (opts) startRun(); });
-  stopBtn.addEventListener('click', () => { stopRun(); render(); });
+  stopBtn.addEventListener('click', () => fadeThen(() => { stopRun(); render(); }));
   $('mirror-steps').addEventListener('click', e => { const b = e.target.closest('button'); if (b && opts) seek(Number(b.dataset.index)); });
   $('mirror-light').addEventListener('click', () => { audio.stopAll(); audio.chord(m.lightFrequencies, { timbre: TIMBRES.glass, duration: 1.2, strum: 0.04, level: 0.6 }); });
   $('mirror-shadow').addEventListener('click', () => { audio.stopAll(); audio.chord(m.shadowFrequencies, { timbre: TIMBRES.glass, duration: 1.2, strum: 0.04, level: 0.6 }); });
-  const finish = () => { if (!opts) return; const cb = opts.onDone; stop(); cb(); };
+  const finish = () => { if (!opts) return; const cb = opts.onDone; fadeThen(() => { stop(); cb(); }); };
   nextBtn.addEventListener('click', finish);
   $('mirror-skip').addEventListener('click', finish);
   document.addEventListener('visibilitychange', () => { if (document.hidden && running) { stopRun(); render(); } });

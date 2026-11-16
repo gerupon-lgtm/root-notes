@@ -114,3 +114,15 @@ test('音：鳴らし続ける音（第1章）は、鳴らしながら高さを�
   v.setHz(300); // 止めたあとは何もしない
   assert.equal(v.hz, 294);
 });
+
+test('音：fadeOutAll は鳴っている音をゆっくり消してから止め、出口の音量を戻す（2026-11-17 発案者「ブツっと切らずに」）', async () => {
+  const audio = new StringAudio({ createContext: () => fakeAudioContext() });
+  audio.unlock();
+  assert.equal(audio.fadeOutAll(0.05), 0); // 何も鳴っていなければ待たない
+  audio.chord([440, 550], { duration: 5 });
+  const ms = audio.fadeOutAll(0.05);
+  assert.ok(ms >= 50);
+  await new Promise(r => setTimeout(r, ms + 10));
+  assert.equal(audio.others.size, 0);
+  assert.equal(audio.master.gain.value, 0.9);
+});

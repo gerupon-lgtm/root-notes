@@ -356,9 +356,11 @@ export class StringAudio {
 
   // 第3章の鏡写しの説明「光の響き」：4・5・6 回のような刻みのパルスを、同じ割合で速めていき、最後に和音にする
   // （Codex 試作 v0.5.0 の accelerate と同じ。後半は聞き取りを助ける同じ周期の正弦波を重ねる）。ticks：刻みの数、factor：最後の倍率
-  mirrorPulses(ticks, factor, { duration = 4 } = {}) {
+  // hold：和音になってから、そのまま鳴らす長さ。release：そのあと消えるまでの長さ
+  // （2026-11-17 発案者「パルスが上がったあとの和音の長さを伸ばして」。前は 0.65秒鳴らして 0.25秒で消していた）
+  mirrorPulses(ticks, factor, { duration = 4, hold = 3.5, release = 1.5 } = {}) {
     if (!this.ctx) return;
-    const c = this.ctx, t = c.currentTime + 0.06, end = t + duration + 0.92;
+    const c = this.ctx, t = c.currentTime + 0.06, top = t + duration + hold, end = top + release + 0.02;
     for (const n of ticks) {
       const length = Math.round(c.sampleRate / n), buf = c.createBuffer(1, length, c.sampleRate), d = buf.getChannelData(0), pulse = Math.round(c.sampleRate * 0.012);
       const mean = (pulse * 0.375) / length;
@@ -366,10 +368,10 @@ export class StringAudio {
       const src = c.createBufferSource(), g = c.createGain();
       src.buffer = buf; src.loop = true;
       src.playbackRate.setValueAtTime(1, t); src.playbackRate.exponentialRampToValueAtTime(factor, t + duration);
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.11, t + 0.04); g.gain.setValueAtTime(0.11, t + duration + 0.65); g.gain.linearRampToValueAtTime(0, t + duration + 0.9);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.11, t + 0.04); g.gain.setValueAtTime(0.11, top); g.gain.linearRampToValueAtTime(0, top + release);
       const o = c.createOscillator(), og = c.createGain();
       o.frequency.setValueAtTime(n, t); o.frequency.exponentialRampToValueAtTime(n * factor, t + duration);
-      og.gain.setValueAtTime(0, t); og.gain.setValueAtTime(0, t + duration * 0.6); og.gain.linearRampToValueAtTime(0.045, t + duration); og.gain.setValueAtTime(0.045, t + duration + 0.65); og.gain.linearRampToValueAtTime(0, t + duration + 0.9);
+      og.gain.setValueAtTime(0, t); og.gain.setValueAtTime(0, t + duration * 0.6); og.gain.linearRampToValueAtTime(0.045, t + duration); og.gain.setValueAtTime(0.045, top); og.gain.linearRampToValueAtTime(0, top + release);
       src.connect(g); g.connect(this.input); o.connect(og); og.connect(this.input);
       src.start(t); src.stop(end); o.start(t); o.stop(end);
       const handle = { stopped: false, stop: () => { if (handle.stopped) return; handle.stopped = true; const now = c.currentTime; for (const x of [g, og]) { x.gain.cancelScheduledValues(now); x.gain.setValueAtTime(x.gain.value, now); x.gain.linearRampToValueAtTime(0, now + 0.03); } try { src.stop(now + 0.05); o.stop(now + 0.05); } catch { /* 止まっている */ } this.others.delete(handle); } };
@@ -382,5 +384,26 @@ export class StringAudio {
     for (const v of [...this.plucks, ...this.others]) v.stop();
     this.timers.forEach(clearTimeout);
     this.timers = [];
+    this.#endFade();
+  }
+
+  // 鳴っている音を、ブツっと切らずに seconds 秒で消してから止める（2026-11-17 発案者「次へでブツっと切らずに消音して次へ」）。
+  // 出口の音量をゆっくり0にし、消えきったら全部止めて音量を戻す。待つミリ秒を返す（この間に次の音を鳴らさない）
+  fadeOutAll(seconds = 0.5) {
+    if (!this.ctx || !this.master || (!this.plucks.size && !this.others.size && !this.timers.length)) { this.stopAll(); return 0; }
+    this.#endFade();
+    const g = this.master.gain, now = this.ctx.currentTime;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(g.value, now);
+    g.linearRampToValueAtTime(0, now + seconds);
+    this.fading = setTimeout(() => { this.fading = 0; this.stopAll(); }, seconds * 1000 + 20);
+    return seconds * 1000 + 40;
+  }
+  #endFade() {
+    if (this.fading) { clearTimeout(this.fading); this.fading = 0; }
+    if (!this.master) return;
+    const g = this.master.gain, now = this.ctx.currentTime;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(this.muted ? 0 : 0.9, now);
   }
 }
