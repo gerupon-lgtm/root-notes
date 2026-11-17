@@ -41,19 +41,19 @@ export const PROLOGUE = Object.freeze([
   {
     id: 'p1', place: '伝承の時代　鍛冶場',
     layers: [forge, ...bells(), hammer],
-    narration: 'むかし、ある鍛冶場で、ハンマーが鐘を打っていたと伝えられています。',
+    narration: 'むかし、ある鍛冶場でハンマーを振るって鐘を鍛えていました。できあがった鐘を鳴らすと澄んだ音が響きました。',
     cues: [ring(0.3, 12), ring(1.3, 9), ring(2.3, 8), ring(3.3, 6)]
   },
   {
     id: 'p2', place: '伝承の時代　鍛冶場',
     layers: [forge, ...bells(), hammer],
-    narration: '2つずつ重ねて鳴らすと、澄んだ響きが生まれました。',
+    narration: '二つずつ重ねて鳴らすと美しい響きが生まれました。',
     cues: [ring(0.3, 12, 6), ring(2.1, 12, 8), ring(3.9, 12, 9)]
   },
   {
     id: 'p3', place: '伝承の時代　鍛冶場',
     layers: [forge, { art: 'shadow-order', x: 180, y: 270, w: 920, cls: 'shade' }, ...bells([12, 6])],
-    narration: 'ただ、大きさの近い2つの鐘を重ねたときだけ、響きが濁ったのです。',
+    narration: 'ところが大きさの近い二つの鐘を同時に鳴らしたときだけ、響きが濁ったのです。',
     cues: [ring(0.4, 9, 8), ring(2.6, 9, 8)]
   },
   {
@@ -77,7 +77,7 @@ export const PROLOGUE = Object.freeze([
       { art: 'forge-legend', x: 0, y: 0, w: 1280, cls: 'fade-out' },
       { art: 'shadow-order', x: 180, y: 270, w: 920, cls: 'shade fade-out' }
     ],
-    narration: '長い時が流れました。打たれた鐘たちは、遠い祭壇で星の光に鳴らされているといいます。ひとつひとつは澄んだ一音。重なるのは、余韻だけ。',
+    narration: '長い時が流れました。鍛えられた鐘たちは、遠い祭壇で星の光に鳴らされているといいます。ひとつひとつは澄んだ一音。重なるのは、余韻だけ。',
     cues: [ring(2.2, 12), ring(2.9, 8), ring(3.6, 6)]
   },
   {
