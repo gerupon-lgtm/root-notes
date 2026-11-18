@@ -19,6 +19,8 @@ let audioRequest = 0;
 let current = '';
 let effects = {};
 let cannotPlay = false;
+let screenLock = null;
+let screenLockPending = false;
 
 function clock(seconds) {
   const n = Math.max(0, Math.floor(seconds));
@@ -160,9 +162,39 @@ function tick() {
   sync();
   frame = requestAnimationFrame(tick);
 }
+function canKeepScreenOn() {
+  return mode === 'song' && document.visibilityState === 'visible'
+    && !music.paused && !music.ended && !music.error;
+}
+async function keepScreenOn() {
+  if (!navigator.wakeLock || screenLock || screenLockPending || !canKeepScreenOn()) return;
+  screenLockPending = true;
+  try {
+    const lock = await navigator.wakeLock.request('screen');
+    if (!canKeepScreenOn()) {
+      await lock.release();
+      return;
+    }
+    if (lock.released) return;
+    screenLock = lock;
+    lock.addEventListener('release', () => {
+      if (screenLock === lock) screenLock = null;
+    }, { once:true });
+  } catch {
+    // 端末が画面の点灯維持を許可しない場合も、曲はそのまま再生する。
+  } finally {
+    screenLockPending = false;
+  }
+}
+function allowScreenSleep() {
+  const lock = screenLock;
+  screenLock = null;
+  if (lock && !lock.released) void lock.release().catch(() => {});
+}
 function pauseMusic() {
   audioRequest++;
   music.pause();
+  allowScreenSleep();
   cancelAnimationFrame(frame);
   frame = 0;
 }
@@ -247,12 +279,18 @@ next.addEventListener('click', () => {
 back.addEventListener('click', () => choose(afterSong[afterIndex - 1]?.id ?? 'coda'));
 music.addEventListener('loadedmetadata', render);
 music.addEventListener('seeking', sync);
-music.addEventListener('pause', sync);
+music.addEventListener('pause', () => {
+  if (music.paused) allowScreenSleep();
+  sync();
+});
 music.addEventListener('playing', () => {
   if (mode !== 'song' || music.paused) return;
+  void keepScreenOn();
   if (!frame) tick();
 });
+music.addEventListener('error', allowScreenSleep);
 music.addEventListener('ended', () => {
+  allowScreenSleep();
   if (mode === 'song' && music.ended) choose(afterSong[0].id);
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { pauseMusic(); render(); } });
