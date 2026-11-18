@@ -12,7 +12,6 @@ const status = byId('status');
 const reduce = matchMedia('(prefers-reduced-motion: reduce)');
 const expectedDuration = 199.5;
 let mode = 'opening';
-let afterIndex = 0;
 let songPosition = 0;
 let frame = 0;
 let audioRequest = 0;
@@ -39,7 +38,7 @@ function atSongTime(seconds) {
 }
 function selectedSlide() {
   if (mode === 'opening') return opening;
-  if (mode === 'after') return afterSong[afterIndex];
+  if (mode === 'after') return credits;
   return atSongTime(songPosition);
 }
 function img(file, cls) {
@@ -75,49 +74,49 @@ function draw(slide) {
     }
   }
   if (slide.sky) art.append(img('temple-sky-sanctuary-no-sky.webp', 'fill'));
-  if (slide.id === 'theme' || slide.id === 'coda') {
+  if (slide.id === 'theme' || slide.pictureKey === 'reunion') {
     effects.light = document.createElement('div');
     effects.light.className = 'altar-light';
     art.append(effects.light);
   }
   for (const item of slide.art ?? []) {
     art.append(styledLayer(item, 'layer'));
-    if (item.strike !== undefined) {
+    if (item.strikes) {
       const glow = styledLayer(item, 'strike');
       art.append(glow);
-      effects.bells.push({ at:item.strike, glow });
+      effects.bells.push({ strikes:item.strikes, glow });
     }
   }
   art.append(Object.assign(document.createElement('div'), {className:'vignette'}));
-  if (slide.id === 'credits') {
+  if (slide.credit) {
     const lettering = document.createElement('div');
     lettering.className = 'credit-name';
     const name = document.createElement('strong');
-    name.textContent = 'ROOT NOTES';
+    name.textContent = 'SIKUMI LAB';
     const series = document.createElement('small');
-    series.textContent = 'SIKUMI NOTES 04';
+    series.textContent = 'ROOT NOTES';
     lettering.append(name,series);
     art.append(lettering);
   }
   picture.replaceChildren(art);
-  picture.setAttribute('aria-label',slide.alt);
-  picture.dataset.scene = slide.id;
+  picture.dataset.composition = slide.pictureKey ?? slide.id;
 }
 const clamp = n => Math.max(0, Math.min(1, n));
 function animate(slide, time) {
-  for (const {at, glow} of effects.bells) {
-    const diff = time - at;
-    glow.style.opacity = mode === 'song' && !reduce.matches && diff >= 0 && diff < 1.5
+  for (const {strikes, glow} of effects.bells) {
+    const strike = strikes.findLast(cue => cue <= time);
+    const diff = strike === undefined ? Infinity : time - strike;
+    glow.style.opacity = mode === 'song' && !reduce.matches && diff < 1.5
       ? 0.85 * Math.exp(-diff * 3.2) : 0;
   }
   for (const [i, star] of effects.stars.entries()) {
     star.style.opacity = slide.id === 'theme' && !reduce.matches
-      ? clamp((time - 8.3 - i * 1.35) / 1.2) : 1;
+      ? clamp((time - slide.at - i * 1.35) / 1.2) : 1;
   }
   if (!effects.light) return;
   let level = 0.64;
-  if (slide.id === 'coda') {
-    // 音源の目印に合わせる。打楽器が抜けてから低いCの余韻まで同じ絵を保つ。
+  if (slide.pictureKey === 'reunion') {
+    // 二人の会話から最後の低いCの余韻まで、同じ絵のまま光を変える。
     if (time >= 189.6) level = .78 - .35 * clamp((time - 189.6) / 3.6);
     if (time >= 193.2) level = .43 + .39 * clamp((time - 193.2) / 3);
     if (time >= 196.2) level = .82 * (1 - .86 * clamp((time - 196.2) / 3.3));
@@ -128,7 +127,9 @@ function render() {
   const slide = selectedSlide();
   if (slide.id !== current) {
     current = slide.id;
-    draw(slide);
+    if (picture.dataset.composition !== (slide.pictureKey ?? slide.id)) draw(slide);
+    picture.setAttribute('aria-label',slide.alt);
+    picture.dataset.scene = slide.id;
     byId('place').textContent = slide.place;
     byId('title').textContent = slide.title;
     byId('speaker').textContent = slide.speaker ?? '';
@@ -146,7 +147,7 @@ function render() {
   back.hidden = mode !== 'after';
   next.textContent = mode === 'opening' ? '曲を聴く ▶' :
     mode === 'song' ? '曲のあとの場面へ ▶' :
-    afterIndex === afterSong.length-1 ? 'はじめに戻る' : 'つづき ▶';
+    'はじめに戻る';
   seek.max = duration();
   seek.value = songPosition;
   byId('time').textContent = clock(songPosition) + ' / ' + clock(duration());
@@ -238,14 +239,13 @@ function choose(id) {
     if (slide) {
       openFilmAt(slide.at);
     } else {
-      afterIndex = Math.max(0, afterSong.findIndex(item => item.id === id));
       mode = 'after';
       songPosition = duration();
     }
   }
   render();
 }
-for (const [label, slides] of [['曲の前',[opening]],['曲の中',songSlides],['曲のあと',afterSong]]) {
+for (const [label, slides] of [['曲の前',[opening]],['曲の中',songSlides],['曲のあと',[credits]]]) {
   const group = document.createElement('optgroup');
   group.label = label;
   for (const slide of slides) {
@@ -273,10 +273,10 @@ transport.addEventListener('click', () => {
 mute.addEventListener('click', () => {music.muted = !music.muted; renderMute();});
 next.addEventListener('click', () => {
   if (mode === 'opening') void playMusic();
-  else if (mode === 'song') choose(afterSong[0].id);
-  else choose(afterSong[afterIndex + 1]?.id ?? opening.id);
+  else if (mode === 'song') choose(credits.id);
+  else choose(opening.id);
 });
-back.addEventListener('click', () => choose(afterSong[afterIndex - 1]?.id ?? 'coda'));
+back.addEventListener('click', () => choose(songSlides.at(-1).id));
 music.addEventListener('loadedmetadata', render);
 music.addEventListener('seeking', sync);
 music.addEventListener('pause', () => {
@@ -291,7 +291,7 @@ music.addEventListener('playing', () => {
 music.addEventListener('error', allowScreenSleep);
 music.addEventListener('ended', () => {
   allowScreenSleep();
-  if (mode === 'song' && music.ended) choose(afterSong[0].id);
+  if (mode === 'song' && music.ended) choose(credits.id);
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { pauseMusic(); render(); } });
 window.addEventListener('pagehide', pauseMusic);
@@ -300,7 +300,7 @@ renderMute();
 render();
 // 場面切り替え前に、繰り返し使う絵をキャッシュへ読み込む。
 for (const file of new Set(['stars-night-empty.webp','temple-sky-sanctuary-no-sky.webp',
-  ...[opening,...songSlides,...afterSong].flatMap(slide => [slide.bg,...(slide.art ?? []).map(item => item.file)]).filter(Boolean)])) {
+  ...[opening,...songSlides].flatMap(slide => [slide.bg,...(slide.art ?? []).map(item => item.file)]).filter(Boolean)])) {
   const preview = new Image();
   preview.src = 'art/' + file;
 }

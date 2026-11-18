@@ -7,11 +7,14 @@ const opening = {
   bg:'temple-final-door-open.webp', alt:'開いた扉の向こうで新たな響きを聴く弦の精霊。',
   art:[layer('spirit-confused.webp',12,48,19),layer('root2-resonance.webp',47,21,35)]
 };
+const reunion = {
+  place:'祭壇の部屋', sky:true, pictureKey:'reunion',
+  art:[layer('spirit-smiling.webp',23,33,27),layer('star-spirit.png',53,27,25)]
+};
 const songSlides = [
-  {id:'bells', at:0, place:'鍛冶場の記憶', title:'四つの鐘', words:'あの鍛冶場で打たれた鐘が、ひとつずつ応えます。',
-   bg:'forge-legend.webp', alt:'鍛冶場の台に並ぶ大きさの異なる四つの鐘。',
-   art:[layer('bell-12.webp',16,30,22,{strike:0}),layer('bell-9.webp',37,39,16.5,{strike:2.2}),
-        layer('bell-8.webp',55,42,14.67,{strike:4.4}),layer('bell-6.webp',72,48,11,{strike:6.6})]},
+  {id:'bells', at:0, place:'鍛冶場の記憶', title:'ひとつの鐘', words:'あの鍛冶場で打たれた鐘が、ふたたび応えます。',
+   bg:'forge-legend.webp', alt:'鍛冶場の台に置かれた、青と金の飾り枠に収まる一つの鐘。',
+   art:[layer('prism-bell.png',34,8,32,{strikes:[0,2.2,4.4,6.6]})]},
   {id:'theme', at:8.3, place:'祭壇の部屋', title:'天の歌', words:'ばらばらだった響きが、ひとつずつ、歌の中へ戻っていきます。',
    sky:true, alt:'天井に夜空が開いた神殿の祭壇。星が少しずつ灯る。'},
   {id:'shield', at:29, place:'解かれた封音', title:'盾', words:'守りきれなかった記憶を抱えながら、次の響きが来るまで、そばにいる。',
@@ -26,23 +29,18 @@ const songSlides = [
    sky:true, alt:'祭壇の上に浮かぶ√2の響き。', art:[layer('root2-resonance.webp',24,5,52)]},
   {id:'star', at:130, place:'遠い祭壇', title:'星の精霊', words:'星の光と鐘の余韻をたどってきた精霊も、その歌に耳を澄ませていました。',
    bg:'altar-bell-distant.webp', alt:'星の光が届く遠い祭壇と、星の精霊。', art:[layer('star-spirit.png',62,14,29)]},
-  {id:'credits', at:150, place:'スタッフロール', title:'ROOT NOTES', credit:true, words:'企画・制作　SIKUMI LAB',
-   bg:'stars-night-empty.webp', alt:'スタッフクレジット。夜空に浮かぶROOT NOTESの文字。'},
-  {id:'thanks', at:166, place:'スタッフロール', title:'旅をともにした、あなたへ', credit:true, words:'最後まで遊んでくださり、ありがとうございました。',
-   bg:'stars-night-empty.webp', alt:'静かな夜空に八つの星。'},
-  {id:'coda', at:179, place:'祭壇の部屋', title:'天の歌の余韻', words:'',
-   sky:true, alt:'星がそろった神殿。祭壇の光がゆっくり静まる。'}
-];
-const afterSong = [
-  {id:'distant', place:'曲のあと・遠い祭壇', title:'鐘の余韻', words:'かつて星の光を受けて鳴った鐘。その余韻が、今夜はいつもと少し違う重なり方をしました。',
+  {id:'distant', at:150, place:'遠い祭壇', title:'鐘の余韻', words:'かつて星の光で鳴った鐘。その余韻が、今夜の歌と重なります。',
    bg:'altar-bell-distant.webp', alt:'星の光が降り注ぐ、遠い祭壇の鐘。'},
-  {id:'memory', place:'祭壇の部屋', title:'思い出した言葉', speaker:'星の精霊', words:'「その響きにも、居場所がある」。あのとき、あなたは何度もそう言いましたね。',
-   sky:true, alt:'祭壇の前で、星の精霊が弦の精霊に語りかける。',
-   art:[layer('spirit-listening.webp',18,38,24),layer('star-spirit.png',60,29,23)]},
-  {id:'hearing', place:'祭壇の部屋', title:'一音の、その先', speaker:'星の精霊', words:'わたしは、その響きだけを聴いていました。さっきの歌では、あの響きが次の音へ導いていたのですね。',
-   sky:true, alt:'星の精霊が弦の精霊に向き合い、天の歌で聴いたことを話す。',
-   art:[layer('spirit-listening.webp',17,38,24),layer('star-spirit.png',59,28,25)]},
-  {id:'together', place:'祭壇の部屋', title:'今度は', speaker:'弦の精霊', words:'ええ。今度は、一緒に聴けますね。',
-   sky:true, alt:'祭壇と夜空の前で並ぶ弦の精霊と星の精霊。',
-   art:[layer('spirit-smiling.webp',23,33,27),layer('star-spirit.png',53,27,25)]}
+  {...reunion, id:'reunion', at:166, title:'ふたたび', words:'鐘の余韻をたどって、星の精霊が弦の精霊のそばへ。',
+   alt:'夜空の下の祭壇で、二人の精霊が再会する。'},
+  {...reunion, id:'memory', at:179, title:'思い出した言葉', speaker:'星の精霊',
+   words:'「その響きにも、居場所がある」。あの響きが、次の音へ導いていたのですね。',
+   alt:'祭壇の前で、星の精霊が弦の精霊に語りかける。'},
+  {...reunion, id:'together', at:189.6, title:'今度は', speaker:'弦の精霊', words:'ええ。今度は、一緒に聴けますね。',
+   alt:'祭壇と夜空の前で並ぶ二人の精霊。弦の精霊が答える。'}
 ];
+const credits = {
+  id:'credits', place:'クレジット', title:'旅をともにした、あなたへ', credit:true,
+  words:'最後まで遊んでくださり、ありがとうございました。',
+  alt:'夜空に浮かぶ SIKUMI LAB と ROOT NOTES の文字。'
+};
