@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>ROOT NOTES｜エンディング試作</title>
+  <link rel="stylesheet" href="ending.css?v=0.1.0">
+  <script defer src="scenes.js?v=0.1.0"></script>
+  <script defer src="ending.js?v=0.1.0"></script>
+</head>
+<body>
+<main class="ending">
+  <header>
+    <div class="brand">ROOT <small>NOTES</small></div>
+    <div class="edition">エンディング試作 <span>v0.1.0</span></div>
+    <button id="mute" type="button" aria-label="消音" aria-pressed="false" title="消音"></button>
+  </header>
+  <section class="story" aria-label="エンディング">
+    <figure id="picture" aria-label=""></figure>
+    <div class="reading">
+      <p id="place" class="place"></p>
+      <h1 id="title"></h1>
+      <p id="speaker" class="speaker" hidden></p>
+      <p id="words" class="words"></p>
+      <nav class="page-actions" aria-label="場面の操作">
+        <button id="back" type="button">前へ</button>
+        <button id="advance" type="button" class="major">曲を聴く ▶</button>
+      </nav>
+    </div>
+  </section>
+  <section class="controls" aria-label="曲とスライドの確認">
+    <div class="track">
+      <button id="transport" type="button" aria-label="曲を再生" title="曲を再生">▶</button>
+      <span id="time">0:00 / 3:19</span>
+      <input type="range" id="seek" min="0" max="199.5" step="0.01" value="0" aria-label="曲の再生位置">
+    </div>
+    <div class="review">
+      <label for="scenes">場面を確認</label>
+      <select id="scenes"></select>
+    </div>
+    <p id="status" role="status" hidden></p>
+  </section>
+  <audio id="music" preload="metadata" src="ROOT_NOTES_full_v0.26.mp3"></audio>
+</main>
+</body>
+</html>

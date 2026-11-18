@@ -3,7 +3,7 @@
 // スマホのブラウザが前の版の部品を使い続けることがない。
 // 通信なしで遊ぶ仕組み（段階7。docs/design/段階7_PWA.md）：worker（sw.js）に版・資材の一覧・資材ごとの照合値（SHA-256）を書き込み、
 // マニフェストと、index.html の印（OFFLINE_METADATA）を置き換える。アイコンは public/ にあれば入れる（Codex に依頼中）
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, rmSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, cpSync, rmSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, posix, resolve, dirname, sep } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -52,6 +52,12 @@ export function build({ root = repo, output = join(root, 'dist') } = {}) {
   if (existsSync(audition)) {
     mkdirSync(join(output, 'audition'), { recursive: true });
     for (const name of readdirSync(audition)) if (name.endsWith('.html')) copyFileSync(join(audition, name), join(output, 'audition', name));
+  }
+  // エンディングの確認ページは、絵と音源を含め audition/ にまとめて配信する。
+  const endingPreview = 'ending-v0.1.0';
+  const endingPreviewSource = join(root, 'previews', endingPreview);
+  if (existsSync(endingPreviewSource)) {
+    cpSync(endingPreviewSource, join(output, 'audition', endingPreview), { recursive: true });
   }
 
   // アイコンは版のフォルダの外の決まった場所にも置き、マニフェストと画面はこちらを指す（AQUA 2026-11-03：
