@@ -61,7 +61,7 @@ export function createEndingScreen({ audio, onTitle }) {
     const art = document.createElement('div');
     art.className = 'frame';
     art.setAttribute('aria-hidden', 'true');
-    const sky = slide.sky || slide.credit;
+    const sky = slide.sky;
     art.append(img(sky ? 'stars-night-empty.webp' : slide.bg, 'fill'));
     effects = { bells:[], stars:[], light:null };
     if (sky) {
@@ -88,15 +88,27 @@ export function createEndingScreen({ audio, onTitle }) {
         effects.bells.push({ strikes:item.strikes, glow });
       }
     }
-    art.append(Object.assign(document.createElement('div'), {className:'vignette'}));
+    if (!slide.credit) art.append(Object.assign(document.createElement('div'), {className:'vignette'}));
     if (slide.credit) {
       const lettering = document.createElement('div');
       lettering.className = 'credit-name';
       const name = document.createElement('strong');
+      name.className = 'credit-lab';
       name.textContent = 'SIKUMI LAB';
-      const series = document.createElement('small');
-      series.textContent = 'ROOT NOTES';
-      lettering.append(name,series);
+      const series = document.createElement('div');
+      series.className = 'credit-series';
+      for (const word of ['SIKUMI', 'NOTES']) {
+        const line = document.createElement('span');
+        line.textContent = word;
+        series.append(line);
+      }
+      const number = document.createElement('b');
+      number.textContent = '04';
+      series.append(number);
+      const title = document.createElement('div');
+      title.className = 'credit-title';
+      title.textContent = 'ROOT NOTES';
+      lettering.append(name, series, title);
       art.append(lettering);
     }
     picture.replaceChildren(art);

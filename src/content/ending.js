@@ -41,8 +41,9 @@ const songSlides = [
 ];
 const credits = {
   id:'credits', place:'クレジット', title:'旅をともにした、あなたへ', credit:true,
+  bg:'credits-spirits.png',
   words:'最後まで遊んでくださり、ありがとうございました。',
-  alt:'夜空に浮かぶ SIKUMI LAB と ROOT NOTES の文字。'
+  alt:'深緑の工房で、二人の精霊が三角形の琴を囲む。SIKUMI LAB、SIKUMI NOTES 04、ROOT NOTES。'
 };
 
 export { endingStars, opening, songSlides, credits };
