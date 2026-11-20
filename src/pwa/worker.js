@@ -135,6 +135,27 @@ async function fromOldCaches(request) {
   return null;
 }
 
+// 保存した音源も、再生位置に応じて必要な範囲だけ返す（スマホの早送り・通信なし再生）。
+async function mediaRange(request, response) {
+  const range = request.headers?.get('range');
+  if (!range || !new URL(request.url).pathname.endsWith('.mp3')) return response;
+  const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+  if (!match || (!match[1] && !match[2])) return response;
+  const bytes = await response.arrayBuffer();
+  const length = bytes.byteLength;
+  const start = match[1] ? Number(match[1]) : Math.max(0, length - Number(match[2]));
+  const end = match[1] && match[2] ? Math.min(Number(match[2]), length - 1) : length - 1;
+  if (start >= length || start > end) {
+    return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${length}` } });
+  }
+  const headers = new Headers(response.headers);
+  headers.delete('content-encoding');
+  headers.set('Accept-Ranges', 'bytes');
+  headers.set('Content-Range', `bytes ${start}-${end}/${length}`);
+  headers.set('Content-Length', String(end - start + 1));
+  return new Response(bytes.slice(start, end + 1), { status: 206, headers });
+}
+
 self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
@@ -156,10 +177,10 @@ self.addEventListener('fetch', event => {
     }
     try {
       const hit = await (await caches.open(CACHE)).match(request, { ignoreSearch: true });
-      if (hit) return hit;
+      if (hit) return mediaRange(request, hit);
     } catch { /* 保存場所が使えないときは通信へ */ }
     // 前の版の画面を開いたままのタブも、その版の保存で続けられる
     const old = await fromOldCaches(request);
-    return old ?? fetch(request);
+    return old ? mediaRange(request, old) : fetch(request);
   })());
 });

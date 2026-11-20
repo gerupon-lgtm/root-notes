@@ -8,6 +8,7 @@ import { createStoryScreen } from './story-screen.js';
 import { createRiddleScreen } from './riddle-screen.js';
 import { createFinalScreen } from './final-screen.js';
 import { createMirrorScreen } from './mirror-screen.js';
+import { createEndingScreen } from './ending-screen.js';
 import { storyArt } from '../content/story.js';
 import { setupOffline } from './offline.js';
 import { artPath } from '../content/assets.js';
@@ -34,7 +35,8 @@ const screens = {
   story: document.getElementById('story-screen'),
   riddle: document.getElementById('riddle-screen'),
   final: document.getElementById('final-screen'),
-  mirror: document.getElementById('mirror-screen')
+  mirror: document.getElementById('mirror-screen'),
+  ending: document.getElementById('ending-screen')
 };
 
 if (Object.values(screens).every(Boolean)) {
@@ -49,8 +51,10 @@ if (Object.values(screens).every(Boolean)) {
   const riddle = createRiddleScreen({ audio });
   const final = createFinalScreen({ audio });
   const mirror = createMirrorScreen({ audio });
+  const ending = createEndingScreen({ audio, onTitle: () => flow.toTitle() });
+  put('ending-version', `${COPYRIGHT}　v${APP_VERSION}`);
   document.getElementById('mirror-bg').src = storyArt('temple-entrance-corridor');
-  const flow = createFlow({ audio, screens, mono, stage, story, riddle, final, mirror, onTitle: showTitle });
+  const flow = createFlow({ audio, screens, mono, stage, story, riddle, final, mirror, ending, onTitle: showTitle });
 
   // 共通の消音（全画面のヘッダの右上の端。どの画面で押しても同じ状態。端末に記録する。2026-11-15 発案者）
   const SOUND_KEY = 'root-notes-sound-v1';
@@ -64,12 +68,14 @@ if (Object.values(screens).every(Boolean)) {
     for (const b of document.querySelectorAll('[data-sound]')) b.classList.toggle('on', (b.dataset.sound === 'off') === muted);
   };
   audio.setMuted(muted);
+  ending.setMuted(muted);
   renderMute();
   document.addEventListener('click', e => {
     const pick = e.target.closest('[data-sound]');
     if (!pick && !e.target.closest('.mute-btn')) return;
     muted = pick ? pick.dataset.sound === 'off' : !muted;
     audio.setMuted(muted);
+    ending.setMuted(muted);
     try { localStorage.setItem(SOUND_KEY, muted ? 'off' : 'on'); } catch { /* 記録できない端末 */ }
     renderMute();
   });
@@ -119,6 +125,10 @@ if (Object.values(screens).every(Boolean)) {
     launching = true;
     setTimeout(() => { launching = false; flow.start(b.dataset.start); }, LAUNCH_DELAY_MS);
   });
+  // 実機確認用。保存済みの連続プレイとは別の手持ちで、最後の扉から通せる。
+  if (new URLSearchParams(location.search).get('check') === 'ending') {
+    flow.checkEnding();
+  }
 }
 
 // 通信なしで遊ぶ仕組みと、新しい版の知らせ（段階7）。公開用にまとめた版だけで動く

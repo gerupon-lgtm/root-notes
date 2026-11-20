@@ -66,6 +66,24 @@ function boot(rel, { caches = makeCaches(), network = {}, fastTimers = false } =
 const online = rel => Object.fromEntries(rel.assets.map(a => [new URL(a, ORIGIN).href, rel.body[a]]));
 const full = rel => Object.fromEntries(rel.assets.map(a => [new URL(a, ORIGIN).href, rel.body[a]]));
 
+test('保存したMP3を、範囲・末尾・範囲外の指定で返す。通常取得も保持する', async () => {
+  const rel = release('0.9.43');
+  const url = ORIGIN + 'v0.9.43/song.mp3';
+  const w = boot(rel, { caches: makeCaches({ 'root-notes-0.9.43': { ...full(rel), [url]: '0123456789' } }) });
+  for (const [range, expected, contentRange] of [['bytes=2-5', '2345', 'bytes 2-5/10'], ['bytes=7-', '789', 'bytes 7-9/10'], ['bytes=-3', '789', 'bytes 7-9/10']]) {
+    const res = await w.fire('fetch', { request: new Request(url, { headers: { Range: range } }) });
+    assert.equal(res.status, 206);
+    assert.equal(res.headers.get('content-range'), contentRange);
+    assert.equal(await res.text(), expected);
+  }
+  const bad = await w.fire('fetch', { request: new Request(url, { headers: { Range: 'bytes=20-30' } }) });
+  assert.equal(bad.status, 416);
+  const whole = await w.fire('fetch', { request: new Request(url) });
+  assert.equal(whole.status, 200);
+  assert.equal(await whole.text(), '0123456789');
+  assert.equal(w.fetched.length, 0);
+});
+
 test('準備で全資材を保存し、自分の版と準備済みを返す', async () => {
   const rel = release('0.2.0');
   const w = boot(rel, { network: online(rel) });

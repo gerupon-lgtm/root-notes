@@ -24,7 +24,7 @@ const LEVEL_IDS = ['free', 'normal', 'expert'];
 const levelNote = m => (m.lives === Infinity ? '制限なし。和音もメーターも自由' : `失敗${m.lives}回まで・メーター${m.meterCount}回`);
 function localStore() { try { return globalThis.localStorage ?? null; } catch { return null; } }
 
-export function createFlow({ audio, screens, mono, stage, story, riddle, final, mirror, onTitle }) {
+export function createFlow({ audio, screens, mono, stage, story, riddle, final, mirror, ending, onTitle }) {
   const card = document.getElementById('interlude-card');
   let mode = 'free';
   // 序を見たかの記録（2回目からは飛ばせる。要件6.10）。案内の記録と同じ場所に 'prologue' として残す
@@ -48,7 +48,7 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
   const show = name => {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
   };
-  const toTitle = () => { audio.stopAll(); mono.stop(); story.stop(); riddle.stop(); final.stop(); mirror.stop(); show('title'); onTitle(); };
+  const toTitle = () => { ending.stop(); audio.stopAll(); mono.stop(); story.stop(); riddle.stop(); final.stop(); mirror.stop(); show('title'); onTitle(); };
   // 第3章「光の響きから影の琴へ」（鏡写しの説明）。毎回出し、2回目からは「飛ばす」。終わったら遊ぶ画面へ戻る
   const showMirror = (pair, done) => {
     const seen = !book.shouldAuto('mirror');
@@ -184,7 +184,7 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
       onZap: miss => zap(step, play, miss),
       onDoor: () => {
         show('story');
-        story.play(ENDING, { title: '結末', endLabel: 'エンディング作成中', phrase: songOf('ch2'), onDone: () => { if (run) { progress.clearContinuous(); run = null; } finishedAll(); } });
+        story.play(ENDING.slice(0, 1), { title: '結末', endLabel: '天の歌を聴く', onDone: () => { if (run) { progress.clearContinuous(); run = null; } finishedAll(); } });
       }
     });
   }
@@ -221,7 +221,16 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
   // 最後まで通したとき
   function finishedAll() {
     audio.stopAll();
-    interlude({ eyebrow: 'ROOT NOTES', title: 'エンディング作成中', lines: ['最後まで遊んでくれて、ありがとうございました。'], buttons: [['タイトルへ', toTitle, true]] });
+    show('ending');
+    ending.play();
+  }
+
+  function checkEnding() {
+    run = null;
+    mode = 'free';
+    const play = new FinalPlay({ artifacts: Object.fromEntries(GATES.map(g => [g.art, g.answer])) });
+    for (const g of GATES) play.offer(play.hand.findIndex(h => !h.door && h.n === g.answer));
+    playFinal(stepById('final'), play);
   }
 
   // 連続プレイ：遊び方を選ぶ（FLOAT の levels() と同じ形：説明文と、名前に一言を添えた3つのボタン）
@@ -305,5 +314,5 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
     if (saved) offerResume(saved, fresh); else fresh();
   }
 
-  return { start, toTitle, steps: FLOW };
+  return { start, toTitle, checkEnding, steps: FLOW };
 }

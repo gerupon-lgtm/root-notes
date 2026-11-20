@@ -35,7 +35,7 @@ export function build({ root = repo, output = join(root, 'dist') } = {}) {
     for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
       const source = posix.join(dir, entry.name);
       if (entry.isDirectory()) { if (source !== 'src/pwa') copyTree(source); continue; }
-      if (!/\.(js|css|png|svg|webp|ttf|txt)$/.test(entry.name)) continue;
+      if (!/\.(js|css|png|svg|webp|ttf|txt|mp3)$/.test(entry.name)) continue;
       // アプリのアイコンは版のフォルダの外にだけ置く（下の icons。版のフォルダにも写すと、使わない写しが保存場所に二重に入る）
       if (dir === 'public' && APP_ICONS.includes(entry.name)) continue;
       const target = posix.join(prefix, source);

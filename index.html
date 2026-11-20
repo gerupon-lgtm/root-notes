@@ -8,6 +8,7 @@
 <!-- OFFLINE_METADATA -->
 <link rel="stylesheet" href="./src/ui/style.css">
 <link rel="stylesheet" href="./src/ui/play-design.css">
+<link rel="stylesheet" href="./src/ui/ending.css">
 </head>
 <body>
 <!-- タイトル。B案「響きの工房」（発案者が採用済み。Codex 作。2026-11-14） -->
@@ -270,6 +271,37 @@
 </main>
 
 <!-- 章の間の画面（序章・章選び・まだ中身のない場面）。中身は src/ui/flow-screen.js が差し込む -->
+<main class="ending" id="ending-screen" aria-label="エンディング" hidden>
+  <header>
+    <div class="brand">ROOT <small>NOTES</small></div>
+    <span class="edition">エンディング</span>
+    <button type="button" data-ending="exit">タイトルへ</button>
+    <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false"></button>
+  </header>
+  <section class="ending-layout" aria-label="天の歌">
+    <figure data-ending="picture" role="img" aria-label=""></figure>
+    <div class="reading">
+      <p data-ending="place" class="place"></p>
+      <h1 data-ending="title"></h1>
+      <p data-ending="speaker" class="speaker" hidden></p>
+      <p data-ending="words" class="words"></p>
+      <nav class="page-actions" aria-label="エンディングの操作">
+        <button type="button" data-ending="advance" class="major" hidden>タイトルへ</button>
+      </nav>
+    </div>
+  </section>
+  <section class="controls" aria-label="曲の再生">
+    <div class="track">
+      <button type="button" data-ending="transport" aria-label="曲を再生">▶</button>
+      <span data-ending="time">0:00 / 3:19</span>
+      <input type="range" data-ending="seek" min="0" max="199.5" step="0.01" value="0" aria-label="曲の再生位置">
+    </div>
+    <p data-ending="status" role="status" hidden></p>
+    <footer class="edition" id="ending-version"></footer>
+  </section>
+  <audio data-ending="music" preload="none"></audio>
+</main>
+
 <main class="interlude" id="interlude-screen" hidden>
   <div class="interlude-card" id="interlude-card"></div>
 </main>
