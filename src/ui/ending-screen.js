@@ -282,7 +282,6 @@ export function createEndingScreen({ audio, onTitle }) {
   window.addEventListener('pagehide', pauseMusic);
   reduce.addEventListener('change', () => { if (active) render(); });
 
-  byId('exit').addEventListener('click', () => { stop(); onTitle(); });
   music.src = endingMusic;
   music.preload = 'none';
   function setMuted(value) { music.muted = !!value; }

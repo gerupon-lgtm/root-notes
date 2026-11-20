@@ -272,11 +272,11 @@
 
 <!-- 章の間の画面（序章・章選び・まだ中身のない場面）。中身は src/ui/flow-screen.js が差し込む -->
 <main class="ending" id="ending-screen" aria-label="エンディング" hidden>
-  <header>
-    <div class="brand">ROOT <small>NOTES</small></div>
-    <span class="edition">エンディング</span>
-    <button type="button" data-ending="exit">タイトルへ</button>
-    <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false"></button>
+  <header class="story-top">
+    <div class="story-brand">ROOT<span>NOTES</span></div>
+    <p>エンディング</p>
+    <button type="button" class="mute-btn" aria-label="音を消す" aria-pressed="false" title="音を消す"></button>
+    <button type="button" class="menu-btn" aria-label="メニュー（音・待ち・タイトルへ）" title="メニュー">☰</button>
   </header>
   <section class="ending-layout" aria-label="天の歌">
     <figure data-ending="picture" role="img" aria-label=""></figure>
@@ -297,7 +297,7 @@
       <input type="range" data-ending="seek" min="0" max="199.5" step="0.01" value="0" aria-label="曲の再生位置">
     </div>
     <p data-ending="status" role="status" hidden></p>
-    <footer class="edition" id="ending-version"></footer>
+    <footer class="play-foot" id="ending-version"></footer>
   </section>
   <audio data-ending="music" preload="none"></audio>
 </main>
