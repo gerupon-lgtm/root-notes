@@ -49,4 +49,4 @@ const credits = {
 export { endingStars, opening, songSlides, credits };
 
 export const endingArt = file => new URL('../../public/art/ending/' + file, import.meta.url).href;
-export const endingMusic = new URL('../../public/audio/ROOT_NOTES_full_v0.38.mp3', import.meta.url).href;
+export const endingMusic = new URL('../../public/audio/ROOT_NOTES_full_v0.39.mp3', import.meta.url).href;
