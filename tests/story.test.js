@@ -51,7 +51,7 @@ test('章の終わり：終1・終2 と 終4 の絵がそろい、終4 の文に
 test('最終章と結末：門・小部屋・ZAP・扉・結末の紙芝居の絵がそろっている', async () => {
   const st = await import('../src/content/story.js');
   const { GATES } = await import('../src/content/final.js');
-  const slides = [...st.FINAL_INTRO, ...st.DOOR_BEFORE, ...st.ENDING, ...st.zapSlide(1, '盾'), ...st.zapSlide(0, null)];
+  const slides = [...st.FINAL_INTRO, ...st.DOOR_BEFORE, ...st.ENDING, ...st.ENDING_INTRO, ...st.zapSlide(1, '盾'), ...st.zapSlide(0, null)];
   GATES.forEach((g, k) => slides.push(...st.gateBefore(g.art, g.name, k), ...st.gateOpened(k, g.art, g.name, [400, 500, 600], k === 2)));
   for (const s of slides) for (const l of s.layers.filter(x => !x.text)) {
     const file = l.svg ? `${STORY_ART_DIR}${l.svg}.svg` : `${STORY_ART_DIR}${l.art}.webp`;

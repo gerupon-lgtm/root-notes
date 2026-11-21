@@ -4,7 +4,7 @@
 // - 選択プレイ：章を選ぶ（第1章／第2章）→ その章の面を選ぶ
 // 中身がまだない場面は、仮の1画面（見出しと「次へ」）で通り抜ける。序章は紙芝居（src/ui/story-screen.js）
 import { FLOW, firstStep, nextStep, stepById, playableChapters } from '../game/flow.js';
-import { PROLOGUE, endBefore, endAfter, FINAL_INTRO, gateBefore, gateOpened, zapSlide, DOOR_BEFORE, ENDING } from '../content/story.js';
+import { PROLOGUE, endBefore, endAfter, FINAL_INTRO, gateBefore, gateOpened, zapSlide, DOOR_BEFORE, ENDING_INTRO } from '../content/story.js';
 import { GATES, DECOY_BY_CHAPTER, FINAL_K } from '../content/final.js';
 import { FinalPlay } from '../game/final-play.js';
 import { riddleHz } from '../content/riddles.js';
@@ -184,7 +184,7 @@ export function createFlow({ audio, screens, mono, stage, story, riddle, final, 
       onZap: miss => zap(step, play, miss),
       onDoor: () => {
         show('story');
-        story.play(ENDING.slice(0, 1), { title: '結末', endLabel: '天の歌を聴く', onDone: () => { if (run) { progress.clearContinuous(); run = null; } finishedAll(); } });
+        story.play(ENDING_INTRO, { title: '結末', endLabel: '天の歌を聴く', onDone: () => { if (run) { progress.clearContinuous(); run = null; } finishedAll(); } });
       }
     });
   }

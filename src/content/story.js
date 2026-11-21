@@ -241,3 +241,16 @@ export const ENDING = Object.freeze([
     cues: [{ at: 0.6, bells: [12] }, { at: 1.3, bells: [8] }, { at: 2.0, bells: [6] }]
   })
 ]);
+
+// 最後の扉から曲へ。2026-11-21 発案者承認の、クリアを祝う一枚を挟む。
+export const ENDING_INTRO = Object.freeze([
+  ENDING[0],
+  Object.freeze({
+    id: 'end-invitation',
+    place: '扉の向こう',
+    layers: [...ENDING[0].layers.slice(0, -1), spiritLeft('spirit-smiling')],
+    speaker: '弦の精霊',
+    say: 'この響きにも、居場所がある。\nあなたが、音たちをここまでつないでくれました。\nさあ、一緒に天の歌を奏でましょう。',
+    cues: []
+  })
+]);
